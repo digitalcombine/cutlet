@@ -48,22 +48,22 @@ The entire global environment can be removed, replaced, redefined or overridden 
    ```
 6. Blocks
 
-  Blocks are denoted with curly brackets, {}. They can be used as literal strings and can span multiple lines.
-  ```tcl
-  print {Hello World}
+   Blocks are denoted with curly brackets, {}. They can be used as literal strings and can span multiple lines.
+   ```tcl
+   print {Hello World}
 
-  def my_command {
-    command one
-    command two
-  }
-  ```
+   def my_command {
+     command one
+     command two
+   }
+   ```
 7. Comments
 
-  Lines starting with the *#* character are comment lines and are ignored by Cutlet.
-  ```tcl
-  # This is a comment.
-  print Hello # This is not a comment
-  ```
+   Lines starting with the *#* character are comment lines and are ignored by Cutlet.
+   ```tcl
+   # This is a comment.
+   print Hello # This is not a comment
+   ```
 
 **Simple Implementation**
 
