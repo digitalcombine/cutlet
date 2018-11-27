@@ -142,7 +142,7 @@ static bool is_eol(const std::string &value) {
 }
 
 /******************************************************************************
- * cutlet::utf8::Iterator Class
+ * class cutlet::utf8::iterator
  */
 
 /************************************
@@ -279,6 +279,20 @@ bool cutlet::utf8::iterator::operator ==(const iterator &other) const {
 
 bool cutlet::utf8::iterator::operator !=(const iterator &other) const {
   return _index != other._index;
+}
+
+cutlet::utf8::iterator cutlet::utf8::iterator::operator +(int value) const {
+  auto result = *this;
+  if (value > 0) for (; value > 0; ++result, --value);
+  else for (; value < 0; --result, ++value);
+  return result;
+}
+
+cutlet::utf8::iterator cutlet::utf8::iterator::operator -(int value) const {
+  auto result = *this;
+  if (value > 0) for (; value > 0; --result, --value);
+  else for (; value < 0; ++result, ++value);
+  return result;
 }
 
 /**************************************
@@ -428,7 +442,7 @@ void cutlet_tokenizer::parse_next_token() {
       for (; *it != "\"" or ignore; ++it) {
 
         // Make sure the " isn't escaped (\").
-        if (*it == "\\") ignore = true;
+        if (*it == "\\" and not ignore) ignore = true;
         else ignore = false;
 
         // Matching " not found, throw and error.
@@ -458,7 +472,7 @@ void cutlet_tokenizer::parse_next_token() {
       for (; *it != "'" or ignore; ++it) {
 
         // Make sure the ' isn't escaped (\').
-        if (*it == "\\") ignore = true;
+        if (*it == "\\" and not ignore) ignore = true;
         else ignore = false;
 
         // Matching ' not found, throw and error.
@@ -1130,64 +1144,130 @@ cutlet::variable_ptr cutlet::interpreter::string() {
   auto token = tokens->get_token();
   std::string result = (const std::string &)token;
 
-  // Find and replace variables.
-  auto index = result.find('$');
-  while (index != result.npos) {
+  // Scan the string for substitutions.
+  auto index = utf8::iterator(result);
+  for (; index != index.end(); ++index) {
 
-    // Make sure we don't have an escaped, \$, character.
-    if (index == 0 or result[index  - 1] != '\\') {
-      auto end_index = index + 1;
-      unsigned int offset = 1;
+    if (*index == "$") {
+      // Variable substitution.
+      auto start = index;
+      ++index;
 
-      if (result[index + 1] == '{') {
-        // Escaped, {}, variable name.
-        offset = 2;
-        end_index = result.find('}', index + 2);
-        if (end_index == result.npos)
+      if (*index == "{") {
+        // Quoted variable name.
+        ++index;
+        while (*index != "}" and index != index.end()) ++index;
+        if (index == index.end())
           throw parser::syntax_error("Unmatched ${ in string", token);
 
-        std::string var_name = result.substr(index + offset,
-                                             end_index - index - 2);
-        result.replace(index, end_index - index + 1,
-                       (const std::string)(*var(var_name)));
+        std::string var_name = utf8::substr(start + 2, index);
+        std::string value = (const std::string)(*var(var_name));
+
+        result = utf8::replace(start, index, value);
+        index = utf8::iterator(result, index.position() -
+                               (((index.position() + index.length()) -
+                                 start.position()) - value.size()));
       } else {
-        auto it = utf8::iterator(result, end_index);
-        while (not is_space(*it) and it != it.end()) ++it;
-        end_index = it.position();
+        // Unquoted variable name.
+        ++index;
+        while ((*index != "$" and not is_space(*index)) and
+               index != index.end())
+          ++index;
 
-        std::string var_name = result.substr(index + offset,
-                                             end_index - index - 1);
-        result.replace(index, end_index - index,
-                       (const std::string)(*var(var_name)));
+        std::string var_name = utf8::substr(start + 1, index);
+        std::string value = (const std::string)(*var(var_name));
+
+        result = utf8::replace(start, index - 1, value);
+        index = utf8::iterator(result, index.position() -
+                               (((index.position() + index.length()) -
+                                 start.position()) - value.size()));
       }
+
+    } else if (*index == "[") {
+      // Subcommand substitution.
+      auto start = index;
+      ++index;
+      while (*index != "]" and index != index.end()) ++index;
+      if (index == index.end())
+        throw parser::syntax_error("Unmatched [ in string", token);
+
+      std::string cmd = utf8::substr(start + 1, index);
+      tokens->push(cmd);
+      std::string value = (const std::string)(*command());
+      tokens->pop();
+
+      result = utf8::replace(start, index, value);
+      index = utf8::iterator(result, index.position() -
+                             (((index.position() + index.length()) -
+                               start.position()) - value.size()));
+
+    } else if (*index == "\\") {
+      // Escaped characters.
+      auto start = index;
+      ++index;
+      if (*index == "$")
+        result = utf8::replace(start, index, "$");
+      else if (*index == "\"")
+        result = utf8::replace(start, index, "\"");
+      else if (*index == "'")
+        result = utf8::replace(start, index, "'");
+      else if (*index == "\\")
+        result = utf8::replace(start, index, "\\");
+
+      else if (*index == "a") // Bell/Alarm
+        result = utf8::replace(start, index, "\x07");
+      else if (*index == "b") // Backspace
+        result = utf8::replace(start, index, "\x08");
+      else if (*index == "e") // Backspace
+        result = utf8::replace(start, index, "\x1b");
+      else if (*index == "f") // Form feed
+        result = utf8::replace(start, index, "\x0c");
+      else if (*index == "n") // New line (line feed)
+        result = utf8::replace(start, index, "\x0a");
+      else if (*index == "r") // Carrage return
+        result = utf8::replace(start, index, "\x0d");
+      else if (*index == "t") // Horizontal tab
+        result = utf8::replace(start, index, "\x09");
+      else if (*index == "v") // Vertical tab
+        result = utf8::replace(start, index, "\x0b");
+
+      else if (*index == "x") {
+        ++index;
+        std::string value;
+        for (int count = 0; count < 2; ++count, ++index) {
+          value += *index;
+          if ((*index >= "0" and *index <= "9") or
+              (*index >= "A" and *index <= "F") or
+              (*index >= "a" and *index <= "f")) {
+          } else {
+            throw std::runtime_error(
+              std::string("Invalid escaped hex value \\x") + value);
+          }
+        }
+
+        unsigned char ch_val = 0;
+        if (value[0] >= '0' and value[0] <= '9')
+          ch_val = (unsigned int)(value[0] - '0') << 4;
+        else if (value[0] >= 'a' and value[0] <= 'f')
+          ch_val = ((unsigned int)(value[0] - 'a') + 10) << 4;
+        else if (value[0] >= 'A' and value[0] <= 'F')
+          ch_val = ((unsigned int)(value[0] - 'A') + 10) << 4;
+
+        if (value[1] >= '0' and value[1] <= '9')
+          ch_val |= (unsigned int)(value[1] - '0');
+        else if (value[1] >= 'a' and value[1] <= 'f')
+          ch_val |= (unsigned int)(value[1] - 'a') + 10;
+        else if (value[1] >= 'A' and value[1] <= 'F')
+          ch_val |= (unsigned int)(value[1] - 'A') + 10;
+
+        std::string x;
+        x += ch_val;
+        result = utf8::replace(start, index - 1, x);
+        index = start + 1;
+      }
+
+      --index;
     }
-    index = result.find('$', index + 1);
-  }
-
-  // Replace subcommands.
-  index = result.find('[');
-  while (index != result.npos) {
-    auto end_index = index + 1;
-    auto it = utf8::iterator(result, end_index);
-    unsigned int count = 1;
-
-    while (count) {
-      if (is_eol(*it) or it == it.end())
-        throw parser::syntax_error("Unmatched [", token);
-      if (*it == "]") {
-        count--;
-        end_index = it.position();
-      } else if (*it == "[") count++;
-      ++it;
-    }
-
-    std::string cmd = result.substr(index + 1, end_index - index - 1);
-    tokens->push(parser::token((unsigned int)cutlet_tokenizer::T_SUBCMD, cmd));
-    result.replace(index, end_index - index + 1,
-                   (const std::string)(*command()));
-    tokens->pop();
-
-    index = result.find('[', end_index + 1);
   }
 
   return new cutlet::string(result);

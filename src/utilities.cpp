@@ -3,7 +3,7 @@
  * All rights reserved
  */
 
-#include "utils.h"
+#include "utilities.h"
 #include <unistd.h>
 
 bool fexists(const std::string &filename) {
