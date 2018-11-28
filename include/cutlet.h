@@ -100,7 +100,8 @@ namespace cutlet {
   public:
     virtual ~variable() noexcept;
 
-    virtual variable_ptr execute(interpreter &interp, const list &parameters);
+    virtual variable_ptr operator()(interpreter &interp,
+                                    const list &parameters);
 
     virtual operator std::string() const;
   };
@@ -136,7 +137,8 @@ namespace cutlet {
     list(const std::initializer_list<variable_ptr> &items);
     list(const list &other);
 
-    virtual variable_ptr execute(interpreter &interp, const list &parameters);
+    virtual variable_ptr operator()(interpreter &interp,
+                                    const list &parameters);
 
     virtual operator std::string() const;
 

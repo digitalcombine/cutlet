@@ -52,7 +52,7 @@ public:
   virtual ~_var_object() noexcept;
 
   virtual cutlet::variable_ptr
-  execute(cutlet::interpreter &interp, const cutlet::list &parameters);
+  operator()(cutlet::interpreter &interp, const cutlet::list &parameters);
 
   bool has_property(const std::string &name) const;
   cutlet::variable_ptr property(const std::string &name) const;
@@ -204,8 +204,8 @@ _var_object::~_var_object() noexcept {
  ************************/
 
 cutlet::variable_ptr
-_var_object::execute(cutlet::interpreter &interp,
-                     const cutlet::list &parameters) {
+_var_object::operator()(cutlet::interpreter &interp,
+                        const cutlet::list &parameters) {
   cutlet::list params(parameters.begin() + 1, parameters.end());
 
   cutlet::variable_ptr self = this; ++self;
@@ -278,7 +278,7 @@ cutlet::variable_ptr _def_class::operator ()(cutlet::interpreter &interp,
       object->property(property, nullptr);
     }
 
-    object->execute(interp, parameters);
+    (*object)(interp, parameters);
     return object;
   } else {
 

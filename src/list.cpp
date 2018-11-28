@@ -41,8 +41,8 @@ cutlet::list::list(const list &other) : std::deque<variable_ptr>(other) {}
  * cutlet::list::execute *
  *************************/
 
-cutlet::variable_ptr cutlet::list::execute(interpreter &interp,
-                                           const list &parameters) {
+cutlet::variable_ptr cutlet::list::operator()(interpreter &interp,
+                                              const list &parameters) {
   variable_ptr result;
   if (parameters.size() > 0) {
 
@@ -79,6 +79,10 @@ cutlet::variable_ptr cutlet::list::execute(interpreter &interp,
     } else if (convert<std::string>(parameters[0]) == "foreach") {
       return _foreach(interp, parameters);
 
+    } else {
+      throw std::runtime_error(std::string("Unknown command ") +
+                               convert<std::string>(parameters[0]) +
+                               " for list variable.");
     }
   }
   return result;

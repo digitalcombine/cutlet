@@ -610,7 +610,7 @@ cutlet::variable::~variable() noexcept {}
  *****************************/
 
 cutlet::variable_ptr
-cutlet::variable::execute(interpreter &interp, const list &parameters) {
+cutlet::variable::operator()(interpreter &interp, const list &parameters) {
   // By default variables are not executable.
   throw std::runtime_error("Variable is not executable");
 }
@@ -1117,7 +1117,7 @@ cutlet::variable_ptr cutlet::interpreter::command() {
 
   // Now actually execute the command.
   if (not evar.is_null()) {
-    return evar->execute(*this, args);
+    return (*evar)(*this, args);
   } else {
     return _global->execute(*this, cmd, args);
   }
