@@ -26,22 +26,32 @@ int main(int argc, char *argv[]) {
 
   try {
     if (argc > 1) {
+      // Iterate over command lines for script files.
       for (int i = 1; i < argc; ++i) {
         std::ifstream input_file(argv[i]);
         interpreter.eval(input_file);
         input_file.close();
       }
+
     } else {
+      // Nothing on the command line so read from stdin.
       interpreter.eval(std::cin);
     }
+
+    /* If the return function was called by the script then attempt to return
+     * it's value.
+     */
+    return cutlet::convert<int>(interpreter.frame_pop());
+
   } catch (parser::syntax_error &err) {
+    // Caught a parsing error.
     std::cerr << "SYNTAX ERROR: " << err.what() << ", \""
               << (const std::string &)err.get_token() << "\"" << std::endl;
     return 1;
+
   } catch (std::exception &err) {
+    // Caught some kind of exception.
     std::cerr << "ERROR: " << err.what() << std::endl;
     return 1;
   }
-
-  return 0;
 }
