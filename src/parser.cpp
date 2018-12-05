@@ -89,11 +89,12 @@ parser::syntax_error::syntax_error() noexcept
   : _message("syntax error"), _token(0, "") {
 }
 
-parser::syntax_error::syntax_error(const char *message) noexcept
+parser::syntax_error::syntax_error(const std::string &message) noexcept
   : _message(message), _token(0, "") {
 }
 
-parser::syntax_error::syntax_error(const char *message, token token) noexcept
+parser::syntax_error::syntax_error(const std::string &message,
+                                   token token) noexcept
   : _message(message), _token(token) {
 }
 
@@ -216,7 +217,8 @@ void parser::tokenizer::permit(unsigned int id) {
     tokens.pop_front();
     return;
   }
-  throw syntax_error("Got unexpected value of " + tokens.front(),
+  throw syntax_error("Got unexpected value of " +
+                     (const std::string &)tokens.front(),
                      tokens.front());
 }
 
@@ -226,7 +228,8 @@ void parser::tokenizer::permit(unsigned int id, const std::string &value) {
     tokens.pop_front();
     return;
   }
-  throw syntax_error("Got unexpected value of " + tokens.front(),
+  throw syntax_error("Got unexpected value of " +
+                     (const std::string &)tokens.front(),
                      tokens.front());
 }
 

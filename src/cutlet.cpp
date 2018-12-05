@@ -605,14 +605,13 @@ cutlet::component::~component() noexcept {}
 
 cutlet::variable::~variable() noexcept {}
 
-/*****************************
- * cutlet::variable::execute *
- *****************************/
+/*********************************
+ * cutlet::variable::operator () *
+ *********************************/
 
 cutlet::variable_ptr
 cutlet::variable::operator()(interpreter &interp, const list &parameters) {
-  // By default variables are not executable.
-  throw std::runtime_error("Variable is not executable");
+  return interp.execute((std::string)*this, parameters);
 }
 
 /******************************************
@@ -620,43 +619,6 @@ cutlet::variable::operator()(interpreter &interp, const list &parameters) {
  ******************************************/
 
 cutlet::variable::operator std::string() const { return ""; }
-
-/*****************************************************************************
- * class cutlet::string
- */
-
-/**************************
- * cutlet::string::string *
- **************************/
-
-cutlet::string::string() : std::string() {}
-
-cutlet::string::string(const std::string &value) : std::string(value) {}
-
-cutlet::string::string(int value) {
-  std::stringstream ss;
-  ss << value;
-  *this = ss.str();
-}
-
-/***************************
- * cutlet::string::~string *
- ***************************/
-
-cutlet::string::~string() noexcept {}
-
-/****************************************
- * cutlet::string::operator std::string *
- ****************************************/
-
-cutlet::string::operator std::string() const { return *this; }
-
-template <> int cutlet::convert<int>(variable_ptr object) {
-  std::stringstream ss((std::string)(*(object)));
-  int result;
-  ss >> result;
-  return result;
-}
 
 /*****************************************************************************
  * class _function
@@ -807,8 +769,8 @@ void cutlet::sandbox::load(interpreter &interp,
       init(&interp);
     } else {
       delete lib;
-      throw std::runtime_error(std::string("init_cultet missing in library ") +
-                               library_name);
+      throw std::runtime_error(std::string("init_cultet missing in library ")
+                               + library_name);
     }
 
     _native_libs.push_back(lib);
@@ -868,6 +830,30 @@ bool cutlet::frame::done() const {
   return _done;
 }
 
+/**************************
+ * cutlet::frame::uplevel *
+ **************************/
+
+memory::reference<cutlet::frame>
+cutlet::frame::uplevel(unsigned int levels) const {
+  cutlet::frame_ptr result;
+
+  // Returning a reference to ourselves just breaks things.
+  if (levels == 0)
+    throw std::runtime_error("Internal error returning a frame level 0.");
+
+  result = _uplevel;
+  --levels;
+  while (not result.is_null() and levels > 0) {
+    result = result->_uplevel;
+    --levels;
+  }
+
+  if (result.is_null()) throw std::runtime_error("");
+
+  return result;
+}
+
 /*****************************************************************************
  * class cutlet::interpreter
  */
@@ -887,17 +873,19 @@ cutlet::interpreter::interpreter() {
   _global->add("list", ::builtin::list);
   _global->add("import", ::builtin::import);
 
-
+  // Create the global library.path list variable.
   global("library.path", new cutlet::list());
 
-  _frame = new frame();
+  // Create the toplevel frame with the default program return value.
+  _frame = new cutlet::frame();
+  _frame->_return = new cutlet::string("0");
 }
 
 /*************************************
  * cutlet::interpreter::~interpreter *
  *************************************/
 
-cutlet::interpreter::~interpreter() {
+cutlet::interpreter::~interpreter() noexcept {
   delete tokens;
 }
 
@@ -992,12 +980,33 @@ cutlet::component_ptr cutlet::interpreter::get(const std::string &name) const {
   return _global->get(name);
 }
 
+/*****************************
+ * cutlet::interpreter::expr *
+ *****************************/
+
+cutlet::variable_ptr cutlet::interpreter::expr(const std::string &cmd) {
+  std::cout << "expr " << cmd << std::endl;
+  tokens->push(cmd);
+  variable_ptr result = command();
+  tokens->pop();
+  return result;
+}
+
+/******************************
+ * cutlet::interpreter::frame *
+ ******************************/
+
+cutlet::frame_ptr cutlet::interpreter::frame(unsigned int levels) const {
+  if (levels == 0) return _frame;
+  return _frame->uplevel(levels);
+}
+
 /***********************************
  * cutlet::interpreter::frame_push *
  ***********************************/
 
 void cutlet::interpreter::frame_push() {
-  memory::reference<frame> new_frame = new frame(_frame);
+  memory::reference<cutlet::frame> new_frame = new cutlet::frame(_frame);
   _frame = new_frame;
 }
 
@@ -1007,7 +1016,7 @@ void cutlet::interpreter::frame_push(frame_ptr new_frame) {
 }
 
 void cutlet::interpreter::frame_push(sandbox_ptr sb) {
-  memory::reference<frame> new_frame = new frame(_frame);
+  memory::reference<cutlet::frame> new_frame = new cutlet::frame(_frame);
   _frame = new_frame;
   new_frame->_sandbox_orig = _global;
   _global = sb;
@@ -1023,7 +1032,7 @@ cutlet::variable_ptr cutlet::interpreter::frame_pop() {
   memory::reference<sandbox> sb_saved = _frame->_sandbox_orig;
 
   // Retore the frame.
-  memory::reference<frame> uplevel = _frame->_uplevel;
+  memory::reference<cutlet::frame> uplevel = _frame->_uplevel;
   _frame = uplevel;
 
   // Restore the global environment if necessary.
@@ -1047,6 +1056,16 @@ void cutlet::interpreter::frame_done(variable_ptr result) {
 
 void cutlet::interpreter::load(const std::string &library_name) {
   _global->load(*this, library_name);
+}
+
+/********************************
+ * cutlet::interpreter::execute *
+ ********************************/
+
+cutlet::variable_ptr
+cutlet::interpreter::execute(const std::string &procedure,
+                             const cutlet::list &parameters) {
+  return _global->execute(*this, procedure, parameters);
 }
 
 /******************************
@@ -1097,7 +1116,6 @@ cutlet::variable_ptr cutlet::interpreter::command() {
   while (not tokens->expect(cutlet_tokenizer::T_EOL) and
          not tokens->expect(cutlet_tokenizer::T_EOF)) {
 
-    //std::cout << "  " << (const std::string &)token << std::endl;
     if (tokens->expect(cutlet_tokenizer::T_VARIABLE)) {
       args.push_back(variable());
     } else if (tokens->expect(cutlet_tokenizer::T_STRING)) {

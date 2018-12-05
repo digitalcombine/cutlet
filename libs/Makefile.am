@@ -1,6 +1,11 @@
 # Shared libraries
-pkglib_LTLIBRARIES = oo.la shell.la
+pkglib_LTLIBRARIES = stdlib.la oo.la shell.la
 EXTRA_DIST = oo.cpp shell.cpp
+
+stdlib_la_SOURCES = stdlib.cpp
+stdlib_la_CPPFLAGS = -I$(top_srcdir)/include
+stdlib_la_LIBADD = $(top_srcdir)/src/libcutlet.la
+stdlib_la_LDFLAGS = -module -avoid-version -shared
 
 oo_la_SOURCES = oo.cpp
 oo_la_CPPFLAGS = -I$(top_srcdir)/include

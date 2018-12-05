@@ -103,16 +103,21 @@ namespace cutlet {
     virtual variable_ptr operator()(interpreter &interp,
                                     const list &parameters);
 
+    /** Cast the variable to a std::string type.
+     */
     virtual operator std::string() const;
   };
 
   template <class Ty>
   Ty &cast(variable_ptr object) { return dynamic_cast<Ty &>(*(object)); }
 
+  /** Utility template for creating value converters for variable values.
+   */
   template <class Ty>
   Ty convert(variable_ptr object) { return (Ty)(*(object)); }
 
   template <> int convert<int>(variable_ptr object);
+  template <> bool convert<bool>(variable_ptr object);
 
   /***************************************************************************
    */
@@ -123,6 +128,9 @@ namespace cutlet {
     string(const std::string &value);
     string(int value);
     virtual ~string() noexcept;
+
+    virtual variable_ptr operator()(interpreter &interp,
+                                    const list &parameters);
 
     virtual operator std::string() const;
   };
@@ -207,9 +215,8 @@ namespace cutlet {
 
   typedef memory::reference<sandbox> sandbox_ptr;
 
-  /***************************************************************************
+  /** Execution frame.
    */
-
   class frame {
   public:
     frame();
@@ -217,6 +224,10 @@ namespace cutlet {
     frame(const frame &other) = delete;
     virtual ~frame() noexcept;
 
+    /** Retrieve the value of a local variable. If the variable doesn't exist
+     * then the return value will be null.
+     * @param name The name of the local variable.
+     */
     virtual variable_ptr variable(const std::string &name) const;
     virtual void variable(const std::string &name, variable_ptr value);
 
@@ -235,6 +246,8 @@ namespace cutlet {
 
     bool _done;
     variable_ptr _return;
+
+    memory::reference<frame> uplevel(unsigned int levels) const;
   };
 
   typedef memory::reference<frame> frame_ptr;
@@ -244,15 +257,28 @@ namespace cutlet {
 
   class interpreter : public parser::grammer {
   public:
+    /** Initialize a interpreter.
+     */
     interpreter();
+
+    /** Disable the default copy constructor.
+     */
     interpreter(const interpreter &other) = delete;
     virtual ~interpreter() noexcept;
 
+    /** Get the value of a variable.
+     */
     variable_ptr var(const std::string &name);
+
+    /** Set the value for a variable in the currently active sandbox.
+     * @param name The name of the variable.
+     * @param value The value set for variable. If the value is null then the
+     *              variable is removed from the sandbox.
+     */
     void global(const std::string &name, variable_ptr value);
     void local(const std::string &name, variable_ptr value);
 
-    /** Uses the parser to create a list variable.
+    /** Use the parser to create a list variable.
      */
     variable_ptr list(const std::string code);
 
@@ -260,31 +286,49 @@ namespace cutlet {
     void add(const std::string &name, component_ptr comp);
     void remove(const std::string &name);
     void clear();
+
     /**
      * @todo Rename to comp.
      */
     component_ptr get(const std::string &name) const;
 
+    variable_ptr expr(const std::string &cmd);
+
+    frame_ptr frame(unsigned int levels = 0) const;
     void frame_push();
     void frame_push(frame_ptr frm);
     void frame_push(sandbox_ptr sb);
     void frame_push(frame_ptr frm, sandbox_ptr sb);
+
+    /** Pop the current execution frame off the stack.
+     * @return If a return value was set, then return that value. If a return
+     *         wasn't set then null is returned.
+     * @see frame_done
+     */
     variable_ptr frame_pop();
+
     /** End the execution of the current frame with an optional return value.
-     * This is typically used to create a return procedure.
+     * The return value is returned when the frame is popped off the stack.
+     * @param result The return value from the completed frame.
+     * @see frame_pop
      */
     void frame_done(variable_ptr result = nullptr);
 
-    /** Load a shared library into the interpreter.
+    /** Load a dynamic shared library into the current global sandbox. Once
+     * the library is loaded it expects to find the init_cutlet function to
+     * initialize the library into the interpreter.
+     * @param library_name The full path to the dynamic library to be loaded.
      */
     void load(const std::string &library_name);
 
-    /*variable_ptr eval(const std::string &procedure,
-                        const list &parameters);*/
+    variable_ptr execute(const std::string &procedure,
+                         const cutlet::list &parameters);
 
     friend class component;
 
   protected:
+    /** Entry point to the recursive descent parser.
+     */
     virtual void entry();
 
     variable_ptr command();
@@ -294,7 +338,7 @@ namespace cutlet {
 
   private:
     memory::reference<sandbox> _global;
-    memory::reference<frame> _frame;
+    memory::reference<cutlet::frame> _frame;
   };
 
 }

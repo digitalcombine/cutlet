@@ -20,7 +20,30 @@
 #include "builtin.h"
 #include "utilities.h"
 #include <iostream>
+#include <sstream>
 #include <fstream>
+
+/*****************************************************************************
+ * class _block
+ *
+ *  A _block is a specialized type of frame that includes variables from a
+ * parent frame to be included in local variable substituions.
+ */
+
+class _block : public cutlet::frame {
+public:
+  _block(cutlet::frame_ptr parent) : _parent(parent) {}
+  virtual ~_block() noexcept {}
+
+  virtual cutlet::variable_ptr variable(const std::string &name) const {
+    cutlet::variable_ptr result = cutlet::frame::variable(name);
+    if (result.is_null()) result = _parent->variable(name);
+    return result;
+  }
+
+private:
+  cutlet::frame_ptr _parent;
+};
 
 /*****************************************************************************
  */
@@ -32,10 +55,13 @@ public:
     : _parameters(parameters), _body(body) {}
   virtual ~_def_function() noexcept {}
 
+  /** Execute the function.
+   */
   virtual cutlet::variable_ptr
   operator ()(cutlet::interpreter &interp, const cutlet::list &args) {
-    interp.frame_push();
+    interp.frame_push(); // New frame for the function.
 
+    // Populate the parameters of the function.
     auto p_it = cutlet::cast<cutlet::list>(_parameters).begin();
     auto a_it = args.begin();
 
@@ -43,32 +69,42 @@ public:
            a_it != args.end(); ++p_it, ++a_it) {
       cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
       if (l) {
+        // Set the value for the parameter that has a default value.
         interp.local((std::string)*(l->front()), *a_it);
       } else {
         std::string name((std::string)*(*p_it));
         if (name == "*args") {
+          // If *args found populate it with a list of the remaining values.
           interp.local("args", new cutlet::list(a_it, args.end()));
         } else {
+          // Set the value for the parameter.
           interp.local(name, *a_it);
         }
       }
     }
 
+    /* If there are any remaining parameters that we didn't get a value for
+     * the attempt to populate them with default values if any were given.
+     */
     if (cutlet::cast<cutlet::list>(_parameters).size() > args.size()) {
-      // Set default parameter values.
+      // Set default parameter values if needed.
       while (p_it != cutlet::cast<cutlet::list>(_parameters).end()) {
         cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
         if (l) {
           interp.local((std::string)*(l->front()), l->back());
-        } else
+        } else {
+          // Silly programmer.
           throw std::runtime_error(
             std::string("Missing value for parameter ") +
             (std::string)*(*p_it));
+        }
       }
     }
 
+    // We made it, now run the function.
     interp.eval((std::string)*_body);
 
+    // Clean up the stack and return a value if there was one.
     return interp.frame_pop();
   }
 
@@ -80,7 +116,7 @@ private:
 /*****************************************************************************
  */
 
-// def name ¿parameters? body
+// def def name ¿parameters? body
 cutlet::variable_ptr
 builtin::def(cutlet::interpreter &interp,
              const cutlet::list &parameters) {
@@ -109,12 +145,13 @@ builtin::def(cutlet::interpreter &interp,
     body = parameters[2];
   }
 
+  // Add the function to the interpreter.
   interp.add(name, new _def_function(def_parameters, body));
 
   return nullptr;
 }
 
-// import library
+// def import library
 cutlet::variable_ptr
 builtin::import(cutlet::interpreter &interp,
                 const cutlet::list &parameters) {
@@ -168,6 +205,33 @@ builtin::local(cutlet::interpreter &interp,
   }
 
   return nullptr;
+}
+
+// block ¿levels? body
+cutlet::variable_ptr
+builtin::block(cutlet::interpreter &interp,
+               const cutlet::list &parameters) {
+  unsigned int levels = 0, p_count = parameters.size();
+  cutlet::variable_ptr body;
+  if (p_count == 2) {
+    levels = cutlet::convert<int>(parameters[0]);
+    body = parameters[1];
+  } else if (p_count == 1) {
+    body = parameters[0];
+  } else {
+    std::stringstream mesg;
+    mesg << "Invalid number of parameters for block "
+         << " (1 <= " << p_count
+         << " <= 2).\n block ¿levels? body";
+    throw std::runtime_error(mesg.str());
+  }
+
+  cutlet::frame_ptr parent = interp.frame(levels);
+  cutlet::frame_ptr block_frame = new _block(parent);
+
+  interp.frame_push(block_frame);
+  interp.eval(*body);
+  interp.frame_pop();
 }
 
 // return ¿value?

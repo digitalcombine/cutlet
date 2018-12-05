@@ -64,8 +64,8 @@ namespace parser {
   class syntax_error : public std::exception {
   public:
     syntax_error() noexcept;
-    syntax_error(const char *message) noexcept;
-    syntax_error(const char *message, token token) noexcept;
+    syntax_error(const std::string &message) noexcept;
+    syntax_error(const std::string &message, token token) noexcept;
     syntax_error(const exception& other) noexcept;
     virtual ~syntax_error() noexcept;
 

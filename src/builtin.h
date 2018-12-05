@@ -36,6 +36,9 @@ namespace builtin {
   cutlet::variable_ptr global(cutlet::interpreter &interp,
                               const cutlet::list &parameters);
 
+  cutlet::variable_ptr block(cutlet::interpreter &interp,
+                             const cutlet::list &parameters);
+
   cutlet::variable_ptr ret(cutlet::interpreter &interp,
                            const cutlet::list &parameters);
 
