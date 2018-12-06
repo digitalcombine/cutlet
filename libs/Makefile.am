@@ -16,3 +16,7 @@ shell_la_SOURCES = shell.cpp
 shell_la_CPPFLAGS = -I$(top_srcdir)/include
 shell_la_LIBADD = $(top_srcdir)/src/libcutlet.la
 shell_la_LDFLAGS = -module -avoid-version -shared
+
+# Remove all the unnecessary .la files.
+install-exec-hook:
+	@(cd $(DESTDIR)$(pkglibdir) && $(RM) $(pkglib_LTLIBRARIES))
