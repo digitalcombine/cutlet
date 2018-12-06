@@ -183,10 +183,12 @@ namespace cutlet {
     typedef void (*libinit_t)(interpreter *);
   }
 
+  /** A sandbox contains the global environment for a Cutlet interpreter.
+   */
   class sandbox {
   public:
     sandbox();
-    sandbox(const sandbox &other);
+    sandbox(const sandbox &other) = delete;
     virtual ~sandbox() noexcept;
 
     void add(const std::string &name, function_t func);
