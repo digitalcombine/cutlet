@@ -1171,17 +1171,10 @@ cutlet::ast::node_ptr cutlet::interpreter::string() {
           throw parser::syntax_error("Unmatched ${ in string", token);
 
         std::string var_name = utf8::substr(start + 2, index);
-        //std::string value = (const std::string)(*var(var_name));
-
-        //result = utf8::replace(start, index, value);
 
         ast_str->add(new ast::variable(parser::token(cutlet_tokenizer::T_VARIABLE,
                                                      var_name,
                                                      0, start.position())));
-
-        //index = utf8::iterator(result, index.position() -
-        //                       (((index.position() + index.length()) -
-        //                         start.position()) - value.size()));
       } else {
         // Unquoted variable name.
         ++index;
@@ -1194,13 +1187,7 @@ cutlet::ast::node_ptr cutlet::interpreter::string() {
         ast_str->add(new ast::variable(parser::token(cutlet_tokenizer::T_VARIABLE,
                                                      var_name,
                                                      0, start.position())));
-
-        /*std::string value = (const std::string)(*var(var_name));
-
-        result = utf8::replace(start, index - 1, value);
-        index = utf8::iterator(result, index.position() -
-                               (((index.position() + index.length()) -
-                                 start.position()) - value.size()));*/
+        --index;
       }
 
     } else if (*index == "[") {
@@ -1219,13 +1206,7 @@ cutlet::ast::node_ptr cutlet::interpreter::string() {
       std::string cmd = utf8::substr(start + 1, index);
       tokens->push(cmd);
       ast_str->add(command());
-      //std::string value = (const std::string)(*command());
       tokens->pop();
-
-      /*result = utf8::replace(start, index, value);
-      index = utf8::iterator(result, index.position() -
-                             (((index.position() + index.length()) -
-                               start.position()) - value.size()));*/
 
     } else if (*index == "\\") {
       // Escaped characters.
@@ -1263,9 +1244,11 @@ cutlet::ast::node_ptr cutlet::interpreter::string() {
         part += "\x0d";
         //result = utf8::replace(start, index, "\x0d");
       else if (*index == "t") // Horizontal tab
-        result = utf8::replace(start, index, "\x09");
+        part += "\x09";
+        //result = utf8::replace(start, index, "\x09");
       else if (*index == "v") // Vertical tab
-        result = utf8::replace(start, index, "\x0b");
+        part += "\x0b";
+        //result = utf8::replace(start, index, "\x0b");
 
       else if (*index == "x") {
         ++index;
@@ -1298,11 +1281,13 @@ cutlet::ast::node_ptr cutlet::interpreter::string() {
 
         std::string x;
         x += ch_val;
-        result = utf8::replace(start, index - 1, x);
-        index = start + 1;
+        //result = utf8::replace(start, index - 1, x);
+        part += x;
+        --index;
+        //index = start + 1;
       }
 
-      --index;
+      //--index;
     } else {
       part += *index;
     }
