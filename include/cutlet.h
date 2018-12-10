@@ -37,6 +37,11 @@
 
 namespace cutlet {
 
+  namespace ast {
+    class node;
+    typedef memory::reference<node> node_ptr;
+  }
+
   namespace utf8 {
 
     /** String iterator for UTF-8 encoded strings.
@@ -333,10 +338,10 @@ namespace cutlet {
      */
     virtual void entry();
 
-    variable_ptr command();
-    variable_ptr variable();
-    variable_ptr string();
-    variable_ptr subcommand();
+    ast::node_ptr command();
+    ast::node_ptr variable();
+    ast::node_ptr string();
+    ast::node_ptr subcommand();
 
   private:
     memory::reference<sandbox> _global;

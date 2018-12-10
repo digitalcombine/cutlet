@@ -22,6 +22,7 @@
 #include <fstream>
 #include "builtin.h"
 #include "utilities.h"
+#include "ast.h"
 
 class native_lib {
 public:
@@ -985,11 +986,10 @@ cutlet::component_ptr cutlet::interpreter::get(const std::string &name) const {
  *****************************/
 
 cutlet::variable_ptr cutlet::interpreter::expr(const std::string &cmd) {
-  std::cout << "expr " << cmd << std::endl;
   tokens->push(cmd);
-  variable_ptr result = command();
+  ast::node_ptr result = command();
   tokens->pop();
-  return result;
+  return (*result)(*this);
 }
 
 /******************************
@@ -1073,40 +1073,37 @@ cutlet::interpreter::execute(const std::string &procedure,
  ******************************/
 
 void cutlet::interpreter::entry() {
+  ast::block ast_tree;
   while (tokens or not tokens->expect(cutlet_tokenizer::T_EOF)) {
     while (tokens->expect(cutlet_tokenizer::T_EOL)) tokens->next();
+
     if (tokens->expect(cutlet_tokenizer::T_EOF)) break;
-    command();
-    if (_frame->done()) return;
+
+    ast_tree.add(command());
   }
+  ast_tree(*this);
 }
 
 /********************************
  * cutlet::interpreter::command *
  ********************************/
 
-cutlet::variable_ptr cutlet::interpreter::command() {
-  std::string cmd;
-  cutlet::list args;
-  variable_ptr evar;
+cutlet::ast::node_ptr cutlet::interpreter::command() {
+  ast::command *cmd_ast;
 
   // Get the command name.
   if (tokens->expect(cutlet_tokenizer::T_WORD) or
       tokens->expect(cutlet_tokenizer::T_BLOCK)) {
-    cmd = (const std::string &)tokens->get_token();
+    cmd_ast = new ast::command(new ast::value(tokens->get_token()));
 
   } else if (tokens->expect(cutlet_tokenizer::T_STRING)) {
-    auto result = string();
-    if (not result.is_null())
-      cmd = (const std::string &)(*result);
+    cmd_ast = new ast::command(string());
 
   } else if (tokens->expect(cutlet_tokenizer::T_VARIABLE)) {
-    evar = variable();
+    cmd_ast = new ast::command(variable());
 
   } else if (tokens->expect(cutlet_tokenizer::T_SUBCMD)) {
-    auto result = subcommand();
-    if (not result.is_null())
-      cmd = (const std::string &)(*result);
+    cmd_ast = new ast::command(subcommand());
 
   } else {
     throw parser::syntax_error("Invalid token", tokens->get_token());
@@ -1117,56 +1114,51 @@ cutlet::variable_ptr cutlet::interpreter::command() {
          not tokens->expect(cutlet_tokenizer::T_EOF)) {
 
     if (tokens->expect(cutlet_tokenizer::T_VARIABLE)) {
-      args.push_back(variable());
+      cmd_ast->parameter(variable());
     } else if (tokens->expect(cutlet_tokenizer::T_STRING)) {
-      args.push_back(string());
+      cmd_ast->parameter(string());
     } else if (tokens->expect(cutlet_tokenizer::T_SUBCMD)) {
-      args.push_back(subcommand());
+      cmd_ast->parameter(subcommand());
     } else if (tokens->expect(cutlet_tokenizer::T_WORD) or
                tokens->expect(cutlet_tokenizer::T_BLOCK)) {
-      auto token = tokens->get_token();
-      args.push_back(new cutlet::string((const std::string &)token));
+      cmd_ast->parameter(new ast::value(tokens->get_token()));
     } else {
       throw std::runtime_error("Unknown token");
     }
   }
 
-  if (tokens->expect(cutlet_tokenizer::T_EOL)) tokens->next(); // Remove EOL
-
-  // Now actually execute the command.
-  if (not evar.is_null()) {
-    return (*evar)(*this, args);
-  } else {
-    return _global->execute(*this, cmd, args);
-  }
+  return cmd_ast;
 }
 
 /*********************************
  * cutlet::interpreter::variable *
  *********************************/
 
-cutlet::variable_ptr cutlet::interpreter::variable() {
-  auto token = tokens->get_token();
-  variable_ptr the_var = var((const std::string &)token);
-  if (the_var.is_null())
-    throw std::runtime_error(std::string("No such variable ") +
-                             (const std::string &)token);
-  return the_var;
+cutlet::ast::node_ptr cutlet::interpreter::variable() {
+  return new ast::variable(tokens->get_token());
 }
 
 /*******************************
  * cutlet::interpreter::string *
  *******************************/
 
-cutlet::variable_ptr cutlet::interpreter::string() {
+cutlet::ast::node_ptr cutlet::interpreter::string() {
+  ast::string *ast_str = new ast::string;
   auto token = tokens->get_token();
   std::string result = (const std::string &)token;
+  std::string part;
 
   // Scan the string for substitutions.
   auto index = utf8::iterator(result);
+  auto s_index = index;
   for (; index != index.end(); ++index) {
 
     if (*index == "$") {
+      if (not part.empty()) {
+        ast_str->add(part);
+        part.clear();
+      }
+
       // Variable substitution.
       auto start = index;
       ++index;
@@ -1179,12 +1171,17 @@ cutlet::variable_ptr cutlet::interpreter::string() {
           throw parser::syntax_error("Unmatched ${ in string", token);
 
         std::string var_name = utf8::substr(start + 2, index);
-        std::string value = (const std::string)(*var(var_name));
+        //std::string value = (const std::string)(*var(var_name));
 
-        result = utf8::replace(start, index, value);
-        index = utf8::iterator(result, index.position() -
-                               (((index.position() + index.length()) -
-                                 start.position()) - value.size()));
+        //result = utf8::replace(start, index, value);
+
+        ast_str->add(new ast::variable(parser::token(cutlet_tokenizer::T_VARIABLE,
+                                                     var_name,
+                                                     0, start.position())));
+
+        //index = utf8::iterator(result, index.position() -
+        //                       (((index.position() + index.length()) -
+        //                         start.position()) - value.size()));
       } else {
         // Unquoted variable name.
         ++index;
@@ -1193,15 +1190,25 @@ cutlet::variable_ptr cutlet::interpreter::string() {
           ++index;
 
         std::string var_name = utf8::substr(start + 1, index);
-        std::string value = (const std::string)(*var(var_name));
+
+        ast_str->add(new ast::variable(parser::token(cutlet_tokenizer::T_VARIABLE,
+                                                     var_name,
+                                                     0, start.position())));
+
+        /*std::string value = (const std::string)(*var(var_name));
 
         result = utf8::replace(start, index - 1, value);
         index = utf8::iterator(result, index.position() -
                                (((index.position() + index.length()) -
-                                 start.position()) - value.size()));
+                                 start.position()) - value.size()));*/
       }
 
     } else if (*index == "[") {
+      if (not part.empty()) {
+        ast_str->add(part);
+        part.clear();
+      }
+
       // Subcommand substitution.
       auto start = index;
       ++index;
@@ -1211,39 +1218,50 @@ cutlet::variable_ptr cutlet::interpreter::string() {
 
       std::string cmd = utf8::substr(start + 1, index);
       tokens->push(cmd);
-      std::string value = (const std::string)(*command());
+      ast_str->add(command());
+      //std::string value = (const std::string)(*command());
       tokens->pop();
 
-      result = utf8::replace(start, index, value);
+      /*result = utf8::replace(start, index, value);
       index = utf8::iterator(result, index.position() -
                              (((index.position() + index.length()) -
-                               start.position()) - value.size()));
+                               start.position()) - value.size()));*/
 
     } else if (*index == "\\") {
       // Escaped characters.
       auto start = index;
       ++index;
       if (*index == "$")
-        result = utf8::replace(start, index, "$");
+        part += "$";
+        //result = utf8::replace(start, index, "$");
       else if (*index == "\"")
-        result = utf8::replace(start, index, "\"");
+        part += "\"";
+        //result = utf8::replace(start, index, "\"");
       else if (*index == "'")
-        result = utf8::replace(start, index, "'");
+        part += "'";
+        //result = utf8::replace(start, index, "'");
       else if (*index == "\\")
-        result = utf8::replace(start, index, "\\");
+        part += "\\";
+        //result = utf8::replace(start, index, "\\");
 
       else if (*index == "a") // Bell/Alarm
-        result = utf8::replace(start, index, "\x07");
+        part += "\x07";
+        //result = utf8::replace(start, index, "\x07");
       else if (*index == "b") // Backspace
-        result = utf8::replace(start, index, "\x08");
+        part += "\x08";
+        //result = utf8::replace(start, index, "\x08");
       else if (*index == "e") // Backspace
-        result = utf8::replace(start, index, "\x1b");
+        part += "\x1b";
+        //result = utf8::replace(start, index, "\x1b");
       else if (*index == "f") // Form feed
-        result = utf8::replace(start, index, "\x0c");
+        part += "\x0c";
+        //result = utf8::replace(start, index, "\x0c");
       else if (*index == "n") // New line (line feed)
-        result = utf8::replace(start, index, "\x0a");
+        part += "\x0a";
+        //result = utf8::replace(start, index, "\x0a");
       else if (*index == "r") // Carrage return
-        result = utf8::replace(start, index, "\x0d");
+        part += "\x0d";
+        //result = utf8::replace(start, index, "\x0d");
       else if (*index == "t") // Horizontal tab
         result = utf8::replace(start, index, "\x09");
       else if (*index == "v") // Vertical tab
@@ -1285,19 +1303,25 @@ cutlet::variable_ptr cutlet::interpreter::string() {
       }
 
       --index;
+    } else {
+      part += *index;
     }
   }
 
-  return new cutlet::string(result);
+  if (not part.empty()) {
+    ast_str->add(part);
+  }
+
+  return ast_str;
 }
 
 /***********************************
  * cutlet::interpreter::subcommand *
  ***********************************/
 
-cutlet::variable_ptr cutlet::interpreter::subcommand() {
+cutlet::ast::node_ptr cutlet::interpreter::subcommand() {
   tokens->push();
-  variable_ptr result = command();
+  ast::node_ptr result = command();
   tokens->pop();
   return result;
 }
