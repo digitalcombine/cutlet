@@ -269,28 +269,28 @@ void parser::tokenizer::reset() noexcept {
 
 void parser::tokenizer::push() {
   auto token = get_token();
-  _states.push({tokens, code, stream});
+  _states.push({tokens, code, stream, line, offset});
   reset();
   code = (const std::string &)token;
   parse_tokens();
 }
 
 void parser::tokenizer::push(token value) {
-  _states.push({tokens, code, stream});
+  _states.push({tokens, code, stream, line, offset});
   reset();
   code = (const std::string &)value;
   parse_tokens();
 }
 
 void parser::tokenizer::push(const std::string &value) {
-  _states.push({tokens, code, stream});
+  _states.push({tokens, code, stream, line, offset});
   reset();
   code = value;
   parse_tokens();
 }
 
 void parser::tokenizer::push(std::istream &value) {
-  _states.push({tokens, code, stream});
+  _states.push({tokens, code, stream, line, offset});
   reset();
   stream = &value;
   code.clear();
@@ -306,6 +306,8 @@ void parser::tokenizer::pop() {
   tokens = top.tokens;
   code = top.code;
   stream = top.stream;
+  line = top.line;
+  offset = top.offset;
   _states.pop();
 }
 
@@ -401,3 +403,20 @@ void parser::grammer::eval(std::istream &code) {
   } else
     throw std::runtime_error("parser::grammer tokenizer not set");
 }
+
+/*****************************************************************************
+ */
+
+std::ostream &operator << (std::ostream &os, const parser::token &token) {
+  os << token.line() << ":" << token.offset() << " " << (unsigned int)token
+     << " " << (const std::string &)token;
+  return os;
+}
+
+/*std::ostream &operator << (std::ostream &os,
+                           const parser::tokenizer &tokenizer) {
+  for (auto &token: tokenizer.tokens) {
+    os << token << "\n";
+  }
+  return os;
+}*/

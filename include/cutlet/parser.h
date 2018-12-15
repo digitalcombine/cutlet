@@ -137,6 +137,8 @@ namespace parser {
       std::list<token> tokens;
       std::string code;
       std::istream *stream;
+      unsigned int line;
+      unsigned int offset;
     };
     std::stack<stack_s> _states;
 
@@ -156,5 +158,10 @@ namespace parser {
     virtual void entry() = 0;
   };
 }
+
+std::ostream &operator << (std::ostream &os, const parser::token &token);
+
+/*std::ostream &operator << (std::ostream &os,
+                         const parser::tokenizer &tokenizer);*/
 
 #endif /* _PARSER_H */

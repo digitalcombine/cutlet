@@ -282,12 +282,20 @@ bool cutlet::utf8::iterator::operator !=(const iterator &other) const {
   return _index != other._index;
 }
 
+/**************************************
+ * cutlet::utf8::iterator::operator + *
+ **************************************/
+
 cutlet::utf8::iterator cutlet::utf8::iterator::operator +(int value) const {
   auto result = *this;
   if (value > 0) for (; value > 0; ++result, --value);
   else for (; value < 0; --result, ++value);
   return result;
 }
+
+/**************************************
+ * cutlet::utf8::iterator::operator - *
+ **************************************/
 
 cutlet::utf8::iterator cutlet::utf8::iterator::operator -(int value) const {
   auto result = *this;
@@ -383,7 +391,7 @@ void cutlet_tokenizer::parse_tokens() {
 
       // Position tracking.
       ++line;
-      offset = 0;
+      offset = 1;
     } else
       return;
   }
@@ -406,11 +414,16 @@ void cutlet_tokenizer::parse_next_token() {
     cutlet::utf8::iterator it(code);
 
     // Skip any white space.
-    while (is_space(*it) and it != it.end()) ++it;
+    while (is_space(*it) and it != it.end()) {
+      ++it;
+      ++offset;
+    }
     if (it == it.end()) {
       code.clear();
       return;
     }
+
+    unsigned int start_pos = it.position();
 
     switch ((*it)[0]) {
 
@@ -566,6 +579,9 @@ void cutlet_tokenizer::parse_next_token() {
         // End of line token.
         tokens.push_back(parser::token(T_EOL, *it, line, offset));
         ++it;
+        ++line;
+        offset = 1;
+        start_pos = it.position();
 
       } else if ((tokens.empty() or (unsigned int)tokens.back() == T_EOL) and
                  (*it)[0] == '#') {
@@ -582,6 +598,8 @@ void cutlet_tokenizer::parse_next_token() {
       break;
     }
     }
+
+    offset += it.position() - start_pos;
 
     // Update the remaining code.
     code = cutlet::utf8::substr(it, it.end());
@@ -900,7 +918,7 @@ cutlet::variable_ptr cutlet::interpreter::var(const std::string &name) {
     result = _global->variable(*this, name);
 
   if (result.is_null())
-    throw std::runtime_error(std::string("Unable to resolve variable ") + name);
+    throw std::runtime_error(std::string("Unable to resolve variable $") + name);
 
   return result;
 }
@@ -1174,7 +1192,8 @@ cutlet::ast::node_ptr cutlet::interpreter::string() {
 
         ast_str->add(new ast::variable(parser::token(cutlet_tokenizer::T_VARIABLE,
                                                      var_name,
-                                                     0, start.position())));
+                                                     token.line(),
+                                                     token.offset() + start.position() + 1)));
       } else {
         // Unquoted variable name.
         ++index;
@@ -1186,7 +1205,8 @@ cutlet::ast::node_ptr cutlet::interpreter::string() {
 
         ast_str->add(new ast::variable(parser::token(cutlet_tokenizer::T_VARIABLE,
                                                      var_name,
-                                                     0, start.position())));
+                                                     token.line(),
+                                                     token.offset() + start.position() + 1)));
         --index;
       }
 
@@ -1214,41 +1234,29 @@ cutlet::ast::node_ptr cutlet::interpreter::string() {
       ++index;
       if (*index == "$")
         part += "$";
-        //result = utf8::replace(start, index, "$");
       else if (*index == "\"")
         part += "\"";
-        //result = utf8::replace(start, index, "\"");
       else if (*index == "'")
         part += "'";
-        //result = utf8::replace(start, index, "'");
       else if (*index == "\\")
         part += "\\";
-        //result = utf8::replace(start, index, "\\");
 
       else if (*index == "a") // Bell/Alarm
         part += "\x07";
-        //result = utf8::replace(start, index, "\x07");
       else if (*index == "b") // Backspace
         part += "\x08";
-        //result = utf8::replace(start, index, "\x08");
       else if (*index == "e") // Backspace
         part += "\x1b";
-        //result = utf8::replace(start, index, "\x1b");
       else if (*index == "f") // Form feed
         part += "\x0c";
-        //result = utf8::replace(start, index, "\x0c");
       else if (*index == "n") // New line (line feed)
         part += "\x0a";
-        //result = utf8::replace(start, index, "\x0a");
       else if (*index == "r") // Carrage return
         part += "\x0d";
-        //result = utf8::replace(start, index, "\x0d");
       else if (*index == "t") // Horizontal tab
         part += "\x09";
-        //result = utf8::replace(start, index, "\x09");
       else if (*index == "v") // Vertical tab
         part += "\x0b";
-        //result = utf8::replace(start, index, "\x0b");
 
       else if (*index == "x") {
         ++index;
@@ -1281,10 +1289,8 @@ cutlet::ast::node_ptr cutlet::interpreter::string() {
 
         std::string x;
         x += ch_val;
-        //result = utf8::replace(start, index - 1, x);
         part += x;
         --index;
-        //index = start + 1;
       }
 
       //--index;
