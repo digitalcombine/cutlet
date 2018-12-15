@@ -23,23 +23,43 @@
  * class cutlet::ast::node
  */
 
+/****************************
+ * cutlet::ast::node::~node *
+ ****************************/
+
 cutlet::ast::node::~node() noexcept {}
 
 /*****************************************************************************
  * class cutlet::ast::block
  */
 
+/*****************************
+ * cutlet::ast::block::block *
+ *****************************/
+
 cutlet::ast::block::block() {}
+
+/******************************
+ * cutlet::ast::block::~block *
+ ******************************/
 
 cutlet::ast::block::~block() noexcept {}
 
+/***************************
+ * cutlet::ast::block::add *
+ ***************************/
+
 void cutlet::ast::block::add(cutlet::ast::node_ptr n) {
-  nodes.push_back(n);
+  _nodes.push_back(n);
 }
+
+/***********************************
+ * cutlet::ast::block::operator () *
+ ***********************************/
 
 cutlet::variable_ptr
 cutlet::ast::block::operator()(cutlet::interpreter &interp) {
-  for (auto &n: nodes)
+  for (auto &n: _nodes)
     (*n)(interp);
   return nullptr;
 }
@@ -48,60 +68,113 @@ cutlet::ast::block::operator()(cutlet::interpreter &interp) {
  * class cutlet::ast::value
  */
 
-cutlet::ast::value::value(const parser::token &token) : token(token) {}
+/*****************************
+ * cutlet::ast::value::value *
+ *****************************/
+
+cutlet::ast::value::value(const parser::token &token) : _token(token) {}
+
+/******************************
+ * cutlet::ast::value::~value *
+ ******************************/
 
 cutlet::ast::value::~value() noexcept {}
 
+/***********************************
+ * cutlet::ast::value::operator () *
+ ***********************************/
+
 cutlet::variable_ptr
 cutlet::ast::value::operator()(cutlet::interpreter &interp) {
-  return new cutlet::string((std::string)token);
+  return new cutlet::string((const std::string &)_token);
 }
 
 /*****************************************************************************
  * class cutlet::ast::variable
  */
 
-cutlet::ast::variable::variable(const parser::token &token) : token(token) {}
+/***********************************
+ * cutlet::ast::variable::variable *
+ ***********************************/
+
+cutlet::ast::variable::variable(const parser::token &token) : _token(token) {}
+
+/************************************
+ * cutlet::ast::variable::~variable *
+ ************************************/
 
 cutlet::ast::variable::~variable() noexcept {}
 
-#include <iostream>
+/*************************************
+ * cutlet::ast::variable::operator() *
+ *************************************/
 
 cutlet::variable_ptr
 cutlet::ast::variable::operator()(cutlet::interpreter &interp) {
-  variable_ptr the_var = interp.var((const std::string &)token);
-  if (the_var.is_null()) {
-    throw std::runtime_error(std::string("No such variable ") +
-                             (const std::string &)token);
+  try {
+    return interp.var((const std::string &)_token);
+  } catch (std::runtime_error &err) {
+    std::stringstream mesg;
+    mesg << _token.line() << ":" << _token.offset() << ": "
+         << err.what();
+    throw std::runtime_error(mesg.str());
   }
-  return the_var;
 }
 
 /*****************************************************************************
  * class cutlet::ast::command
  */
 
-cutlet::ast::command::command(node_ptr n) : func(n) {}
+/*********************************
+ * cutlet::ast::command::command *
+ *********************************/
+
+cutlet::ast::command::command(node_ptr n) : _function(n) {}
+
+/**********************************
+ * cutlet::ast::command::~command *
+ **********************************/
 
 cutlet::ast::command::~command() noexcept {}
 
+/***********************************
+ * cutlet::ast::command::parameter *
+ ***********************************/
+
 void cutlet::ast::command::parameter(node_ptr n) {
-  params.push_back(n);
+  _parameters.push_back(n);
 }
+
+/************************************
+ * cutlet::ast::command::operator() *
+ ************************************/
 
 cutlet::variable_ptr
 cutlet::ast::command::operator()(cutlet::interpreter &interp) {
   cutlet::list c_params;
 
-  for (auto &p: params)
-    c_params.push_back((*p)(interp));
+  for (auto &parameter: _parameters)
+    c_params.push_back((*parameter)(interp));
 
-  cutlet::ast::variable *var = dynamic_cast<cutlet::ast::variable *>(&(*func));
-  cutlet::variable_ptr cmd = (*func)(interp);
-  if (var) {
-    return (*cmd)(interp, c_params);
-  } else {
-    return interp.execute((std::string)(*cmd), c_params);
+  /* First attempt to cast the func node to a variable node.
+   */
+  cutlet::ast::variable *var =
+    dynamic_cast<cutlet::ast::variable *>(&(*_function));
+  cutlet::variable_ptr cmd = (*_function)(interp);
+
+  try {
+    if (var) {
+      return (*cmd)(interp, c_params);
+    } else {
+      return interp.execute((std::string)(*cmd), c_params);
+    }
+  } catch (std::runtime_error &err) {
+    /** @todo Need to add location function to nodes so we can let the users
+     *        know where the problem was.
+     */
+    std::stringstream mesg;
+    mesg << err.what();
+    throw std::runtime_error(mesg.str());
   }
 }
 
@@ -109,27 +182,46 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
  * class cutlet::ast::string
  */
 
+/*******************************
+ * cutlet::ast::string::string *
+ *******************************/
+
 cutlet::ast::string::string() {}
+
+/********************************
+ * cutlet::ast::string::~string *
+ ********************************/
 
 cutlet::ast::string::~string() noexcept {}
 
+/****************************
+ * cutlet::ast::string::add *
+ ****************************/
+
 void cutlet::ast::string::add(const std::string &value) {
   if (not value.empty())
-    stringy.push_back({value, nullptr});
+    _stringy.push_back({value, nullptr});
 }
 
 void cutlet::ast::string::add(node_ptr n) {
-  stringy.push_back({"", n});
+  _stringy.push_back({"", n});
 }
+
+/************************************
+ * cutlet::ast::string::operator () *
+ ************************************/
 
 cutlet::variable_ptr
 cutlet::ast::string::operator()(cutlet::interpreter &interp) {
   cutlet::string *result = new cutlet::string();
 
-  for (auto &part: stringy) {
+  // Run through the string parts and put it all together.
+  for (auto &part: _stringy) {
     if (part.n.is_null()) {
+      // Literal string part.
       *result += part.s;
     } else {
+      // Variable or command substitution.
       variable_ptr v = (*part.n)(interp);
       *result += (std::string)(*v);
     }

@@ -29,6 +29,9 @@ namespace cutlet {
     public:
       virtual ~node() noexcept;
 
+      /** Execute the node.
+       * @param interp The cutlet interpreter for the execution context.
+       */
       virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp) = 0;
     };
     typedef memory::reference<node> node_ptr;
@@ -43,7 +46,7 @@ namespace cutlet {
       virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp);
 
     private:
-      std::list<node_ptr> nodes;
+      std::list<node_ptr> _nodes;
     };
 
     class value : public node {
@@ -53,7 +56,7 @@ namespace cutlet {
 
       virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp);
     private:
-      parser::token token;
+      parser::token _token;
     };
 
     class variable : public node {
@@ -63,7 +66,7 @@ namespace cutlet {
 
       virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp);
     private:
-      parser::token token;
+      parser::token _token;
     };
 
     class command : public node {
@@ -76,8 +79,8 @@ namespace cutlet {
       virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp);
 
     private:
-      node_ptr func;
-      std::list<node_ptr> params;
+      node_ptr _function;
+      std::list<node_ptr> _parameters;
     };
 
     class string : public node {
@@ -95,7 +98,7 @@ namespace cutlet {
         node_ptr n;
       };
 
-      std::list<_parts_s> stringy;
+      std::list<_parts_s> _stringy;
     };
   }
 }
