@@ -24,24 +24,32 @@ typedef struct memory_s {
   time_t collected_time;
 } memory_t;
 
-std::size_t memory::GC::limit = 5 * 1024 * 1024; // 5M
-time_t memory::GC::collection_age = 60 * 10; // 10 minutes
-std::multimap<std::size_t, void *> memory::GC::free_memory;
-std::size_t memory::GC::free_size = 0;
+std::size_t memory::gc::limit = 5 * 1024 * 1024; // 5M
+time_t memory::gc::collection_age = 60; // 1 minute
+std::multimap<std::size_t, void *> memory::gc::free_memory;
+std::size_t memory::gc::free_size = 0;
 
 /*********************
- * memory::GC::alloc *
+ * memory::gc::alloc *
  *********************/
 
-void *memory::GC::alloc(std::size_t size) {
-  unsigned char *res = 0;
-  std::multimap<std::size_t, void *>::iterator it = free_memory.find(size);
+#include <iostream>
 
-  if (it != free_memory.end()) {
+void *memory::gc::alloc(std::size_t size) {
+  unsigned char *res = 0;
+
+  /* To help further speed up allocation, we don't just try to find the
+   * exact size of memory requested. Instead we use lower_bound to find a
+   * memory block that would fit the request and make sure it's no bigger
+   * than the requested size by 50 bytes.
+   */
+  auto it = free_memory.lower_bound(size);
+  if (it != free_memory.end() and (it->first - size) < 50) {
     res = (unsigned char *)(it->second);
     free_memory.erase(it);
     free_size -= ((memory_t*)res)->size;
   } else {
+    // An appropriate block couldn't be found so get more from the system.
     res = (unsigned char *)::operator new(size + sizeof(memory_t));
     ((memory_t *)(res))->size = size;
   }
@@ -50,10 +58,13 @@ void *memory::GC::alloc(std::size_t size) {
 }
 
 /***********************
- * memory::GC::recycle *
+ * memory::gc::recycle *
  ***********************/
 
-void memory::GC::recycle(void *ptr) noexcept {
+void memory::gc::recycle(void *ptr) throw() {
+  /* Add the memory block to the free list according to it's size and update
+   * it's timestamp.
+   */
   memory_t *mptr = (memory_t *)((unsigned char *)ptr - sizeof(memory_t));
   if (mptr->size + free_size < limit) {
     free_memory.insert(std::make_pair(mptr->size, mptr));
@@ -65,43 +76,66 @@ void memory::GC::recycle(void *ptr) noexcept {
 }
 
 /***********************
- * memory::GC::collect *
+ * memory::gc::collect *
  ***********************/
 
-void memory::GC::collect() {
+void memory::gc::collect(void) {
+  /* Find blocks of memory that are older than the collection_age and
+   * actually give them back to the system.
+   */
   memory_t *mptr = NULL;
-  for (std::multimap<std::size_t, void *>::iterator it = free_memory.begin();
-       it != free_memory.end(); ++it) {
+  auto it = free_memory.begin();
+  while (it != free_memory.end()) {
     mptr = (memory_t *)it->second;
     if (mptr->collected_time - time(NULL) >= collection_age) {
-      ::operator delete(mptr);
+      ::operator delete(it->second);
+      it = free_memory.erase(it);
+    } else {
+      ++it;
     }
   }
 }
 
 /***************************
- * memory::GC::collect_all *
+ * memory::gc::collect_all *
  ***************************/
 
-void memory::GC::collect_all() {
-  for (std::multimap<std::size_t, void *>::iterator it = free_memory.begin();
-       it != free_memory.end(); ++it) {
-    ::operator delete(it->second);
-  }
+void memory::gc::collect_all(void) {
+  for (auto &block: free_memory)
+    ::operator delete(block.second);
+  free_memory.clear();
 }
 
 /************************************
- * memory::Recyclable::operator new *
+ * memory::recyclable::operator new *
  ************************************/
 
-void *memory::Recyclable::operator new(std::size_t size) {
-  return GC::alloc(size);
+void *
+memory::recyclable::operator new(std::size_t size) {
+  return gc::alloc(size);
+}
+
+/**************************************
+ * memory::recyclable::operator new[] *
+ **************************************/
+
+void *
+memory::recyclable::operator new[](std::size_t size) {
+  return gc::alloc(size);
 }
 
 /***************************************
- * memory::Recyclable::operator delete *
+ * memory::recyclable::operator delete *
  ***************************************/
 
-void memory::Recyclable::operator delete(void *ptr) noexcept {
-  GC::recycle(ptr);
+void memory::recyclable::operator delete(void *ptr) noexcept {
+  gc::recycle(ptr);
+}
+
+/*****************************************
+ * memory::recyclable::operator delete[] *
+ *****************************************/
+
+void memory::recyclable::operator delete[](void *ptr) noexcept {
+  gc::recycle(ptr);
 }
