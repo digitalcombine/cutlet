@@ -26,8 +26,43 @@
 
 namespace memory {
 
+  /** Garbage collector for recyclable objects.
+   */
+  class gc {
+  public:
+    static std::size_t limit;
+    static time_t collection_age;
+
+    static void *alloc(std::size_t size);
+
+    static void recycle(void *ptr) noexcept;
+
+    static void collect(void);
+
+    static void collect_all(void);
+
+    //static void finalize()
+
+  private:
+    static std::multimap<std::size_t, void *> free_memory;
+    static std::size_t free_size;
+  };
+
+  /**
+   */
+  class recyclable {
+  public:
+    void *operator new(std::size_t size);
+
+    void *operator new[](std::size_t size);
+
+    void operator delete(void *ptr) noexcept;
+
+    void operator delete[](void *ptr) noexcept;
+  };
+
   template <typename Ty>
-  class reference {
+  class reference : public recyclable {
   private:
 
     /** Reference Counting Class Wrapper.
@@ -45,44 +80,44 @@ namespace memory {
         : refs(irefs), wrefs(0), nobj(obj) {
       }
 
-      /* Destroy the native object. */
+      /** Destroy the native object. */
       virtual ~__reference() throw() {
         if (nobj) delete nobj;
       }
 
-      bool is_null() { return (nobj == 0); }
+      bool is_null() { return (nobj == nullptr); }
 
       void free() {
         /* We have to set nobj to null before deleting it to prevent any kind
-        * of race conditions with weak pointers.
-        */
+         * of race conditions with weak pointers.
+         */
         Ty *obj = nobj;
-        nobj = 0;
+        nobj = nullptr;
         delete obj;
       }
 
-      /* Increment the weak reference counter by 1. */
+      /** Increment the weak reference counter by 1. */
       void inc_weak_ref() { wrefs++; }
 
-      /* Decrease the weak reference counter by 1. */
+      /** Decrease the weak reference counter by 1. */
       void dec_weak_ref() { if (wrefs > 0) wrefs--; }
 
-      /* Get the current weak reference count. */
+      /** Get the current weak reference count. */
       unsigned int __wref_cnt() const { return wrefs; }
 
-      /* Increment the reference counter by 1. */
+      /** Increment the reference counter by 1. */
       void inc_ref() { refs++; }
 
-      /* Decrease the reference counter by 1. */
+      /** Decrease the reference counter by 1. */
       void dec_ref() { refs--; }
 
-      /* Get the current reference count. */
+      /** Get the current reference count. */
       unsigned int __ref_cnt() const { return refs; }
 
-      /* Cast this as a reference to the object being wrapped. */
+      /** Cast this as a reference to the object being wrapped. */
       operator Ty &() { return (Ty &)*nobj; }
 
-      /* Cast this as a pointer to the object being wrapped. */
+      /** Cast this as a pointer to the object being wrapped. */
       operator Ty*() { return (Ty *)nobj; }
 
     private:
@@ -94,15 +129,13 @@ namespace memory {
   public:
     /** Create a null reference pointer.
      */
-    reference(void) : weak_ref(false), obj(0) {
+    reference(void) : weak_ref(false), obj(nullptr) {
     }
 
     /** Create a new reference to a newly allocated object.
      */
-    reference(Ty *obj) : weak_ref(false), obj(0) {
-      if (obj != 0) {
-        this->obj = new __reference(obj, 1);
-      }
+    reference(Ty *obj) : weak_ref(false), obj(nullptr) {
+      if (obj != nullptr) this->obj = new __reference(obj, 1);
     }
 
     /** Default copy constructor.
@@ -119,15 +152,15 @@ namespace memory {
         if (weak_ref) {
           obj->dec_weak_ref();
           if (obj->__ref_cnt() == 0 and obj->__wref_cnt() == 0) {
-            delete obj; obj = 0;
+            delete obj; obj = nullptr;
           }
         } else {
           obj->dec_ref();
-          if (!obj->__ref_cnt()) {
-            if (obj->__wref_cnt())
+          if (obj->__ref_cnt() == 0) {
+            if (obj->__wref_cnt()) {
               obj->free();
-            else {
-              delete obj; obj = 0;
+            } else {
+              delete obj; obj = nullptr;
             }
           }
         }
@@ -138,19 +171,23 @@ namespace memory {
      * @return The number of references
      */
     unsigned int references(void) {
-      return (obj ? obj->__ref_cnt() : 0);
+      return (obj != nullptr ? obj->__ref_cnt() : 0);
+    }
+
+    unsigned int weak_references(void) {
+      return (obj != nullptr ? obj->__wref_cnt() : 0);
     }
 
     /** Test if we reference an object or just a NULL pointer.
      * @return If true if the reference in pointing to null.
      */
     bool is_null(void) const {
-      return ((obj == 0) or obj->is_null());
+      return ((obj == nullptr) or obj->is_null());
     }
 
     /** Creates a new weak reference.
      */
-    reference weak() {
+    reference weak(void) {
       reference result;
       result.obj = obj;
       result.weak_ref = true;
@@ -214,7 +251,7 @@ namespace memory {
       if (obj) {
         this->obj = new __reference(obj, 1);
       } else
-        this->obj = 0;
+        this->obj = nullptr;
       return *this;
     }
 
@@ -224,8 +261,7 @@ namespace memory {
       if (this != &obj) {
         dec_reference();
         this->obj = obj.obj;
-        this->weak_ref = false;
-        //this->weak_ref = obj.weak_ref;
+        this->weak_ref = obj.weak_ref;
         inc_reference();
       }
       return *this;
@@ -237,14 +273,16 @@ namespace memory {
       return (obj == other.obj);
     }
 
-    /** Check if the reference is referencing @c other.
+    /** Check if the reference is referencing the same object as @c other.
      */
     bool operator ==(const Ty *other) const {
       return ((Ty *)(obj) == other);
     }
 
-    bool operator !=(const reference<Ty> &obj) const {
-      return (this->obj != obj.obj);
+    /** Check if the reference is referencing a different object as @c other.
+     */
+    bool operator !=(const reference<Ty> &other) const {
+      return (this->obj != other.obj);
     }
 
     reference &operator ++(void) { inc_reference(); return *this; }
@@ -268,15 +306,17 @@ namespace memory {
       if (obj) {
         if (weak_ref) {
           obj->dec_weak_ref();
-          if (obj->__ref_cnt() == 0 and obj->__wref_cnt() == 0)
-            delete obj;
+          if (obj->__ref_cnt() == 0 and obj->__wref_cnt() == 0) {
+            delete obj; obj = nullptr;
+          }
         } else {
           obj->dec_ref();
-          if (!obj->__ref_cnt()) {
+          if (obj->__ref_cnt() == 0) {
             if (obj->__wref_cnt())
               obj->free();
-            else
-              delete obj;
+            else {
+              delete obj; obj = nullptr;
+            }
           }
         }
       }
@@ -294,31 +334,6 @@ namespace memory {
     bool weak_ref;
     __reference *obj;
 
-  };
-
-  class GC {
-  public:
-    static std::size_t limit;
-    static time_t collection_age;
-
-    static void *alloc(std::size_t size);
-
-    static void recycle(void *ptr) noexcept;
-
-    static void collect();
-
-    static void collect_all();
-
-  private:
-    static std::multimap<std::size_t, void *> free_memory;
-    static std::size_t free_size;
-  };
-
-  class Recyclable {
-  public:
-    void *operator new(std::size_t size);
-
-    void operator delete(void *ptr) noexcept;
   };
 }
 #endif /* _CUTLET_MEMORY_H */

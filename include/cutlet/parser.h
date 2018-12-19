@@ -28,8 +28,16 @@
 #define _PARSER_H
 
 namespace parser {
-
+  class token;
   class tokenizer;
+}
+
+std::ostream &operator <<(std::ostream &os, const parser::token &token);
+
+std::ostream &operator <<(std::ostream &os,
+                          const parser::tokenizer &tokenizer);
+
+namespace parser {
 
 	/**
 	 */
@@ -111,6 +119,9 @@ namespace parser {
     void push(std::istream &code);
     void pop();
 
+    friend std::ostream &::operator <<(std::ostream &os,
+                                       const parser::tokenizer &tokenizer);
+
   protected:
     std::list<token> tokens;
     std::string code;
@@ -137,6 +148,8 @@ namespace parser {
       std::list<token> tokens;
       std::string code;
       std::istream *stream;
+      unsigned int line;
+      unsigned int offset;
     };
     std::stack<stack_s> _states;
 

@@ -20,6 +20,23 @@
 #include <cutlet/parser.h>
 #include <iostream>
 
+/*****************************************************************************
+ */
+
+std::ostream &operator << (std::ostream &os, const parser::token &token) {
+  os << token.line() << ":" << token.offset() << " " << (unsigned int)token
+     << " " << (const std::string &)token;
+  return os;
+}
+
+std::ostream &operator << (std::ostream &os,
+                           const parser::tokenizer &tokenizer) {
+  for (auto &token: tokenizer.tokens) {
+    os << token << "\n";
+  }
+  return os;
+}
+
 /******************************************************************************
  * class parser::token
  */
@@ -269,29 +286,35 @@ void parser::tokenizer::reset() noexcept {
 
 void parser::tokenizer::push() {
   auto token = get_token();
-  _states.push({tokens, code, stream});
+  _states.push({tokens, code, stream, line, offset});
   reset();
-  code = (const std::string &)token;
+  line = token._line;
+  offset = token._offset;
+  code = token._value;
   parse_tokens();
 }
 
 void parser::tokenizer::push(token value) {
-  _states.push({tokens, code, stream});
+  _states.push({tokens, code, stream, line, offset});
   reset();
-  code = (const std::string &)value;
+  line = value._line;
+  offset = value._offset;
+  code = value._value;
   parse_tokens();
 }
 
 void parser::tokenizer::push(const std::string &value) {
-  _states.push({tokens, code, stream});
+  _states.push({tokens, code, stream, line, offset});
   reset();
+  line = offset = 1;
   code = value;
   parse_tokens();
 }
 
 void parser::tokenizer::push(std::istream &value) {
-  _states.push({tokens, code, stream});
+  _states.push({tokens, code, stream, line, offset});
   reset();
+  line = offset = 1;
   stream = &value;
   code.clear();
   parse_tokens();
@@ -306,6 +329,8 @@ void parser::tokenizer::pop() {
   tokens = top.tokens;
   code = top.code;
   stream = top.stream;
+  line = top.line;
+  offset = top.offset;
   _states.pop();
 }
 

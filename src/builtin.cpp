@@ -181,8 +181,11 @@ builtin::global(cutlet::interpreter &interp,
   if (parameters.size() == 2) {
     interp.global((std::string)*(parameters[0]), parameters[1]);
   } else if (parameters.size() == 3) {
-    // XXX Trigger an error here.
-    if ((std::string)*(parameters[1]) != "=") return nullptr;
+    if ((std::string)*(parameters[1]) != "=") {
+      throw std::runtime_error(std::string("global name ¿=? value\n"
+                                           " Expected = got ") +
+                                           (std::string)*(parameters[1]));
+    }
 
     interp.global((std::string)*(parameters[0]), parameters[2]);
   }

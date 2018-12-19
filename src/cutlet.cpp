@@ -22,6 +22,7 @@
 #include <fstream>
 #include "builtin.h"
 #include "utilities.h"
+#include "ast.h"
 
 class native_lib {
 public:
@@ -281,12 +282,20 @@ bool cutlet::utf8::iterator::operator !=(const iterator &other) const {
   return _index != other._index;
 }
 
+/**************************************
+ * cutlet::utf8::iterator::operator + *
+ **************************************/
+
 cutlet::utf8::iterator cutlet::utf8::iterator::operator +(int value) const {
   auto result = *this;
   if (value > 0) for (; value > 0; ++result, --value);
   else for (; value < 0; --result, ++value);
   return result;
 }
+
+/**************************************
+ * cutlet::utf8::iterator::operator - *
+ **************************************/
 
 cutlet::utf8::iterator cutlet::utf8::iterator::operator -(int value) const {
   auto result = *this;
@@ -382,7 +391,7 @@ void cutlet_tokenizer::parse_tokens() {
 
       // Position tracking.
       ++line;
-      offset = 0;
+      offset = 1;
     } else
       return;
   }
@@ -405,11 +414,16 @@ void cutlet_tokenizer::parse_next_token() {
     cutlet::utf8::iterator it(code);
 
     // Skip any white space.
-    while (is_space(*it) and it != it.end()) ++it;
+    while (is_space(*it) and it != it.end()) {
+      ++it;
+      ++offset;
+    }
     if (it == it.end()) {
       code.clear();
       return;
     }
+
+    unsigned int start_pos = it.position();
 
     switch ((*it)[0]) {
 
@@ -530,6 +544,8 @@ void cutlet_tokenizer::parse_next_token() {
 
       cutlet::utf8::iterator start(it), previous(it);
       unsigned int count = 1;
+      unsigned int line_tmp = line;
+      unsigned int start_tmp = start_pos;
 
       // Find the matching } character.
       while (count) {
@@ -548,6 +564,10 @@ void cutlet_tokenizer::parse_next_token() {
           previous = it;
         } else if (*it == "{") count++;
 
+        if (is_eol(*it)) {
+          ++line_tmp;
+          start_tmp = it.position();
+        }
         ++it; // Next character please.
       }
 
@@ -555,6 +575,8 @@ void cutlet_tokenizer::parse_next_token() {
       tokens.push_back(parser::token(T_BLOCK,
                                      cutlet::utf8::substr(start, previous),
                                      line, offset));
+      line = line_tmp;
+      start_pos = start_tmp;
       break;
     }
 
@@ -565,6 +587,9 @@ void cutlet_tokenizer::parse_next_token() {
         // End of line token.
         tokens.push_back(parser::token(T_EOL, *it, line, offset));
         ++it;
+        ++line;
+        offset = 1;
+        start_pos = it.position();
 
       } else if ((tokens.empty() or (unsigned int)tokens.back() == T_EOL) and
                  (*it)[0] == '#') {
@@ -582,10 +607,10 @@ void cutlet_tokenizer::parse_next_token() {
     }
     }
 
+    offset += it.position() - start_pos;
+
     // Update the remaining code.
     code = cutlet::utf8::substr(it, it.end());
-
-    //std::cout << *this << std::flush;
   }
 }
 
@@ -899,7 +924,7 @@ cutlet::variable_ptr cutlet::interpreter::var(const std::string &name) {
     result = _global->variable(*this, name);
 
   if (result.is_null())
-    throw std::runtime_error(std::string("Unable to resolve variable ") + name);
+    throw std::runtime_error(std::string("Unable to resolve variable $") + name);
 
   return result;
 }
@@ -985,11 +1010,10 @@ cutlet::component_ptr cutlet::interpreter::get(const std::string &name) const {
  *****************************/
 
 cutlet::variable_ptr cutlet::interpreter::expr(const std::string &cmd) {
-  std::cout << "expr " << cmd << std::endl;
   tokens->push(cmd);
-  variable_ptr result = command();
+  ast::node_ptr result = command();
   tokens->pop();
-  return result;
+  return (*result)(*this);
 }
 
 /******************************
@@ -1073,40 +1097,38 @@ cutlet::interpreter::execute(const std::string &procedure,
  ******************************/
 
 void cutlet::interpreter::entry() {
+  ast::block ast_tree;
+
   while (tokens or not tokens->expect(cutlet_tokenizer::T_EOF)) {
     while (tokens->expect(cutlet_tokenizer::T_EOL)) tokens->next();
+
     if (tokens->expect(cutlet_tokenizer::T_EOF)) break;
-    command();
-    if (_frame->done()) return;
+
+    ast_tree.add(command());
   }
+  ast_tree(*this);
 }
 
 /********************************
  * cutlet::interpreter::command *
  ********************************/
 
-cutlet::variable_ptr cutlet::interpreter::command() {
-  std::string cmd;
-  cutlet::list args;
-  variable_ptr evar;
+cutlet::ast::node_ptr cutlet::interpreter::command() {
+  ast::command *cmd_ast;
 
   // Get the command name.
   if (tokens->expect(cutlet_tokenizer::T_WORD) or
       tokens->expect(cutlet_tokenizer::T_BLOCK)) {
-    cmd = (const std::string &)tokens->get_token();
+    cmd_ast = new ast::command(new ast::value(tokens->get_token()));
 
   } else if (tokens->expect(cutlet_tokenizer::T_STRING)) {
-    auto result = string();
-    if (not result.is_null())
-      cmd = (const std::string &)(*result);
+    cmd_ast = new ast::command(string());
 
   } else if (tokens->expect(cutlet_tokenizer::T_VARIABLE)) {
-    evar = variable();
+    cmd_ast = new ast::command(variable());
 
   } else if (tokens->expect(cutlet_tokenizer::T_SUBCMD)) {
-    auto result = subcommand();
-    if (not result.is_null())
-      cmd = (const std::string &)(*result);
+    cmd_ast = new ast::command(subcommand());
 
   } else {
     throw parser::syntax_error("Invalid token", tokens->get_token());
@@ -1117,57 +1139,55 @@ cutlet::variable_ptr cutlet::interpreter::command() {
          not tokens->expect(cutlet_tokenizer::T_EOF)) {
 
     if (tokens->expect(cutlet_tokenizer::T_VARIABLE)) {
-      args.push_back(variable());
+      cmd_ast->parameter(variable());
     } else if (tokens->expect(cutlet_tokenizer::T_STRING)) {
-      args.push_back(string());
+      cmd_ast->parameter(string());
     } else if (tokens->expect(cutlet_tokenizer::T_SUBCMD)) {
-      args.push_back(subcommand());
+      cmd_ast->parameter(subcommand());
     } else if (tokens->expect(cutlet_tokenizer::T_WORD) or
                tokens->expect(cutlet_tokenizer::T_BLOCK)) {
-      auto token = tokens->get_token();
-      args.push_back(new cutlet::string((const std::string &)token));
+      cmd_ast->parameter(new ast::value(tokens->get_token()));
     } else {
       throw std::runtime_error("Unknown token");
     }
   }
 
-  if (tokens->expect(cutlet_tokenizer::T_EOL)) tokens->next(); // Remove EOL
-
-  // Now actually execute the command.
-  if (not evar.is_null()) {
-    return (*evar)(*this, args);
-  } else {
-    return _global->execute(*this, cmd, args);
-  }
+  return cmd_ast;
 }
 
 /*********************************
  * cutlet::interpreter::variable *
  *********************************/
 
-cutlet::variable_ptr cutlet::interpreter::variable() {
-  auto token = tokens->get_token();
-  variable_ptr the_var = var((const std::string &)token);
-  if (the_var.is_null())
-    throw std::runtime_error(std::string("No such variable ") +
-                             (const std::string &)token);
-  return the_var;
+cutlet::ast::node_ptr cutlet::interpreter::variable() {
+  return new ast::variable(tokens->get_token());
 }
 
 /*******************************
  * cutlet::interpreter::string *
  *******************************/
 
-cutlet::variable_ptr cutlet::interpreter::string() {
+cutlet::ast::node_ptr cutlet::interpreter::string() {
+  ast::string *ast_str = new ast::string;
   auto token = tokens->get_token();
   std::string result = (const std::string &)token;
+  std::string part;
 
   // Scan the string for substitutions.
   auto index = utf8::iterator(result);
+  auto s_index = index;
   for (; index != index.end(); ++index) {
 
     if (*index == "$") {
       // Variable substitution.
+
+      if (not part.empty()) {
+        // Add the current string parts collected before the variable
+        // substitution.
+        ast_str->add(part);
+        part.clear();
+      }
+
       auto start = index;
       ++index;
 
@@ -1179,12 +1199,11 @@ cutlet::variable_ptr cutlet::interpreter::string() {
           throw parser::syntax_error("Unmatched ${ in string", token);
 
         std::string var_name = utf8::substr(start + 2, index);
-        std::string value = (const std::string)(*var(var_name));
 
-        result = utf8::replace(start, index, value);
-        index = utf8::iterator(result, index.position() -
-                               (((index.position() + index.length()) -
-                                 start.position()) - value.size()));
+        ast_str->add(new ast::variable(parser::token(cutlet_tokenizer::T_VARIABLE,
+                                                     var_name,
+                                                     token.line(),
+                                                     token.offset() + start.position() + 1)));
       } else {
         // Unquoted variable name.
         ++index;
@@ -1193,63 +1212,68 @@ cutlet::variable_ptr cutlet::interpreter::string() {
           ++index;
 
         std::string var_name = utf8::substr(start + 1, index);
-        std::string value = (const std::string)(*var(var_name));
 
-        result = utf8::replace(start, index - 1, value);
-        index = utf8::iterator(result, index.position() -
-                               (((index.position() + index.length()) -
-                                 start.position()) - value.size()));
+        ast_str->add(new ast::variable(parser::token(cutlet_tokenizer::T_VARIABLE,
+                                                     var_name,
+                                                     token.line(),
+                                                     token.offset() + start.position() + 1)));
+        --index;
       }
 
     } else if (*index == "[") {
       // Subcommand substitution.
+
+      if (not part.empty()) {
+        // Add the current string parts collected before the subcommand.
+        ast_str->add(part);
+        part.clear();
+      }
+
       auto start = index;
       ++index;
       while (*index != "]" and index != index.end()) ++index;
       if (index == index.end())
         throw parser::syntax_error("Unmatched [ in string", token);
 
-      std::string cmd = utf8::substr(start + 1, index);
+      parser::token cmd(cutlet_tokenizer::T_SUBCMD,
+                        utf8::substr(start + 1, index),
+                        token.line(), token.offset() + start.position() + 1);
       tokens->push(cmd);
-      std::string value = (const std::string)(*command());
+      ast_str->add(command());
       tokens->pop();
-
-      result = utf8::replace(start, index, value);
-      index = utf8::iterator(result, index.position() -
-                             (((index.position() + index.length()) -
-                               start.position()) - value.size()));
 
     } else if (*index == "\\") {
       // Escaped characters.
+
       auto start = index;
       ++index;
       if (*index == "$")
-        result = utf8::replace(start, index, "$");
+        part += "$";
       else if (*index == "\"")
-        result = utf8::replace(start, index, "\"");
+        part += "\"";
       else if (*index == "'")
-        result = utf8::replace(start, index, "'");
+        part += "'";
       else if (*index == "\\")
-        result = utf8::replace(start, index, "\\");
+        part += "\\";
 
       else if (*index == "a") // Bell/Alarm
-        result = utf8::replace(start, index, "\x07");
+        part += "\x07";
       else if (*index == "b") // Backspace
-        result = utf8::replace(start, index, "\x08");
+        part += "\x08";
       else if (*index == "e") // Backspace
-        result = utf8::replace(start, index, "\x1b");
+        part += "\x1b";
       else if (*index == "f") // Form feed
-        result = utf8::replace(start, index, "\x0c");
+        part += "\x0c";
       else if (*index == "n") // New line (line feed)
-        result = utf8::replace(start, index, "\x0a");
+        part += "\x0a";
       else if (*index == "r") // Carrage return
-        result = utf8::replace(start, index, "\x0d");
+        part += "\x0d";
       else if (*index == "t") // Horizontal tab
-        result = utf8::replace(start, index, "\x09");
+        part += "\x09";
       else if (*index == "v") // Vertical tab
-        result = utf8::replace(start, index, "\x0b");
+        part += "\x0b";
 
-      else if (*index == "x") {
+      else if (*index == "x") { // Hex byte values.
         ++index;
         std::string value;
         for (int count = 0; count < 2; ++count, ++index) {
@@ -1280,24 +1304,30 @@ cutlet::variable_ptr cutlet::interpreter::string() {
 
         std::string x;
         x += ch_val;
-        result = utf8::replace(start, index - 1, x);
-        index = start + 1;
+        part += x;
+        --index;
       }
 
-      --index;
+    } else {
+      // Collect the actual literal parts of the string.
+      part += *index;
     }
   }
 
-  return new cutlet::string(result);
+  if (not part.empty()) {
+    ast_str->add(part);
+  }
+
+  return ast_str;
 }
 
 /***********************************
  * cutlet::interpreter::subcommand *
  ***********************************/
 
-cutlet::variable_ptr cutlet::interpreter::subcommand() {
+cutlet::ast::node_ptr cutlet::interpreter::subcommand() {
   tokens->push();
-  variable_ptr result = command();
+  ast::node_ptr result = command();
   tokens->pop();
   return result;
 }

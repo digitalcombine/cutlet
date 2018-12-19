@@ -15,7 +15,7 @@ print $string
 global string = "Hello [$list1 join][$list2 join]"
 print $string
 
-global string = "This is a variable \$name.\n And a \"backslash\" \\\n \$var1 = $var1"
+global string = "This is a variable \$name.\n\tAnd a \"backslash\" \\\n\t\$var1 = $var1"
 print $string
 
 print "\x48\x65\x6c\x6c\x6f!"
