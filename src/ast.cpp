@@ -59,8 +59,10 @@ void cutlet::ast::block::add(cutlet::ast::node_ptr n) {
 
 cutlet::variable_ptr
 cutlet::ast::block::operator()(cutlet::interpreter &interp) {
-  for (auto &n: _nodes)
-    (*n)(interp);
+  for (auto &node: _nodes) {
+    (*node)(interp);
+    if (interp.done()) return nullptr;
+  }
   return nullptr;
 }
 
@@ -149,6 +151,8 @@ void cutlet::ast::command::parameter(node_ptr n) {
  * cutlet::ast::command::operator() *
  ************************************/
 
+#include <iostream>
+
 cutlet::variable_ptr
 cutlet::ast::command::operator()(cutlet::interpreter &interp) {
   cutlet::list c_params;
@@ -156,16 +160,17 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
   for (auto &parameter: _parameters)
     c_params.push_back((*parameter)(interp));
 
-  /* First attempt to cast the func node to a variable node.
-   */
+  // First attempt to cast the func node to a variable node.
   cutlet::ast::variable *var =
     dynamic_cast<cutlet::ast::variable *>(&(*_function));
   cutlet::variable_ptr cmd = (*_function)(interp);
 
   try {
     if (var) {
-      return (*cmd)(interp, c_params);
+      // Execute the variable.
+      return (*cmd)(cmd, interp, c_params);
     } else {
+      // Execute the function.
       return interp.execute((std::string)(*cmd), c_params);
     }
   } catch (std::runtime_error &err) {

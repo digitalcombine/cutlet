@@ -3,11 +3,11 @@
 $library.path append "../libs/.libs"
 import stdlib
 
-global result = 0
-
+#=============================================================================#
+#
 try {
   raise "I threw an error"
-  global result = 1
+  return 1
 } catch err {
   if {$err == "I threw an error"} then {
     print "I caught an error ->" $err
@@ -17,4 +17,13 @@ try {
   }
 }
 
-return $result
+#=============================================================================#
+#
+global myvar = "whatever"
+print "\$myvar = $myvar"
+
+global myvar =
+try {
+  print "\$myvar = $myvar"
+  return 1
+}

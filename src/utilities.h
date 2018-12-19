@@ -34,4 +34,8 @@ typedef HMODULE nativelib_t;
 
 bool fexists(const std::string &filename);
 
+bool is_space(const std::string &value);
+
+bool is_eol(const std::string &value);
+
 #endif /* _CUTLET_UTILS_H */

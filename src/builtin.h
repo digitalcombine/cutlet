@@ -48,8 +48,24 @@ namespace builtin {
   cutlet::variable_ptr list(cutlet::interpreter &interp,
                             const cutlet::list &parameters);
 
-  cutlet::variable_ptr expr(cutlet::interpreter &interp,
-                            const cutlet::list &parameters);
+  cutlet::variable_ptr sandbox(cutlet::interpreter &interp,
+                               const cutlet::list &parameters);
+
+  /** This class is a Cutlet variable that wraps a cutlet sandbox. It allows
+   * access to the sandbox API within scripts and interpreters.
+   */
+  class sandbox_var : public cutlet::variable {
+  public:
+    sandbox_var(cutlet::sandbox_ptr sb);
+    ~sandbox_var() noexcept;
+
+    virtual cutlet::variable_ptr operator()(cutlet::variable_ptr self,
+                                            cutlet::interpreter &interp,
+                                            const cutlet::list &parameters);
+
+  private:
+    cutlet::sandbox_ptr _sandbox;
+  };
 }
 
 #endif /* _CUTLET_BUILTIN_H */

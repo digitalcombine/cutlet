@@ -105,7 +105,8 @@ namespace cutlet {
   public:
     virtual ~variable() noexcept;
 
-    virtual variable_ptr operator()(interpreter &interp,
+    virtual variable_ptr operator()(variable_ptr self,
+                                    interpreter &interp,
                                     const list &parameters);
 
     /** Cast the variable to a std::string type.
@@ -134,7 +135,8 @@ namespace cutlet {
     string(int value);
     virtual ~string() noexcept;
 
-    virtual variable_ptr operator()(interpreter &interp,
+    virtual variable_ptr operator()(variable_ptr self,
+                                    interpreter &interp,
                                     const list &parameters);
 
     virtual operator std::string() const;
@@ -150,7 +152,10 @@ namespace cutlet {
     list(const std::initializer_list<variable_ptr> &items);
     list(const list &other);
 
-    virtual variable_ptr operator()(interpreter &interp,
+    std::string join(const std::string &delim = " ") const;
+
+    virtual variable_ptr operator()(variable_ptr self,
+                                    interpreter &interp,
                                     const list &parameters);
 
     virtual operator std::string() const;
@@ -238,8 +243,8 @@ namespace cutlet {
     virtual variable_ptr variable(const std::string &name) const;
     virtual void variable(const std::string &name, variable_ptr value);
 
-    void done(variable_ptr result);
-    bool done() const;
+    virtual void done(variable_ptr result);
+    virtual bool done() const;
 
     friend class component;
     friend class interpreter;
@@ -259,21 +264,39 @@ namespace cutlet {
 
   typedef memory::reference<frame> frame_ptr;
 
+  class block_frame : public cutlet::frame {
+  public:
+    block_frame(frame_ptr parent);
+    virtual ~block_frame() noexcept;
+
+    virtual variable_ptr variable(const std::string &name) const;
+
+    virtual void done(variable_ptr result);
+    virtual bool done() const;
+
+  private:
+    cutlet::frame_ptr _parent;
+  };
+
   /***************************************************************************
    */
 
   class interpreter : public parser::grammer {
   public:
-    /** Initialize a interpreter.
+    /** Initialize a new interpreter.
      */
     interpreter();
 
     /** Disable the default copy constructor.
      */
     interpreter(const interpreter &other) = delete;
+
+    /** Cleans up the interpreter.
+     */
     virtual ~interpreter() noexcept;
 
     /** Get the value of a variable.
+     * @return A reference to the variable's value.
      */
     variable_ptr var(const std::string &name);
 
@@ -301,11 +324,24 @@ namespace cutlet {
 
     variable_ptr expr(const std::string &cmd);
 
+    /** Get a reference to a frame on the stack.
+     */
     frame_ptr frame(unsigned int levels = 0) const;
+
+    /** Create and push a new frame on the stack.
+     * @see frame
+     * @see frame_pop
+     */
     void frame_push();
     void frame_push(frame_ptr frm);
-    void frame_push(sandbox_ptr sb);
     void frame_push(frame_ptr frm, sandbox_ptr sb);
+
+    /** Creates and new frame on the stack and replaces the global environment
+     * with the given sandbox. When the frame is popped off the stack the
+     * global frame will be restored as well.
+     * @see frame_pop
+     */
+    void frame_push(sandbox_ptr sb);
 
     /** Pop the current execution frame off the stack.
      * @return If a return value was set, then return that value. If a return
@@ -320,6 +356,8 @@ namespace cutlet {
      * @see frame_pop
      */
     void frame_done(variable_ptr result = nullptr);
+
+    bool done() const;
 
     /** Load a dynamic shared library into the current global sandbox. Once
      * the library is loaded it expects to find the init_cutlet function to

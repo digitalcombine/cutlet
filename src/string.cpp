@@ -48,7 +48,8 @@ cutlet::string::~string() noexcept {}
  *
  */
 
-cutlet::variable_ptr cutlet::string::operator()(interpreter &interp,
+cutlet::variable_ptr cutlet::string::operator()(variable_ptr self,
+                                                interpreter &interp,
                                                 const list &parameters) {
   if (parameters.size() == 2) {
     std::string op = *(parameters[0]);
@@ -73,7 +74,7 @@ cutlet::variable_ptr cutlet::string::operator()(interpreter &interp,
               ? new cutlet::string("true") : new cutlet::string("false"));
     }
   }
-  return cutlet::variable::operator()(interp, parameters);
+  return cutlet::variable::operator()(self, interp, parameters);
 }
 
 /****************************************
@@ -83,6 +84,8 @@ cutlet::variable_ptr cutlet::string::operator()(interpreter &interp,
 cutlet::string::operator std::string() const { return *this; }
 
 template <> int cutlet::convert<int>(variable_ptr object) {
+  if (object.is_null()) return 0;
+
   std::stringstream ss((std::string)(*(object)));
   int result;
   ss >> result;

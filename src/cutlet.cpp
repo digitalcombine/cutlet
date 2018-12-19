@@ -97,51 +97,6 @@ std::ostream &operator <<(std::ostream &os, const cutlet_tokenizer &tks) {
 }
 #endif
 
-/************
- * is_space *
- ************/
-
-static bool is_space(const std::string &value) {
-  if (value == "\u0020") return true;  // SPACE
-  if (value == "\u0009") return true;  // CHARACTER TABULATION (tab)
-
-  if (value == "\u00a0") return true; // NO-BREAK SPACE
-  if (value == "\u2000") return true; // EN QUAD
-  if (value == "\u2001") return true; // EM QUAD
-  if (value == "\u2002") return true; // EN SPACE (nut)
-  if (value == "\u2003") return true; // EM SPACE (mutton)
-  if (value == "\u2004") return true; // THREE-PER-EM SPACE (thick space)
-  if (value == "\u2005") return true; // FOUR-PER-EM SPACE (mid space)
-  if (value == "\u2006") return true; // SIX-PER-EM SPACE
-  if (value == "\u2007") return true; // FIGURE SPACE
-  if (value == "\u2008") return true; // PUNCTUATION SPACE
-  if (value == "\u2009") return true; // THIN SPACE
-  if (value == "\u200a") return true; // HAIR SPACE
-
-  if (value == "\u202f") return true; // NARROW NO-BREAK SPACE
-  if (value == "\u205f") return true; // MEDIUM MATHEMATICAL SPACE
-
-  if (value == "\u3000") return true; // IDEOGRAPHIC SPACE
-  return false;
-}
-
-/**********
- * is_eol *
- **********/
-
-static bool is_eol(const std::string &value) {
-  // Check for all of the unicode end of line characters.
-  if (value == "\u000a") return true; // LF \n
-  if (value == "\u000b") return true; // VT \v
-  if (value == "\u000c") return true; // FF \f
-  if (value == "\u000d\u000a") return true; // CR LF \r\n
-  if (value == "\u000d") return true; // CR \r
-  if (value == "\u0085") return true; // NEL
-  if (value == "\u2028") return true; // LS
-  if (value == "\u2029") return true; // PS
-  return false;
-}
-
 /******************************************************************************
  * class cutlet::utf8::iterator
  */
@@ -635,7 +590,8 @@ cutlet::variable::~variable() noexcept {}
  *********************************/
 
 cutlet::variable_ptr
-cutlet::variable::operator()(interpreter &interp, const list &parameters) {
+cutlet::variable::operator()(variable_ptr self, interpreter &interp,
+                             const list &parameters) {
   return interp.execute((std::string)*this, parameters);
 }
 
@@ -775,7 +731,8 @@ cutlet::sandbox::execute(interpreter &interp,
       params.push_front(new cutlet::string(name));
       return (*it->second)(interp, params);
     } else {
-      throw std::runtime_error(std::string("Unresolved symbol ") + name);
+      throw std::runtime_error(std::string("Unresolved symbol \"") + name +
+                               "\"");
     }
   }
 }
@@ -880,6 +837,29 @@ cutlet::frame::uplevel(unsigned int levels) const {
 }
 
 /*****************************************************************************
+ * class cutlet::block_frame
+ */
+
+cutlet::block_frame::block_frame(cutlet::frame_ptr parent) : _parent(parent) {}
+
+cutlet::block_frame::~block_frame() noexcept {}
+
+cutlet::variable_ptr
+cutlet::block_frame::variable(const std::string &name) const {
+  cutlet::variable_ptr result = cutlet::frame::variable(name);
+  if (result.is_null()) result = _parent->variable(name);
+  return result;
+}
+
+void cutlet::block_frame::done(variable_ptr result) {
+  _parent->done(result);
+}
+
+bool cutlet::block_frame::done() const {
+  return _parent->done();
+}
+
+/*****************************************************************************
  * class cutlet::interpreter
  */
 
@@ -897,6 +877,7 @@ cutlet::interpreter::interpreter() {
   _global->add("return", ::builtin::ret);
   _global->add("list", ::builtin::list);
   _global->add("import", ::builtin::import);
+  _global->add("sandbox", ::builtin::sandbox);
 
   // Create the global library.path list variable.
   global("library.path", new cutlet::list());
@@ -1072,6 +1053,10 @@ cutlet::variable_ptr cutlet::interpreter::frame_pop() {
 
 void cutlet::interpreter::frame_done(variable_ptr result) {
   _frame->done(result);
+}
+
+bool cutlet::interpreter::done() const {
+  return _frame->done();
 }
 
 /*****************************

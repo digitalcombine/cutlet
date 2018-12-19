@@ -53,7 +53,8 @@ public:
   virtual ~_var_object() noexcept;
 
   virtual cutlet::variable_ptr
-  operator()(cutlet::interpreter &interp, const cutlet::list &parameters);
+  operator()(cutlet::variable_ptr self, cutlet::interpreter &interp,
+             const cutlet::list &parameters);
 
   bool has_property(const std::string &name) const;
   cutlet::variable_ptr property(const std::string &name) const;
@@ -205,11 +206,11 @@ _var_object::~_var_object() noexcept {
  ************************/
 
 cutlet::variable_ptr
-_var_object::operator()(cutlet::interpreter &interp,
+_var_object::operator()(cutlet::variable_ptr self, cutlet::interpreter &interp,
                         const cutlet::list &parameters) {
   cutlet::list params(parameters.begin() + 1, parameters.end());
 
-  cutlet::variable_ptr self = this; ++self;
+  //cutlet::variable_ptr self = this; ++self;
   interp.frame_push(new _obj_frame(self));
   try {
     dynamic_cast<_def_class &>(*(_class))(*(parameters[0]),
@@ -272,14 +273,17 @@ _def_class::~_def_class() noexcept {
 
 cutlet::variable_ptr _def_class::operator ()(cutlet::interpreter &interp,
                                              const cutlet::list &parameters) {
+  cutlet::variable_ptr object;
+
   if (cutlet::convert<std::string>(parameters[0]) == "new") {
     // Create our new object
-    _var_object *object = new _var_object(interp.get(_name));
+    _var_object *obj = new _var_object(interp.get(_name));
     for (auto &property: _properties) { // Add the properties
-      object->property(property, nullptr);
+      obj->property(property, nullptr);
     }
 
-    (*object)(interp, parameters);
+    object = obj;
+    (*object)(object, interp, parameters);
     return object;
   } else {
 

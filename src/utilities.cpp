@@ -24,6 +24,51 @@ bool fexists(const std::string &filename) {
   return (access(filename.c_str(), F_OK) == 0);
 }
 
+/************
+ * is_space *
+ ************/
+
+bool is_space(const std::string &value) {
+  if (value == "\u0020") return true;  // SPACE
+  if (value == "\u0009") return true;  // CHARACTER TABULATION (tab)
+
+  if (value == "\u00a0") return true; // NO-BREAK SPACE
+  if (value == "\u2000") return true; // EN QUAD
+  if (value == "\u2001") return true; // EM QUAD
+  if (value == "\u2002") return true; // EN SPACE (nut)
+  if (value == "\u2003") return true; // EM SPACE (mutton)
+  if (value == "\u2004") return true; // THREE-PER-EM SPACE (thick space)
+  if (value == "\u2005") return true; // FOUR-PER-EM SPACE (mid space)
+  if (value == "\u2006") return true; // SIX-PER-EM SPACE
+  if (value == "\u2007") return true; // FIGURE SPACE
+  if (value == "\u2008") return true; // PUNCTUATION SPACE
+  if (value == "\u2009") return true; // THIN SPACE
+  if (value == "\u200a") return true; // HAIR SPACE
+
+  if (value == "\u202f") return true; // NARROW NO-BREAK SPACE
+  if (value == "\u205f") return true; // MEDIUM MATHEMATICAL SPACE
+
+  if (value == "\u3000") return true; // IDEOGRAPHIC SPACE
+  return false;
+}
+
+/**********
+ * is_eol *
+ **********/
+
+bool is_eol(const std::string &value) {
+  // Check for all of the unicode end of line characters.
+  if (value == "\u000a") return true; // LF \n
+  if (value == "\u000b") return true; // VT \v
+  if (value == "\u000c") return true; // FF \f
+  if (value == "\u000d\u000a") return true; // CR LF \r\n
+  if (value == "\u000d") return true; // CR \r
+  if (value == "\u0085") return true; // NEL
+  if (value == "\u2028") return true; // LS
+  if (value == "\u2029") return true; // PS
+  return false;
+}
+
 /*static bool is_numeric(const std::string &value) {
   switch (value[0]) {
   case '\xe0':

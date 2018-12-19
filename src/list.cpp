@@ -37,11 +37,29 @@ cutlet::list::list(const std::initializer_list<variable_ptr> &items)
 
 cutlet::list::list(const list &other) : std::deque<variable_ptr>(other) {}
 
-/*************************
- * cutlet::list::execute *
- *************************/
+/**********************
+ * cutlet::list::join *
+ **********************/
 
-cutlet::variable_ptr cutlet::list::operator()(interpreter &interp,
+std::string cutlet::list::join(const std::string &delim) const {
+  std::string result;
+  bool first = true;
+
+  for (auto &val: *this) {
+    if (not first) result += delim;
+    else first = false;
+    result += (std::string)(*val);
+  }
+
+  return result;
+}
+
+/*****************************
+ * cutlet::list::operator () *
+ *****************************/
+
+cutlet::variable_ptr cutlet::list::operator()(variable_ptr self,
+                                              interpreter &interp,
                                               const list &parameters) {
   variable_ptr result;
   if (parameters.size() > 0) {

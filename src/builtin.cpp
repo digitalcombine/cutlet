@@ -24,28 +24,6 @@
 #include <fstream>
 
 /*****************************************************************************
- * class _block
- *
- *  A _block is a specialized type of frame that includes variables from a
- * parent frame to be included in local variable substituions.
- */
-
-class _block : public cutlet::frame {
-public:
-  _block(cutlet::frame_ptr parent) : _parent(parent) {}
-  virtual ~_block() noexcept {}
-
-  virtual cutlet::variable_ptr variable(const std::string &name) const {
-    cutlet::variable_ptr result = cutlet::frame::variable(name);
-    if (result.is_null()) result = _parent->variable(name);
-    return result;
-  }
-
-private:
-  cutlet::frame_ptr _parent;
-};
-
-/*****************************************************************************
  */
 
 class _def_function : public cutlet::component {
@@ -174,13 +152,21 @@ builtin::import(cutlet::interpreter &interp,
   throw std::runtime_error(std::string("Library ") + libname + " not found.");
 }
 
-// global name ¿=? value
+// def global name ¿=? ¿value?
 cutlet::variable_ptr
 builtin::global(cutlet::interpreter &interp,
                 const cutlet::list &parameters) {
-  if (parameters.size() == 2) {
-    interp.global((std::string)*(parameters[0]), parameters[1]);
-  } else if (parameters.size() == 3) {
+  switch (parameters.size()) {
+  case 1:
+    interp.global((std::string)*(parameters[0]), nullptr);
+    break;
+  case 2:
+    if ((std::string)*(parameters[1]) == "=")
+      interp.global((std::string)*(parameters[0]), nullptr);
+    else
+      interp.global((std::string)*(parameters[0]), parameters[1]);
+    break;
+  case 3:
     if ((std::string)*(parameters[1]) != "=") {
       throw std::runtime_error(std::string("global name ¿=? value\n"
                                            " Expected = got ") +
@@ -188,12 +174,13 @@ builtin::global(cutlet::interpreter &interp,
     }
 
     interp.global((std::string)*(parameters[0]), parameters[2]);
+    break;
   }
 
   return nullptr;
 }
 
-// local name ¿=? value
+// def local name ¿=? value
 cutlet::variable_ptr
 builtin::local(cutlet::interpreter &interp,
                const cutlet::list &parameters) {
@@ -210,7 +197,7 @@ builtin::local(cutlet::interpreter &interp,
   return nullptr;
 }
 
-// block ¿levels? body
+// def block ¿levels? body
 cutlet::variable_ptr
 builtin::block(cutlet::interpreter &interp,
                const cutlet::list &parameters) {
@@ -229,15 +216,19 @@ builtin::block(cutlet::interpreter &interp,
     throw std::runtime_error(mesg.str());
   }
 
-  cutlet::frame_ptr parent = interp.frame(levels);
-  cutlet::frame_ptr block_frame = new _block(parent);
+  try {
+    interp.frame_push(new cutlet::block_frame(interp.frame()));
+    interp.eval(*body);
+    interp.frame_pop();
+  } catch (...) {
+    interp.frame_pop();
+    throw;
+  }
 
-  interp.frame_push(block_frame);
-  interp.eval(*body);
-  interp.frame_pop();
+  return nullptr;
 }
 
-// return ¿value?
+// def return ¿value?
 cutlet::variable_ptr
 builtin::ret(cutlet::interpreter &interp,
              const cutlet::list &parameters) {
@@ -248,21 +239,15 @@ builtin::ret(cutlet::interpreter &interp,
   return nullptr;
 }
 
-// print *args
+// def print *args
 cutlet::variable_ptr
 builtin::print(cutlet::interpreter &interp,
                const cutlet::list &parameters) {
-  bool first = true;
-  for (auto &value: parameters) {
-    if (not first) std::cout << " ";
-    if (not value.is_null()) std::cout << (std::string)(*value);
-    first = false;
-  }
-  std::cout << std::endl;
+  std::cout << parameters.join() << std::endl;
   return nullptr;
 }
 
-// list *args
+// def list *args
 cutlet::variable_ptr
 builtin::list(cutlet::interpreter &interp,
               const cutlet::list &parameters) {
@@ -272,4 +257,11 @@ builtin::list(cutlet::interpreter &interp,
   else
     result = new cutlet::list(parameters);
   return result;
+}
+
+// def sandbox
+cutlet::variable_ptr
+builtin::sandbox(cutlet::interpreter &interp,
+                 const cutlet::list &parameters) {
+  return new builtin::sandbox_var(new cutlet::sandbox);
 }
