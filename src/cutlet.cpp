@@ -767,11 +767,11 @@ void cutlet::sandbox::load(interpreter &interp,
  * cutlet::frame::frame *
  ************************/
 
-cutlet::frame::frame() : _done(false) {
+cutlet::frame::frame() : _state(FS_RUNNING) {
 }
 
 cutlet::frame::frame(memory::reference<frame> uplevel)
-  : _uplevel(uplevel), _done(false) {
+  : _state(FS_RUNNING), _uplevel(uplevel) {
 }
 
 /*************************
@@ -805,11 +805,31 @@ void cutlet::frame::variable(const std::string &name, variable_ptr value) {
 
 void cutlet::frame::done(variable_ptr result) {
   _return = result;
-  _done = true;
+  _state = FS_DONE;
 }
 
 bool cutlet::frame::done() const {
-  return _done;
+  switch (_state) {
+  case FS_DONE:
+  case FS_BREAK:
+  case FS_CONTINUE:
+    return true;
+  default:
+    return false;
+  }
+}
+
+/************************
+ * cutlet::frame::state *
+ ************************/
+
+cutlet::frame::state_t cutlet::frame::state() const {
+  return _state;
+}
+
+void cutlet::frame::state(cutlet::frame::state_t new_state) {
+  if (new_state == FS_DONE or new_state == FS_RUNNING)
+    _state = new_state;
 }
 
 /**************************
@@ -840,9 +860,21 @@ cutlet::frame::uplevel(unsigned int levels) const {
  * class cutlet::block_frame
  */
 
+/************************************
+ * cutlet::block_frame::block_frame *
+ ************************************/
+
 cutlet::block_frame::block_frame(cutlet::frame_ptr parent) : _parent(parent) {}
 
+/*************************************
+ * cutlet::block_frame::~block_frame *
+ *************************************/
+
 cutlet::block_frame::~block_frame() noexcept {}
+
+ /*****************************
+ * cutlet::block_frame::state *
+ ******************************/
 
 cutlet::variable_ptr
 cutlet::block_frame::variable(const std::string &name) const {
@@ -851,12 +883,25 @@ cutlet::block_frame::variable(const std::string &name) const {
   return result;
 }
 
+/*****************************
+ * cutlet::block_frame::done *
+ *****************************/
+
 void cutlet::block_frame::done(variable_ptr result) {
   _parent->done(result);
 }
 
 bool cutlet::block_frame::done() const {
   return _parent->done();
+}
+
+/******************************
+ * cutlet::block_frame::state *
+ ******************************/
+
+void cutlet::block_frame::state(cutlet::frame::state_t new_state) {
+  _state = new_state;
+  _parent->state(new_state);
 }
 
 /*****************************************************************************
@@ -1054,6 +1099,18 @@ cutlet::variable_ptr cutlet::interpreter::frame_pop() {
 void cutlet::interpreter::frame_done(variable_ptr result) {
   _frame->done(result);
 }
+
+/************************************
+ * cutlet::interpreter::frame_state *
+ ************************************/
+
+cutlet::frame::state_t cutlet::interpreter::frame_state() const {
+  return _frame->state();
+}
+
+/*****************************
+ * cutlet::interpreter::done *
+ *****************************/
 
 bool cutlet::interpreter::done() const {
   return _frame->done();

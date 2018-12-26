@@ -17,7 +17,14 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
- #include "ast.h"
+#include "ast.h"
+
+//#define DEBUG_AST 1
+
+#if DEBUG_AST
+#pragma message ("AST debugging enabled")
+#include <iostream>
+#endif
 
 /*****************************************************************************
  * class cutlet::ast::node
@@ -50,6 +57,12 @@ cutlet::ast::block::~block() noexcept {}
  ***************************/
 
 void cutlet::ast::block::add(cutlet::ast::node_ptr n) {
+#if DEBUG_AST
+  if (n.is_null()) {
+    std::clog << "ast::block warning adding null ast node to block"
+              << std::endl;
+  }
+#endif
   _nodes.push_back(n);
 }
 
@@ -59,9 +72,15 @@ void cutlet::ast::block::add(cutlet::ast::node_ptr n) {
 
 cutlet::variable_ptr
 cutlet::ast::block::operator()(cutlet::interpreter &interp) {
-  for (auto &node: _nodes) {
+  for (auto node: _nodes) {
+#if DEBUG_AST
+    if (node.is_null()) {
+      std::clog << "ast::block attempting to execute null ast node"
+                << std::endl;
+    } else
+#endif
     (*node)(interp);
-    if (interp.done()) return nullptr;
+    if (interp.frame_state() != frame::FS_RUNNING) break;
   }
   return nullptr;
 }
@@ -150,8 +169,6 @@ void cutlet::ast::command::parameter(node_ptr n) {
 /************************************
  * cutlet::ast::command::operator() *
  ************************************/
-
-#include <iostream>
 
 cutlet::variable_ptr
 cutlet::ast::command::operator()(cutlet::interpreter &interp) {

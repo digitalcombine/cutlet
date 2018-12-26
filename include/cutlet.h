@@ -231,6 +231,9 @@ namespace cutlet {
    */
   class frame {
   public:
+    typedef enum {FS_DONE = 0, FS_RUNNING = 1, FS_BREAK = 2, FS_CONTINUE = 3}
+      state_t;
+
     frame();
     frame(memory::reference<frame> uplevel);
     frame(const frame &other) = delete;
@@ -246,8 +249,14 @@ namespace cutlet {
     virtual void done(variable_ptr result);
     virtual bool done() const;
 
+    state_t state() const;
+    virtual void state(state_t new_state);
+
     friend class component;
     friend class interpreter;
+
+  protected:
+    state_t _state;
 
   private:
     memory::reference<frame> _uplevel;
@@ -256,7 +265,6 @@ namespace cutlet {
     memory::reference<sandbox> _sandbox_orig;
     std::map<std::string, variable_ptr> _variables;
 
-    bool _done;
     variable_ptr _return;
 
     memory::reference<frame> uplevel(unsigned int levels) const;
@@ -273,6 +281,8 @@ namespace cutlet {
 
     virtual void done(variable_ptr result);
     virtual bool done() const;
+
+    virtual void state(state_t new_state);
 
   private:
     cutlet::frame_ptr _parent;
@@ -356,6 +366,8 @@ namespace cutlet {
      * @see frame_pop
      */
     void frame_done(variable_ptr result = nullptr);
+
+    frame::state_t frame_state() const;
 
     bool done() const;
 
