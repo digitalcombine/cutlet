@@ -62,15 +62,21 @@ static void permit(cutlet::list::const_iterator &it,
                              + " instead.");
 }
 
-static void eval_body(cutlet::interpreter &interp, const std::string &body) {
+static cutlet::frame::state_t eval_body(cutlet::interpreter &interp,
+                                        const std::string &body) {
+  cutlet::frame::state_t result;
   interp.frame_push(new cutlet::block_frame(interp.frame()));
   try {
     interp.eval(body);
   } catch(...) {
+    result = interp.frame_state();
     interp.frame_pop();
     throw;
   }
+  result = interp.frame_state();
   interp.frame_pop();
+
+  return result;
 }
 
 /******************************************************************************
@@ -127,8 +133,8 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
     return nullptr;
   }
 
+  ++it;
   while (is_more(it, parameters)) {
-    next(it, parameters);
     if (expect(it, "elif")) {
       next(it, parameters);
       cond = *(*it);
@@ -175,10 +181,24 @@ _while(cutlet::interpreter &interp, const cutlet::list &parameters) {
 
   // If the condition is true then eval the body and return.
   while (cutlet::convert<bool>(interp.expr(cond))) {
-    eval_body(interp, body);
+    cutlet::frame::state_t st = eval_body(interp, body);
+    if (st == cutlet::frame::FS_BREAK or
+        st == cutlet::frame::FS_DONE) break;
   }
 
   return nullptr;
+}
+
+// def break
+static cutlet::variable_ptr
+_break(cutlet::interpreter &interp, const cutlet::list &parameters) {
+  interp.frame()->state(cutlet::frame::FS_BREAK);
+}
+
+// def continue
+static cutlet::variable_ptr
+_continue(cutlet::interpreter &interp, const cutlet::list &parameters) {
+  interp.frame()->state(cutlet::frame::FS_CONTINUE);
 }
 
 // def raise *args
@@ -234,6 +254,8 @@ void init_cutlet(cutlet::interpreter *interp) {
   interp->add("expr", _eval);
   interp->add("if", _if);
   interp->add("while", _while);
+  interp->add("break", _break);
+  interp->add("continue", _continue);
   interp->add("raise", _raise);
   interp->add("try", _try);
 }

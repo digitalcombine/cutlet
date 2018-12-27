@@ -72,7 +72,9 @@ cutlet::variable_ptr cutlet::string::operator()(variable_ptr self,
     } else if (op == ">=") {
       return (*this >= cutlet::convert<std::string>(parameters[1])
               ? new cutlet::string("true") : new cutlet::string("false"));
-    }
+    } /*else if (op == "length") {
+      return ;
+    }*/
   }
   return cutlet::variable::operator()(self, interp, parameters);
 }
