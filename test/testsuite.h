@@ -22,6 +22,11 @@
 #include <list>
 #include <string>
 
+#if defined(__FreeBSD__) && defined(assert)
+inline void (assert)(bool e) { assert(e); }
+#undef assert
+#endif
+
 #ifndef _TESTSUITE_H
 #define _TESTSUITE_H
 
