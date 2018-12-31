@@ -10,7 +10,7 @@ try {
   raise "I threw an error"
   return 1
 } catch err {
-  if {$err == "I threw an error"} then {
+  if {$err == "2:3: I threw an error"} then {
     print "I caught an error ->" $err
   } else {
     print "I caught an unexpected error ->" $err
