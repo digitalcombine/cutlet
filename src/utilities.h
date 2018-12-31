@@ -38,4 +38,6 @@ bool is_space(const std::string &value);
 
 bool is_eol(const std::string &value);
 
+std::string env(const std::string &name);
+
 #endif /* _CUTLET_UTILS_H */

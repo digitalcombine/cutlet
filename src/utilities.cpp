@@ -19,6 +19,7 @@
 
 #include "utilities.h"
 #include <unistd.h>
+#include <stdlib.h>
 
 bool fexists(const std::string &filename) {
   return (access(filename.c_str(), F_OK) == 0);
@@ -58,15 +59,21 @@ bool is_space(const std::string &value) {
 
 bool is_eol(const std::string &value) {
   // Check for all of the unicode end of line characters.
-  if (value == "\u000a") return true; // LF \n
-  if (value == "\u000b") return true; // VT \v
-  if (value == "\u000c") return true; // FF \f
+  if (value == "\u000a")       return true; // LF \n
+  if (value == "\u000b")       return true; // VT \v
+  if (value == "\u000c")       return true; // FF \f
   if (value == "\u000d\u000a") return true; // CR LF \r\n
-  if (value == "\u000d") return true; // CR \r
-  if (value == "\u0085") return true; // NEL
-  if (value == "\u2028") return true; // LS
-  if (value == "\u2029") return true; // PS
+  if (value == "\u000d")       return true; // CR \r
+  if (value == "\u0085")       return true; // NEL
+  if (value == "\u2028")       return true; // LS
+  if (value == "\u2029")       return true; // PS
   return false;
+}
+
+std::string env(const std::string &name) {
+  const char *value = getenv(name.c_str());
+  if (value == nullptr) return "";
+  return value;
 }
 
 /*static bool is_numeric(const std::string &value) {
