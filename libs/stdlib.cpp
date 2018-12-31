@@ -193,12 +193,14 @@ _while(cutlet::interpreter &interp, const cutlet::list &parameters) {
 static cutlet::variable_ptr
 _break(cutlet::interpreter &interp, const cutlet::list &parameters) {
   interp.frame()->state(cutlet::frame::FS_BREAK);
+  return nullptr;
 }
 
 // def continue
 static cutlet::variable_ptr
 _continue(cutlet::interpreter &interp, const cutlet::list &parameters) {
   interp.frame()->state(cutlet::frame::FS_CONTINUE);
+  return nullptr;
 }
 
 // def raise *args
