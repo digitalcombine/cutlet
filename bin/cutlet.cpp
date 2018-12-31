@@ -20,14 +20,40 @@
 #include <cutlet.h>
 #include <iostream>
 #include <fstream>
+#include <getopt.h>
+
+/************
+ * add_path *
+ ************/
+
+static void add_path(cutlet::interpreter &interp, const std::string &path) {
+  cutlet::variable_ptr lib_path = interp.var("library.path");
+  cutlet::cast<cutlet::list>(lib_path).push_back(new cutlet::string(path));
+}
+
+/******************************************************************************
+ * Program entry right here!
+ */
 
 int main(int argc, char *argv[]) {
   cutlet::interpreter interpreter;
 
+  int opt;
+  while ((opt = getopt(argc, argv, "i:")) != -1) {
+    switch (opt) {
+    case 'i':
+      add_path(interpreter, optarg);
+      break;
+    default:
+      std::cerr << "FATAL: unknown option" << '\n';
+      return 1;
+    }
+  }
+
   try {
-    if (argc > 1) {
+    if (optind < argc) {
       // Iterate over command lines for script files.
-      for (int i = 1; i < argc; ++i) {
+      for (int i = optind; i < argc; ++i) {
         std::ifstream input_file(argv[i]);
         interpreter.eval(input_file);
         input_file.close();
