@@ -19,4 +19,4 @@ shell_la_LDFLAGS = -module -avoid-version -shared
 
 # Remove all the unnecessary .la files.
 install-exec-hook:
-	@(cd $(DESTDIR)$(pkglibdir) && $(RM) $(pkglib_LTLIBRARIES))
+	@(cd $(DESTDIR)$(pkglibdir) && rm -f $(pkglib_LTLIBRARIES))
