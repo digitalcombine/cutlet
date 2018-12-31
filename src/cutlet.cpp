@@ -925,7 +925,17 @@ cutlet::interpreter::interpreter() {
   _global->add("sandbox", ::builtin::sandbox);
 
   // Create the global library.path list variable.
-  global("library.path", new cutlet::list());
+  cutlet::list *path = new cutlet::list();
+  std::string env_path = env("CUTLET_PATH");
+
+  auto start = 0U;
+  auto end = env_path.find(":");
+  while (end != std::string::npos) {
+    path->push_back(new cutlet::string(env_path.substr(start, end - start)));
+    start = end + 1;
+    end = env_path.find(":", start);
+  }
+  global("library.path", path);
 
   // Create the toplevel frame with the default program return value.
   _frame = new cutlet::frame();
