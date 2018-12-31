@@ -18,6 +18,7 @@
  */
 
 #include "ast.h"
+#include <sstream>
 
 //#define DEBUG_AST 1
 
@@ -35,6 +36,14 @@
  ****************************/
 
 cutlet::ast::node::~node() noexcept {}
+
+/*******************************
+ * cutlet::ast::node::location *
+ *******************************/
+
+std::string cutlet::ast::node::location() const {
+  return "";
+}
 
 /*****************************************************************************
  * class cutlet::ast::block
@@ -110,6 +119,16 @@ cutlet::ast::value::operator()(cutlet::interpreter &interp) {
   return new cutlet::string((const std::string &)_token);
 }
 
+/********************************
+ * cutlet::ast::value::location *
+ ********************************/
+
+std::string cutlet::ast::value::location() const {
+  std::stringstream result;
+  result << _token.line() << ":" << _token.offset() << ": ";
+  return result.str();
+}
+
 /*****************************************************************************
  * class cutlet::ast::variable
  */
@@ -135,11 +154,18 @@ cutlet::ast::variable::operator()(cutlet::interpreter &interp) {
   try {
     return interp.var((const std::string &)_token);
   } catch (std::runtime_error &err) {
-    std::stringstream mesg;
-    mesg << _token.line() << ":" << _token.offset() << ": "
-         << err.what();
-    throw std::runtime_error(mesg.str());
+    throw std::runtime_error(location() + err.what());
   }
+}
+
+/***********************************
+ * cutlet::ast::variable::location *
+ ***********************************/
+
+std::string cutlet::ast::variable::location() const {
+  std::stringstream result;
+  result << _token.line() << ":" << _token.offset() << ": ";
+  return result.str();
 }
 
 /*****************************************************************************
@@ -194,10 +220,16 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
     /** @todo Need to add location function to nodes so we can let the users
      *        know where the problem was.
      */
-    std::stringstream mesg;
-    mesg << err.what();
-    throw std::runtime_error(mesg.str());
+    throw std::runtime_error(location() + err.what());
   }
+}
+
+/**********************************
+ * cutlet::ast::command::location *
+ **********************************/
+
+std::string cutlet::ast::command::location() const {
+  return _function->location();
 }
 
 /*****************************************************************************
@@ -208,7 +240,7 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
  * cutlet::ast::string::string *
  *******************************/
 
-cutlet::ast::string::string() {}
+cutlet::ast::string::string(const parser::token &token) : _token(token) {}
 
 /********************************
  * cutlet::ast::string::~string *
@@ -235,19 +267,30 @@ void cutlet::ast::string::add(node_ptr n) {
 
 cutlet::variable_ptr
 cutlet::ast::string::operator()(cutlet::interpreter &interp) {
-  cutlet::string *result = new cutlet::string();
+  //variable_ptr result = new cutlet::string();
+  cutlet::string result;
 
   // Run through the string parts and put it all together.
   for (auto &part: _stringy) {
     if (part.n.is_null()) {
       // Literal string part.
-      *result += part.s;
+      result += part.s;
     } else {
       // Variable or command substitution.
       variable_ptr v = (*part.n)(interp);
-      *result += (std::string)(*v);
+      result += (std::string)(*v);
     }
   }
 
-  return result;
+  return new cutlet::string(result);
+}
+
+/*********************************
+ * cutlet::ast::string::location *
+ *********************************/
+
+std::string cutlet::ast::string::location() const {
+  std::stringstream result;
+  result << _token.line() << ":" << _token.offset() << ": ";
+  return result.str();
 }
