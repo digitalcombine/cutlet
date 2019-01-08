@@ -106,21 +106,16 @@ std::ostream &operator <<(std::ostream &os, const cutlet_tokenizer &tks) {
  ************************************/
 
 cutlet::utf8::iterator::iterator(const std::string &value)
-  : _value(&value), _index(0) {
-  _length = 1;
-
+  : _value(&value), _index(0), _length(1) {
   // Find the length of the character and make a copy for dereferencing.
   for (; ((*_value)[_index + _length] & 0xc0) == 0x80; ++_length);
   _current = _value->substr(_index, _length);
 }
 
 cutlet::utf8::iterator::iterator(const std::string &value, size_t offset)
-  : _value(&value), _index(offset) {
-  _length = 1;
-
+  : _value(&value), _index(offset), _length(1) {
   // Find the length of the character and make a copy for dereferencing.
   for (; ((*_value)[_index + _length] & 0xc0) == 0x80; ++_length);
-
   _current = _value->substr(_index, _length);
 }
 
@@ -1220,13 +1215,13 @@ cutlet::ast::node_ptr cutlet::interpreter::variable() {
  *******************************/
 
 cutlet::ast::node_ptr cutlet::interpreter::string() {
-  ast::string *ast_str = new ast::string;
   auto token = tokens->get_token();
-  std::string result = (const std::string &)token;
+  ast::string *ast_str = new ast::string(token);
+  std::string result((const std::string &)token);
   std::string part;
 
   // Scan the string for substitutions.
-  auto index = utf8::iterator(result);
+  utf8::iterator index(result);
   auto s_index = index;
   for (; index != index.end(); ++index) {
 
