@@ -27,6 +27,11 @@
 #include <iostream>
 #endif
 
+template <typename Ty>
+static bool is_type(cutlet::ast::node_ptr ast_object) {
+  return ((dynamic_cast<Ty *>(&(*ast_object))) != nullptr);
+}
+
 /*****************************************************************************
  * class cutlet::ast::node
  */
@@ -152,6 +157,10 @@ cutlet::ast::variable::~variable() noexcept {}
 cutlet::variable_ptr
 cutlet::ast::variable::operator()(cutlet::interpreter &interp) {
   try {
+#if DEBUG_AST
+    std::clog << location() << "resolving variable $" << (std::string)_token
+              << std::endl;
+#endif
     return interp.var((const std::string &)_token);
   } catch (std::runtime_error &err) {
     throw std::runtime_error(location() + err.what());
@@ -198,18 +207,19 @@ void cutlet::ast::command::parameter(node_ptr n) {
 
 cutlet::variable_ptr
 cutlet::ast::command::operator()(cutlet::interpreter &interp) {
-  cutlet::list c_params;
+  cutlet::variable_ptr cmd = (*_function)(interp);
 
+#if DEBUG_AST
+  std::clog << location() << "command"
+            << std::endl;
+#endif
+
+  cutlet::list c_params;
   for (auto &parameter: _parameters)
     c_params.push_back((*parameter)(interp));
 
-  // First attempt to cast the func node to a variable node.
-  cutlet::ast::variable *var =
-    dynamic_cast<cutlet::ast::variable *>(&(*_function));
-  cutlet::variable_ptr cmd = (*_function)(interp);
-
   try {
-    if (var) {
+    if (is_type<ast::variable>(_function) or is_type<ast::command>(_function)) {
       // Execute the variable.
       return (*cmd)(cmd, interp, c_params);
     } else {
@@ -267,7 +277,6 @@ void cutlet::ast::string::add(node_ptr n) {
 
 cutlet::variable_ptr
 cutlet::ast::string::operator()(cutlet::interpreter &interp) {
-  //variable_ptr result = new cutlet::string();
   cutlet::string result;
 
   // Run through the string parts and put it all together.
@@ -278,7 +287,8 @@ cutlet::ast::string::operator()(cutlet::interpreter &interp) {
     } else {
       // Variable or command substitution.
       variable_ptr v = (*part.n)(interp);
-      result += (std::string)(*v);
+      if (not v.is_null())
+        result += (std::string)(*v);
     }
   }
 
