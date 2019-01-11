@@ -1,0 +1,88 @@
+# Test the Object Oriented library.
+import stdlib
+import oo
+
+# Class test
+class test_class {
+
+  class.property catalog = "none"
+
+  property the_name
+
+  class.method set_catalog {value} {
+    local catalog $value
+  }
+
+  class.method get_catalog {
+    return $catalog
+  }
+
+  method new {a_name} {
+    local the_name = $a_name
+  }
+
+  method hello {} {
+    local result = "Hello ${the_name}\n"
+    local result = "${result}[$self goodbye]"
+    return $result
+  }
+
+  method goodbye {
+    return "Goodbye $the_name"
+  }
+}
+
+# Test inheritance
+class test_class_2 test_class {
+
+  class.property cprop2 = 'x'
+
+  # Set a super class property.
+  class.method set_cat {value} {
+    local catalog $value
+  }
+
+  class.method get_xcat {
+    return "$cprop2 $catalog"
+  }
+
+  method goodbye {
+    return "Goodbye ${the_name}!"
+  }
+}
+
+global myobject = [test_class new "John Smith"]
+
+if {[$myobject hello] <> "Hello John Smith\nGoodbye John Smith"} then {
+  print "$myobject <> Hello John Smith\nGoodbye John Smith"
+  return 1
+}
+
+global myobject = [test_class_2 new "Jane Smith"]
+
+if {[$myobject hello] <> "Hello Jane Smith\nGoodbye Jane Smith!"} then {
+  print "$myobject <> Hello Jane Smith\nGoodbye Jane Smith!"
+  return 1
+}
+
+if {[test_class get_catalog] <> "none"} then {
+  print "[test_class get_catalog] <> none"
+  return 1
+}
+
+test_class set_catalog people
+if {[test_class get_catalog] <> "people"} then {
+  print "[test_class get_catalog] <> people"
+  return 1
+}
+
+if {[test_class_2 get_xcat] <> "x people"} then {
+  print "[test_class_2 get_xcat] <> x people"
+  return 1
+}
+
+test_class_2 set_cat animals
+if {[test_class get_catalog] <> "animals"} then {
+  print "[test_class get_catalog] <> animals"
+  return 1
+}

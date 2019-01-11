@@ -17,6 +17,9 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* @todo Ablitiy to call super class. Use $super possibly.
+ */
+
 #include <cutlet.h>
 #include <iostream>
 #include <sstream>
@@ -51,6 +54,8 @@ public:
   _var_object(const _var_object &other) = delete;
 
   virtual ~_var_object() noexcept;
+
+  _def_class &type();
 
   virtual cutlet::variable_ptr
   operator()(cutlet::variable_ptr self, cutlet::interpreter &interp,
@@ -91,14 +96,22 @@ public:
 
   void add_class(const std::string &name, cutlet::component_ptr comp);
 
-  void property(const std::string &name);
+  void add_property(const std::string &name);
+
+  void add_class_property(const std::string &name);
+
+  cutlet::variable_ptr class_property(const std::string &name) const;
+
+  void class_property(const std::string &name, cutlet::variable_ptr value);
 
   bool has_property(const std::string &name) const;
+
+  bool has_class_property(const std::string &name) const;
 
 private:
   std::string _name;
   std::list<cutlet::component_ptr> _parents;
-  std::map<std::string, cutlet::variable_ptr> class_properties;
+  std::map<std::string, cutlet::variable_ptr> _class_properties;
   std::set<std::string> _properties;
 
   std::map<std::string, cutlet::component_ptr> _class_methods;
@@ -119,6 +132,22 @@ public:
 
 private:
   cutlet::variable_ptr _self;
+};
+
+/** Class execution frames to implement class properties.
+ */
+class _cls_frame : public cutlet::frame {
+public:
+  _cls_frame(_def_class &cls);
+  virtual ~_cls_frame() noexcept;
+
+  /** We override these methods to implement object properties.
+   */
+  virtual cutlet::variable_ptr variable(const std::string &name) const;
+  virtual void variable(const std::string &name, cutlet::variable_ptr value);
+
+private:
+  _def_class &_class;
 };
 
 /** Return the global reference to the class sandbox. We need to wrap it in a
@@ -147,8 +176,7 @@ _def_method::_def_method(cutlet::variable_ptr parameters,
  * _def_method::~_def_method *
  *****************************/
 
-_def_method::~_def_method() noexcept {
-}
+_def_method::~_def_method() noexcept {}
 
 /****************************
  * _def_method::operator () *
@@ -195,10 +223,24 @@ cutlet::variable_ptr _def_method::operator ()(cutlet::interpreter &interp,
  * class _var_object
  */
 
-_var_object::_var_object(cutlet::component_ptr cls) : _class(cls) {
-}
+/****************************
+ * _var_object::_var_object *
+ ****************************/
 
-_var_object::~_var_object() noexcept {
+_var_object::_var_object(cutlet::component_ptr cls) : _class(cls) {}
+
+/*****************************
+ * _var_object::~_var_object *
+ *****************************/
+
+_var_object::~_var_object() noexcept {}
+
+/*********************
+ * _var_object::type *
+ *********************/
+
+_def_class &_var_object::type() {
+  return dynamic_cast<_def_class &>(*_class);
 }
 
 /************************
@@ -208,16 +250,18 @@ _var_object::~_var_object() noexcept {
 cutlet::variable_ptr
 _var_object::operator()(cutlet::variable_ptr self, cutlet::interpreter &interp,
                         const cutlet::list &parameters) {
+  if (parameters.size() == 0) {
+    throw std::runtime_error("no method given calling object");
+  }
+
   cutlet::list params(parameters.begin() + 1, parameters.end());
 
-  //cutlet::variable_ptr self = this; ++self;
   interp.frame_push(new _obj_frame(self));
   try {
-    dynamic_cast<_def_class &>(*(_class))(*(parameters[0]),
-                                          interp, params);
-  } catch (std::exception &err) {
+    dynamic_cast<_def_class &>(*(_class))(*(parameters[0]), interp, params);
+  } catch (...) {
     interp.frame_pop();
-    throw err;
+    throw;
   }
   return interp.frame_pop();
 }
@@ -274,6 +318,9 @@ _def_class::~_def_class() noexcept {
 cutlet::variable_ptr _def_class::operator ()(cutlet::interpreter &interp,
                                              const cutlet::list &parameters) {
   cutlet::variable_ptr object;
+  if (parameters.size() == 0) {
+    throw std::runtime_error("no method given calling class");
+  }
 
   if (cutlet::convert<std::string>(parameters[0]) == "new") {
     // Create our new object
@@ -286,8 +333,34 @@ cutlet::variable_ptr _def_class::operator ()(cutlet::interpreter &interp,
     (*object)(object, interp, parameters);
     return object;
   } else {
+    std::string method = cutlet::convert<std::string>(parameters[0]);
+    cutlet::list params(parameters.begin() + 1, parameters.end());
 
+    // Find the class method.
+    auto m = _class_methods.find(method);
+    if (m == _class_methods.end()) {
+      // Check the parent class for the method.
+      for (auto _parent_class: _parents) {
+        m = dynamic_cast<_def_class &>(*(_parent_class))._class_methods.find(method);
+        if (m != _class_methods.end()) break;
+      }
+    }
+
+    if (m != _class_methods.end()) {
+      interp.frame_push(new _cls_frame(*this));
+      try {
+        (*(m->second))(interp, params);
+      } catch (...) {
+        interp.frame_pop();
+        throw;
+      }
+      return interp.frame_pop();
+    } else {
+      throw std::runtime_error(std::string("class method ") + method +
+                               " not found");
+    }
   }
+
   return nullptr;
 }
 
@@ -296,7 +369,16 @@ cutlet::variable_ptr _def_class::operator ()(const std::string &method,
                                              const cutlet::list &parameters) {
   auto m = _methods.find(method);
   if (m != _methods.end()) {
+    // We found the method, now call it.
     (*(m->second))(interp, parameters);
+  } else {
+    // Now check the parent class for the method.
+    for (auto _parent_class: _parents) {
+      m = dynamic_cast<_def_class &>(*(_parent_class))._methods.find(method);
+      if (m != _methods.end()) {
+        (*(m->second))(interp, parameters);
+      }
+    }
   }
   return nullptr;
 }
@@ -318,12 +400,49 @@ void _def_class::add_class(const std::string &name,
   _class_methods[name] = comp;
 }
 
-/************************
- * _def_class::property *
- ************************/
+/****************************
+ * _def_class::add_property *
+ ****************************/
 
-void _def_class::property(const std::string &name) {
+void _def_class::add_property(const std::string &name) {
   _properties.insert(name);
+}
+
+/**********************************
+ * _def_class::add_class_property *
+ **********************************/
+
+void _def_class::add_class_property(const std::string &name) {
+  _class_properties[name] = new cutlet::string();
+}
+
+/******************************
+ * _def_class::class_property *
+ ******************************/
+
+cutlet::variable_ptr _def_class::class_property(const std::string &name) const {
+  auto res = _class_properties.find(name);
+  if (res != _class_properties.end()) {
+    return res->second;
+  } else {
+    for (auto &parent: _parents) {
+      if (dynamic_cast<const _def_class &>(*parent).has_class_property(name))
+        return dynamic_cast<const _def_class &>(*parent).class_property(name);
+    }
+  }
+  return nullptr;
+}
+
+void _def_class::class_property(const std::string &name,
+                                cutlet::variable_ptr value) {
+  if (_class_properties.find(name) != _class_properties.end()) {
+    _class_properties[name] = value;
+  } else {
+    for (auto &parent: _parents) {
+      if (dynamic_cast<_def_class &>(*parent).has_class_property(name))
+        dynamic_cast<_def_class &>(*parent).class_property(name, value);
+    }
+  }
 }
 
 /****************************
@@ -331,7 +450,25 @@ void _def_class::property(const std::string &name) {
  ****************************/
 
 bool _def_class::has_property(const std::string &name) const {
-  return (_properties.find(name) != _properties.end());
+  if (_properties.find(name) != _properties.end()) return true;
+  for (auto &parent: _parents) {
+    if (dynamic_cast<const _def_class &>(*parent).has_property(name))
+      return true;
+  }
+  return false;
+}
+
+/**********************************
+ * _def_class::has_class_property *
+ **********************************/
+
+bool _def_class::has_class_property(const std::string &name) const {
+  if (_class_properties.find(name) != _class_properties.end()) return true;
+  for (auto &parent: _parents) {
+    if (dynamic_cast<const _def_class &>(*parent).has_class_property(name))
+      return true;
+  }
+  return false;
 }
 
 /*****************************************************************************
@@ -342,43 +479,84 @@ bool _def_class::has_property(const std::string &name) const {
  * _obj_frame::_obj_frame *
  **************************/
 
-_obj_frame::_obj_frame(cutlet::variable_ptr self) : _self(self) {
-}
+_obj_frame::_obj_frame(cutlet::variable_ptr self) : _self(self) {}
 
 /***************************
  * _obj_frame::~_obj_frame *
  ***************************/
 
-_obj_frame::~_obj_frame() noexcept {
-}
+_obj_frame::~_obj_frame() noexcept {}
 
 /************************
  * _obj_frame::variable *
  ************************/
 
 cutlet::variable_ptr _obj_frame::variable(const std::string &name) const {
-  _var_object &self = cutlet::cast<_var_object>(_self);
+  auto &self = cutlet::cast<_var_object>(_self);
+  auto &cls = self.type();
+
   if (name == "self") {
     return _self;
   } else if (self.has_property(name)) {
     return self.property(name);
+  } else if (cls.has_class_property(name)) {
+    return cls.class_property(name);
   } else
     return cutlet::frame::variable(name);
 }
 
 void _obj_frame::variable(const std::string &name,
                           cutlet::variable_ptr value) {
-  _var_object &self = cutlet::cast<_var_object>(_self);
+  auto &self = cutlet::cast<_var_object>(_self);
+  auto &cls = self.type();
 
   if (self.has_property(name)) {
     self.property(name, value);
+  } else if (cls.has_class_property(name)) {
+    cls.class_property(name, value);
+  } else {
+    cutlet::frame::variable(name, value);
+  }
+}
+
+/*****************************************************************************
+ * class _cls_frame
+ */
+
+/**************************
+ * _cls_frame::_cls_frame *
+ **************************/
+
+_cls_frame::_cls_frame(_def_class &cls) : _class(cls) {}
+
+/***************************
+ * _cls_frame::~_cls_frame *
+ ***************************/
+
+_cls_frame::~_cls_frame() noexcept {}
+
+/************************
+ * _cls_frame::variable *
+ ************************/
+
+cutlet::variable_ptr _cls_frame::variable(const std::string &name) const {
+  if (_class.has_class_property(name)) {
+    return _class.class_property(name);
+  } else
+    return cutlet::frame::variable(name);
+}
+
+void _cls_frame::variable(const std::string &name,
+                          cutlet::variable_ptr value) {
+  if (_class.has_class_property(name)) {
+    _class.class_property(name, value);
   } else {
     cutlet::frame::variable(name, value);
   }
 }
 
 /******************************************************************************
- * Simple procedures.
+ * The exposed API.
  */
 
 // def property name ¿name ...?
@@ -387,7 +565,35 @@ static cutlet::variable_ptr _property(cutlet::interpreter &interp,
   cutlet::component_ptr self = interp.get("self");
 
   for (auto &item: parameters) {
-    dynamic_cast<_def_class &>(*(self)).property(*(item));
+    dynamic_cast<_def_class &>(*(self)).add_property(*(item));
+  }
+
+  return nullptr;
+}
+
+// def c-property name ¿¿=? value?
+static cutlet::variable_ptr _c_property(cutlet::interpreter &interp,
+                                        const cutlet::list &parameters) {
+  cutlet::component_ptr self = interp.get("self");
+
+  size_t p_count = parameters.size();
+  if (p_count < 1 or p_count > 3) {
+    std::stringstream mesg;
+    mesg << "Invalid number of parameters for class.property "
+         << (p_count >= 1 ? cutlet::convert<std::string>(parameters[0]) : "")
+         << " (1 <= " << p_count
+         << " <= 3).\n class.property name ¿¿=? value?";
+    throw std::runtime_error(mesg.str());
+  }
+
+  dynamic_cast<_def_class &>(*(self)).add_class_property(*parameters[0]);
+  if (p_count > 1) {
+    if (p_count == 3 and (std::string)*parameters[1] != "=") {
+      throw std::runtime_error("class.property expected \"=\".\n"
+                               " class.property name ¿¿=? value?");
+    }
+    dynamic_cast<_def_class &>(*(self)).class_property(*parameters[0],
+                                                       parameters[p_count - 1]);
   }
 
   return nullptr;
@@ -431,7 +637,7 @@ static cutlet::variable_ptr _method(cutlet::interpreter &interp,
   return nullptr;
 }
 
-// def c_method name ¿parameters? body
+// def c-method name ¿parameters? body
 static cutlet::variable_ptr _c_method(cutlet::interpreter &interp,
                                       const cutlet::list &parameters) {
   // Make sure we have to right number of parameters.
@@ -525,8 +731,9 @@ extern "C" {
 void init_cutlet(cutlet::interpreter *interp) {
   _oo_sandbox() = new cutlet::sandbox();
   _oo_sandbox()->add("method", _method);
-  _oo_sandbox()->add("c_method", _c_method);
+  _oo_sandbox()->add("class.method", _c_method);
   _oo_sandbox()->add("property", _property);
+  _oo_sandbox()->add("class.property", _c_property);
 
   interp->add("class", _class);
 }

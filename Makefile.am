@@ -1,1 +1,1 @@
-SUBDIRS = src include bin libs test
+SUBDIRS = src include bin libs tests

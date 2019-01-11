@@ -1,11 +1,11 @@
 #                                                           -*- Makefile.am -*-
 
-TESTS = memory-tests hello.ctl strings.ctl stdlib.ctl unknown.ctl \
-  bad_method.ctl sandbox.ctl
-XFAIL_TESTS = bad_method.ctl
-TEST_EXTENSIONS = .ctl
-CTL_LOG_COMPILER = @top_srcdir@/bin/cutlet
-AM_CTL_LOG_FLAGS = -i ../libs/.libs/
+TESTS = memory-tests hello.cutlet strings.cutlet stdlib.cutlet unknown.cutlet \
+  bad_method.cutlet sandbox.cutlet oo.cutlet
+XFAIL_TESTS = bad_method.cutlet
+TEST_EXTENSIONS = .cutlet
+CUTLET_LOG_COMPILER = @top_srcdir@/bin/cutlet
+AM_CUTLET_LOG_FLAGS = -i ../libs/.libs/
 
 EXTRA_DIST = $(TESTS)
 

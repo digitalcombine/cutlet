@@ -44,6 +44,6 @@ Makefile.in
 /bin/cutlet
 .libs/
 .deps/
-test/*.log
-test/*.trs
-test/memory-tests
+tests/*.log
+tests/*.trs
+tests/memory-tests

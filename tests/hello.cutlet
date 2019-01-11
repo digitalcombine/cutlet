@@ -1,0 +1,16 @@
+
+def join {*args} {
+  # Return the list as a joined string.
+  return [$args join]
+}
+
+# Testing variables and results
+global name "Ron Wills"
+
+# Testing strings with variable
+print "Hello ${name}!"
+print Hello [join Josie A Vis]
+print "Hello [join Ross Bready]"
+
+print
+print "Guess what" # This isn't a comment.
