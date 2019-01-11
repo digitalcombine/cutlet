@@ -186,8 +186,7 @@ namespace cutlet {
   /***************************************************************************
    */
 
-  typedef variable_ptr (*function_t)(interpreter &,
-                                     const list &);
+  typedef variable_ptr (*function_t)(interpreter &, const list &);
 
   extern "C" {
     typedef void (*libinit_t)(interpreter *);
@@ -211,9 +210,9 @@ namespace cutlet {
     void variable(const std::string &name, variable_ptr value);
     bool has_variable(const std::string &name);
 
-    variable_ptr execute(interpreter &interp,
-                         const std::string &procedure,
-                         const list &parameters);
+    variable_ptr call(interpreter &interp,
+                      const std::string &procedure,
+                      const list &parameters);
 
     friend class interpreter;
 
@@ -246,6 +245,8 @@ namespace cutlet {
     virtual variable_ptr variable(const std::string &name) const;
     virtual void variable(const std::string &name, variable_ptr value);
 
+    /** Set the frame state to FS_DONE and
+     */
     virtual void done(variable_ptr result);
     virtual bool done() const;
 
@@ -288,9 +289,8 @@ namespace cutlet {
     cutlet::frame_ptr _parent;
   };
 
-  /***************************************************************************
+  /**
    */
-
   class interpreter : public parser::grammer {
   public:
     /** Initialize a new interpreter.
@@ -300,6 +300,8 @@ namespace cutlet {
     /** Disable the default copy constructor.
      */
     interpreter(const interpreter &other) = delete;
+
+    interpreter &operator =(const interpreter &) = delete;
 
     /** Cleans up the interpreter.
      */
@@ -324,15 +326,19 @@ namespace cutlet {
 
     void add(const std::string &name, function_t func);
     void add(const std::string &name, component_ptr comp);
-    void remove(const std::string &name);
-    void clear();
+    sandbox &environment();
 
     /**
      * @todo Rename to comp.
      */
     component_ptr get(const std::string &name) const;
 
+    //void evalfile(const std::string &filename);
+
     variable_ptr expr(const std::string &cmd);
+
+    variable_ptr call(const std::string &procedure,
+                      const cutlet::list &parameters);
 
     /** Get a reference to a frame on the stack.
      */
@@ -377,9 +383,6 @@ namespace cutlet {
      * @param library_name The full path to the dynamic library to be loaded.
      */
     void load(const std::string &library_name);
-
-    variable_ptr execute(const std::string &procedure,
-                         const cutlet::list &parameters);
 
     friend class component;
 

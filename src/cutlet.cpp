@@ -587,7 +587,7 @@ cutlet::variable::~variable() noexcept {}
 cutlet::variable_ptr
 cutlet::variable::operator()(variable_ptr self, interpreter &interp,
                              const list &parameters) {
-  return interp.execute((std::string)*this, parameters);
+  return interp.call((std::string)*this, parameters);
 }
 
 /******************************************
@@ -687,7 +687,7 @@ cutlet::variable_ptr cutlet::sandbox::variable(interpreter &interp,
   else {
     try {
       list params({new cutlet::string(name)});
-      return execute(interp, "¿variable?", params);
+      return call(interp, "¿variable?", params);
     } catch (std::runtime_error &err) {}
   }
   return nullptr;
@@ -713,9 +713,9 @@ bool cutlet::sandbox::has_variable(const std::string &name) {
  ****************************/
 
 cutlet::variable_ptr
-cutlet::sandbox::execute(interpreter &interp,
-                         const std::string &name,
-                         const list &parameters) {
+cutlet::sandbox::call(interpreter &interp,
+                      const std::string &name,
+                      const list &parameters) {
   auto it = _components.find(name);
   if (it != _components.end()) {
     return (*it->second)(interp, parameters);
@@ -1012,20 +1012,12 @@ void cutlet::interpreter::add(const std::string &name, component_ptr comp) {
   _global->add(name, comp);
 }
 
-/*******************************
- * cutlet::interpreter::remove *
- *******************************/
+/********************************
+ * cutlet::interpreter::sandbox *
+ ********************************/
 
-void cutlet::interpreter::remove(const std::string &name) {
-  _global->remove(name);
-}
-
-/******************************
- * cutlet::interpreter::clear *
- ******************************/
-
-void cutlet::interpreter::clear() {
-  _global->clear();
+cutlet::sandbox &cutlet::interpreter::environment() {
+  return *_global;
 }
 
 /****************************
@@ -1045,6 +1037,16 @@ cutlet::variable_ptr cutlet::interpreter::expr(const std::string &cmd) {
   ast::node_ptr result = command();
   tokens->pop();
   return (*result)(*this);
+}
+
+/*****************************
+ * cutlet::interpreter::call *
+ *****************************/
+
+cutlet::variable_ptr
+cutlet::interpreter::call(const std::string &procedure,
+                          const cutlet::list &parameters) {
+  return _global->call(*this, procedure, parameters);
 }
 
 /******************************
@@ -1127,16 +1129,6 @@ bool cutlet::interpreter::done() const {
 
 void cutlet::interpreter::load(const std::string &library_name) {
   _global->load(*this, library_name);
-}
-
-/********************************
- * cutlet::interpreter::execute *
- ********************************/
-
-cutlet::variable_ptr
-cutlet::interpreter::execute(const std::string &procedure,
-                             const cutlet::list &parameters) {
-  return _global->execute(*this, procedure, parameters);
 }
 
 /******************************

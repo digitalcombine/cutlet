@@ -224,7 +224,7 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
       return (*cmd)(cmd, interp, c_params);
     } else {
       // Execute the function.
-      return interp.execute((std::string)(*cmd), c_params);
+      return interp.call((std::string)(*cmd), c_params);
     }
   } catch (std::runtime_error &err) {
     /** @todo Need to add location function to nodes so we can let the users
