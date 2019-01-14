@@ -37,11 +37,6 @@
 
 namespace cutlet {
 
-  namespace ast {
-    class node;
-    typedef memory::reference<node> node_ptr;
-  }
-
   namespace utf8 {
 
     /** String iterator for UTF-8 encoded strings.
@@ -101,7 +96,7 @@ namespace cutlet {
 
   /** Variable type.
    */
-  class variable {
+  class DECLSPEC variable : public memory::recyclable {
   public:
     virtual ~variable() noexcept;
 
@@ -120,15 +115,30 @@ namespace cutlet {
   /** Utility template for creating value converters for variable values.
    */
   template <class Ty>
-  Ty convert(variable_ptr object) { return (Ty)(*(object)); }
+  Ty DECLSPEC convert(variable_ptr object) { return (Ty)(*(object)); }
 
-  template <> int convert<int>(variable_ptr object);
-  template <> bool convert<bool>(variable_ptr object);
+  template <> int DECLSPEC convert<int>(variable_ptr object);
+  template <> bool DECLSPEC convert<bool>(variable_ptr object);
+
+  namespace ast {
+    class node : public memory::recyclable {
+    public:
+      virtual ~node() noexcept;
+
+      /** Execute the node.
+       * @param interp The cutlet interpreter for the execution context.
+       */
+      virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp) = 0;
+
+      virtual std::string location() const;
+    };
+    typedef memory::reference<node> node_ptr;
+  }
 
   /***************************************************************************
    */
 
-  class string : public variable, public std::string {
+  class DECLSPEC string : public variable, public std::string {
   public:
     string();
     string(const std::string &value);
@@ -140,12 +150,14 @@ namespace cutlet {
                                     const list &parameters);
 
     virtual operator std::string() const;
+
+    friend class interpreter;
   };
 
   /***************************************************************************
    */
 
-  class list : public variable, public std::deque<variable_ptr> {
+  class DECLSPEC list : public variable, public std::deque<variable_ptr> {
   public:
     list();
     list(const_iterator first, const_iterator last);
@@ -173,7 +185,7 @@ namespace cutlet {
   /***************************************************************************
    */
 
-  class component {
+  class DECLSPEC component {
   public:
     virtual ~component() noexcept;
 
@@ -194,7 +206,7 @@ namespace cutlet {
 
   /** A sandbox contains the global environment for a Cutlet interpreter.
    */
-  class sandbox {
+  class DECLSPEC sandbox {
   public:
     sandbox();
     sandbox(const sandbox &other) = delete;
@@ -228,7 +240,7 @@ namespace cutlet {
 
   /** Execution frame.
    */
-  class frame {
+  class DECLSPEC frame : public memory::recyclable {
   public:
     typedef enum {FS_DONE = 0, FS_RUNNING = 1, FS_BREAK = 2, FS_CONTINUE = 3}
       state_t;
@@ -273,7 +285,7 @@ namespace cutlet {
 
   typedef memory::reference<frame> frame_ptr;
 
-  class block_frame : public cutlet::frame {
+  class DECLSPEC block_frame : public cutlet::frame {
   public:
     block_frame(frame_ptr parent);
     virtual ~block_frame() noexcept;
@@ -291,7 +303,7 @@ namespace cutlet {
 
   /**
    */
-  class interpreter : public parser::grammer {
+  class DECLSPEC interpreter : protected parser::grammer {
   public:
     /** Initialize a new interpreter.
      */
@@ -333,7 +345,11 @@ namespace cutlet {
      */
     component_ptr get(const std::string &name) const;
 
-    //void evalfile(const std::string &filename);
+    ast::node_ptr eval(const std::string &code);
+
+    ast::node_ptr eval(std::istream &in);
+
+    ast::node_ptr evalfile(const std::string &filename);
 
     variable_ptr expr(const std::string &cmd);
 
@@ -399,6 +415,10 @@ namespace cutlet {
   private:
     memory::reference<sandbox> _global;
     memory::reference<cutlet::frame> _frame;
+
+    ast::node_ptr _compiled;
+
+    static unsigned int _interpreters;
   };
 
 }

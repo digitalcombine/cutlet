@@ -25,24 +25,6 @@
 namespace cutlet {
   namespace ast {
 
-    class command;
-
-    class node {
-    public:
-      virtual ~node() noexcept;
-
-      /** Execute the node.
-       * @param interp The cutlet interpreter for the execution context.
-       */
-      virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp) = 0;
-
-      friend class command;
-
-    protected:
-      virtual std::string location() const;
-    };
-    typedef memory::reference<node> node_ptr;
-
     class block : public node {
     public:
       block();

@@ -774,6 +774,7 @@ cutlet::frame::frame(memory::reference<frame> uplevel)
  *************************/
 
 cutlet::frame::~frame() noexcept {
+  memory::gc::collect();
 }
 
 /***************************
@@ -935,6 +936,8 @@ cutlet::interpreter::interpreter() {
   // Create the toplevel frame with the default program return value.
   _frame = new cutlet::frame();
   _frame->_return = new cutlet::string("0");
+
+  _interpreters++;
 }
 
 /*************************************
@@ -942,7 +945,21 @@ cutlet::interpreter::interpreter() {
  *************************************/
 
 cutlet::interpreter::~interpreter() noexcept {
+  /*  Clean up anything that is managed by reference points and the garbage
+   * collector. This way when we run the collector nothing gets missed.
+   */
   delete tokens;
+  _frame = nullptr;
+  _global = nullptr;
+  _compiled = nullptr;
+
+  _interpreters--;
+
+  /*  When all the interpreters are destroyed then run a full memory
+   * collection otherwise just run a normal one.
+   */
+  if (_interpreters == 0) { memory::gc::collect_all(); }
+  else { memory::gc::collect(); }
 }
 
 /****************************
@@ -1026,6 +1043,32 @@ cutlet::sandbox &cutlet::interpreter::environment() {
 
 cutlet::component_ptr cutlet::interpreter::get(const std::string &name) const {
   return _global->get(name);
+}
+
+/*****************************
+ * cutlet::interpreter::eval *
+ *****************************/
+
+cutlet::ast::node_ptr cutlet::interpreter::eval(const std::string &code) {
+  parser::grammer::eval(code);
+  return _compiled;
+}
+
+cutlet::ast::node_ptr cutlet::interpreter::eval(std::istream &in) {
+  parser::grammer::eval(in);
+  return _compiled;
+}
+
+/*********************************
+ * cutlet::interpreter::evalfile *
+ *********************************/
+
+cutlet::ast::node_ptr
+cutlet::interpreter::evalfile(const std::string &filename) {
+  std::ifstream input_file(filename);
+  parser::grammer::eval(input_file);
+  input_file.close();
+  return _compiled;
 }
 
 /*****************************
@@ -1136,16 +1179,17 @@ void cutlet::interpreter::load(const std::string &library_name) {
  ******************************/
 
 void cutlet::interpreter::entry() {
-  ast::block ast_tree;
+  ast::block *ast_tree = new ast::block();
 
   while (tokens or not tokens->expect(cutlet_tokenizer::T_EOF)) {
     while (tokens->expect(cutlet_tokenizer::T_EOL)) tokens->next();
 
     if (tokens->expect(cutlet_tokenizer::T_EOF)) break;
 
-    ast_tree.add(command());
+    ast_tree->add(command());
   }
-  ast_tree(*this);
+  (*ast_tree)(*this);
+  _compiled = ast_tree;
 }
 
 /********************************
@@ -1370,3 +1414,5 @@ cutlet::ast::node_ptr cutlet::interpreter::subcommand() {
   tokens->pop();
   return result;
 }
+
+unsigned int cutlet::interpreter::_interpreters = 0;

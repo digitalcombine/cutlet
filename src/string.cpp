@@ -19,6 +19,7 @@
 
 #include <cutlet.h>
 #include <sstream>
+#include "ast.h"
 
 /*****************************************************************************
  * class cutlet::string

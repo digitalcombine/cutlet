@@ -19,6 +19,7 @@
 
 #include "builtin.h"
 #include "utilities.h"
+#include "ast.h"
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -80,7 +81,10 @@ public:
     }
 
     // We made it, now run the function.
-    interp.eval((std::string)*_body);
+    if (_compiled.is_null())
+      _compiled = interp.eval((std::string)*_body);
+    else
+      (*_compiled)(interp);
 
     // Clean up the stack and return a value if there was one.
     return interp.frame_pop();
@@ -89,6 +93,8 @@ public:
 private:
   cutlet::variable_ptr _parameters;
   cutlet::variable_ptr _body;
+
+  cutlet::ast::node_ptr _compiled;
 };
 
 /*****************************************************************************
@@ -139,9 +145,9 @@ builtin::import(cutlet::interpreter &interp,
   for (auto &path: cutlet::cast<cutlet::list>(paths)) {
     std::string dir = cutlet::convert<std::string>(path);
     if (fexists(dir + "/" + libname + ".ctl")) {
-      std::ifstream libfile(dir + "/" + libname + ".ctl");
-      interp.eval(libfile);
-      libfile.close();
+      //std::ifstream libfile(dir + "/" + libname + ".ctl");
+      interp.evalfile(dir + "/" + libname + ".cutlet");
+      //libfile.close();
       return nullptr;
     } else if (fexists(dir + "/" + libname + SOEXT)) {
       interp.load(dir + "/" + libname + SOEXT);
