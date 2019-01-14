@@ -18,17 +18,53 @@
  */
 
 #include <cutlet.h>
+#include <vector>
+#include <unistd.h>
 
- // def shell command
-static cutlet::variable_ptr _shell(cutlet::interpreter &interp,
-                                   const cutlet::list &parameters) {
-  return nullptr;
+#include <iostream>
+#include <cerrno>
+#include <cstring>
+#include <cstdlib>
+#include <sys/wait.h>
+
+static int _exec_pipe(const cutlet::list &cmd, int read = 0, int write = 1) {
+  auto pid = fork();
+  if (pid >= 0) {
+    if (pid == 0) {
+      std::vector<const char *> args;
+
+      for (auto &it: cmd) {
+        args.push_back(new char[((std::string)*it).size() + 1]);
+        strcpy((char *)args.back(), ((std::string)*it).c_str());
+      }
+      args.push_back(nullptr);
+
+      if (read != 0) {
+        dup2(read, 0);
+        close(read);
+      }
+      if (write != 1) {
+        dup2(write, 1);
+        close(write);
+      }
+      if (execvp(args[0], (char * const*)&args[0]) == -1) {
+        std::cerr << strerror(errno) << std::endl;
+        exit(errno);
+      }
+    } else {
+      int status;
+      while (waitpid(pid, &status, 0) != pid);
+      return status;
+    }
+  }
+
+  throw std::runtime_error("");
 }
 
-// def exec command
+ // def exec command
 static cutlet::variable_ptr _exec(cutlet::interpreter &interp,
-                                 const cutlet::list &parameters) {
- return nullptr;
+                                  const cutlet::list &parameters) {
+  return new cutlet::string(_exec_pipe(parameters));
 }
 
 /***************
@@ -41,6 +77,5 @@ extern "C" {
 }
 
 void init_cutlet(cutlet::interpreter *interp) {
-  interp->add("shell", _shell);
-  interp->add("exec", _exec);
+  interp->add("¿component?", _exec);
 }
