@@ -19,13 +19,74 @@
 
 #include <cutlet/memory.h>
 
+/*  The gc_cleaner class is used to ensure that memory::gc::collect_all is
+ * called at the end of the program. We use the fact that even global objects
+ * will get their destructors called at the of the program to clean up the
+ * garbage collector's cache.
+ */
+
+class gc_cleaner {
+public:
+  gc_cleaner() {}
+  ~gc_cleaner() { memory::gc::collect_all(); }
+};
+
+static gc_cleaner cleaner;
+
+/******************************************************************************
+ * class memory::recyclable
+ */
+
+/************************************
+ * memory::recyclable::operator new *
+ ************************************/
+
+void *
+memory::recyclable::operator new(std::size_t size) {
+  return gc::alloc(size);
+}
+
+/**************************************
+ * memory::recyclable::operator new[] *
+ **************************************/
+
+void *
+memory::recyclable::operator new[](std::size_t size) {
+  return gc::alloc(size);
+}
+
+/***************************************
+ * memory::recyclable::operator delete *
+ ***************************************/
+
+void memory::recyclable::operator delete(void *ptr) noexcept {
+  gc::recycle(ptr);
+}
+
+/*****************************************
+ * memory::recyclable::operator delete[] *
+ *****************************************/
+
+void memory::recyclable::operator delete[](void *ptr) noexcept {
+  gc::recycle(ptr);
+}
+
+/******************************************************************************
+ * class memory::gc
+ */
+
+/** Memory tracking structure.
+ */
 typedef struct memory_s {
   std::size_t size;
   time_t collected_time;
 } memory_t;
 
+// Global settings.
 std::size_t memory::gc::limit = 5 * 1024 * 1024; // 5M
 time_t memory::gc::collection_age = 60; // 1 minute
+
+// Private memory tracking.
 std::multimap<std::size_t, void *> memory::gc::free_memory;
 std::size_t memory::gc::free_size = 0;
 
@@ -61,7 +122,7 @@ void *memory::gc::alloc(std::size_t size) {
  * memory::gc::recycle *
  ***********************/
 
-void memory::gc::recycle(void *ptr) throw() {
+void memory::gc::recycle(void *ptr) noexcept {
   /* Add the memory block to the free list according to it's size and update
    * it's timestamp.
    */
@@ -104,38 +165,4 @@ void memory::gc::collect_all(void) {
   for (auto &block: free_memory)
     ::operator delete(block.second);
   free_memory.clear();
-}
-
-/************************************
- * memory::recyclable::operator new *
- ************************************/
-
-void *
-memory::recyclable::operator new(std::size_t size) {
-  return gc::alloc(size);
-}
-
-/**************************************
- * memory::recyclable::operator new[] *
- **************************************/
-
-void *
-memory::recyclable::operator new[](std::size_t size) {
-  return gc::alloc(size);
-}
-
-/***************************************
- * memory::recyclable::operator delete *
- ***************************************/
-
-void memory::recyclable::operator delete(void *ptr) noexcept {
-  gc::recycle(ptr);
-}
-
-/*****************************************
- * memory::recyclable::operator delete[] *
- *****************************************/
-
-void memory::recyclable::operator delete[](void *ptr) noexcept {
-  gc::recycle(ptr);
 }

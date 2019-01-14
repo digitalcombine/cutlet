@@ -15,6 +15,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * This does require C++ 11 to compile.
  */
 
 #include <ctime>
@@ -26,50 +28,105 @@
 
 namespace memory {
 
+  /** Makes dynamically allocated objects managed by the garbage collector.
+   */
+  class recyclable {
+  public:
+
+    /** Allocate memory for a new dynamic object from the garbage collector's
+     * cache if possible, otherwise get more memory from the system.
+     *
+     * @param size The size of the object to allocate.
+     * @return A pointer to the newly allocated object.
+     * @see operator delete()
+     */
+    void *operator new(std::size_t size);
+
+    /** Allocate memory for a new dynamic object array from the garbage
+     * collector's cache if possible, otherwise get more memory from the
+     * system.
+     *
+     * @param size The size of the object to allocate.
+     * @return A pointer to the newly allocated object.
+     * @see operator delete[]()
+     */
+    void *operator new[](std::size_t size);
+
+    /** Deallocate a dynamically allocated object and place the memory
+     * in the garbage collector's cache if the cache size hasn't exceded
+     * memory::gc::limit.
+     *
+     * @param ptr The pointer to the dynamically allocated object.
+     * @see operator new()
+     */
+    void operator delete(void *ptr) noexcept;
+
+    /** Deallocate a dynamically allocated object array and place the memory
+     * in the garbage collector's cache if the cache size hasn't exceded
+     * memory::gc::limit.
+     *
+     * @param ptr The pointer to the dynamically allocated object.
+     * @see operator new[]()
+     */
+    void operator delete[](void *ptr) noexcept;
+  };
+
   /** Garbage collector for recyclable objects.
+   * @see recyclable
    */
   class gc {
   public:
+    /** This is the hard limit of the amount of memory we'll actually cache
+     * for recycling. Anything about this will just get deleted.
+     */
     static std::size_t limit;
+
+    /** This is how long we'll keep recycled memory cached for before we return
+     * it back to the system.
+     */
     static time_t collection_age;
 
-    static void *alloc(std::size_t size);
+    /** Iterate through the cache and deallocate any memory that is older than
+    * collection_age.
+     */
+    static void collect();
 
-    static void recycle(void *ptr) noexcept;
+    /** Deallocate all the memory in the cache. This will always be called at
+     * the end of the program and is not necessary to call implicitly.
+     *
+     * The only problem with this is if any global objects are recyclable and
+     * possibly managed by reference pointers for example. There is no guaranty
+     * that they will be cleaned up automatically before the garbage collector
+     * cache is. The program should make sure all of these are deallocated to
+     * prevent memory leaks, although at this point it's not critical.
+     *
+     * It is safe to call this method many times and even continue using the
+     * garbage collect afterwards.
+     */
+    static void collect_all();
 
-    static void collect(void);
-
-    static void collect_all(void);
-
-    //static void finalize()
+    friend class recyclable;
 
   private:
     static std::multimap<std::size_t, void *> free_memory;
     static std::size_t free_size;
+
+    static void *alloc(std::size_t size);
+
+    static void recycle(void *ptr) noexcept;
   };
 
-  /**
+  /** Reference counting smart pointer.
    */
-  class recyclable {
-  public:
-    void *operator new(std::size_t size);
-
-    void *operator new[](std::size_t size);
-
-    void operator delete(void *ptr) noexcept;
-
-    void operator delete[](void *ptr) noexcept;
-  };
-
   template <typename Ty>
-  class reference : public recyclable {
+  class reference {
   private:
 
     /** Reference Counting Class Wrapper.
      *  Used by reference to implement reference counting around a
      * dynamically created object of type Ty.
      */
-    class __reference {
+    class __reference : public recyclable {
     public:
 
       /** Creates a wrapper around an existing native object.
@@ -129,7 +186,7 @@ namespace memory {
   public:
     /** Create a null reference pointer.
      */
-    reference(void) : weak_ref(false), obj(nullptr) {
+    reference() : weak_ref(false), obj(nullptr) {
     }
 
     /** Create a new reference to a newly allocated object.
@@ -147,7 +204,7 @@ namespace memory {
 
     /** Decreases the reference count and clean up the object if necessary.
      */
-    ~reference(void) throw() {
+    ~reference() noexcept {
       if (obj) {
         if (weak_ref) {
           obj->dec_weak_ref();
@@ -170,24 +227,25 @@ namespace memory {
     /** Get the number of references to a object.
      * @return The number of references
      */
-    unsigned int references(void) {
+    unsigned int references() {
       return (obj != nullptr ? obj->__ref_cnt() : 0);
     }
 
-    unsigned int weak_references(void) {
+    unsigned int weak_references() {
       return (obj != nullptr ? obj->__wref_cnt() : 0);
     }
 
     /** Test if we reference an object or just a NULL pointer.
      * @return If true if the reference in pointing to null.
      */
-    bool is_null(void) const {
+    bool is_null() const {
       return ((obj == nullptr) or obj->is_null());
     }
 
     /** Creates a new weak reference.
+     * @see normal()
      */
-    reference weak(void) {
+    reference weak() {
       reference result;
       result.obj = obj;
       result.weak_ref = true;
@@ -196,8 +254,9 @@ namespace memory {
     }
 
     /** Creates a new normal reference.
+     * @see weak()
      */
-    reference normal(void) {
+    reference normal() {
       reference result;
       result.obj = obj;
       result.weak_ref = false;
@@ -285,8 +344,15 @@ namespace memory {
       return (this->obj != other.obj);
     }
 
-    reference &operator ++(void) { inc_reference(); return *this; }
-    reference &operator --(void) { dec_reference(); return *this; }
+    /** Manually increase the reference count.
+     * @see operator --()
+     */
+    reference &operator ++() { inc_reference(); return *this; }
+
+    /** Manually decrease the reference count.
+     * @see operator ++()
+     */
+    reference &operator --() { dec_reference(); return *this; }
 
     /** Dereference the reference.
      */
