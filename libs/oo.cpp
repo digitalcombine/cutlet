@@ -44,6 +44,8 @@ public:
 private:
   cutlet::variable_ptr _parameters;
   cutlet::variable_ptr _body;
+
+  cutlet::ast::node_ptr _compiled;
 };
 
 /** An object as a cutlet variable.
@@ -215,7 +217,11 @@ cutlet::variable_ptr _def_method::operator ()(cutlet::interpreter &interp,
     }
   }
 
-  interp.eval((std::string)*_body);
+  if (_compiled.is_null())
+    _compiled = interp.eval((std::string)*_body);
+  else
+    (*_compiled)(interp);
+
   return nullptr;
 }
 
