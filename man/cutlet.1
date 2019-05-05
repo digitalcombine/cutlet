@@ -1,0 +1,127 @@
+.TH meat 1 "14 January 2018" "version 0.9"
+.SH NAME
+cutlet - a small utility language
+.SH SYNOPSIS
+.B cutlet
+[-i
+.I path
+] filename ...
+.PP
+.B cutlet
+[-h|-V]
+.SH DESCRIPTION
+Inspired by Tcl, Cutlet is designed to be a small and simple utility language to be used by other programs and projects. Where Tcl started as a basic Tool Command Language and has, over the years, become a general programming language. Cutlet is designed to be that original utility language and only as a utility language.
+.SH OPTIONS
+.IP "-i path"
+Adds a directory to the library search path.
+.IP "-V"
+Displays the version of Cutlet and exits.
+.IP "-h"
+Displays a help screen and exits.
+.SH SYNTAX
+1. One line one command.
+
+   This is command one
+   This is command two
+
+2. Each part of the command is separated by spaces.
+
+   This command has 5 words
+   command arg1 arg2 arg3
+
+3. A name starting with the `$` character gets replaced with a variable's value.
+
+   global customer_name = "John Smith"
+   print $customer_name
+
+   local counter = 10
+   print We have $counter items.
+
+4. Square brackets, `[]`, gets replaced with the return value from the command in them.
+
+   local mylist = [list value1 value2 value3]
+   print [$mylist join .]
+     -> value1.value2.value3
+
+5. Strings are denoted with the quoting characters "" and ''. Variable and command substitution can be preformed in strings.
+
+   print "Hello $client, your order [get_order $client] is ready\\n"
+   print 'Hello $client, your order [get_order $client] is ready\\n'
+
+   Strings have the following character substitutions. These substitutions use the ASCII/UTF-8 standard characters and not any platform dependant encodings. If you are using a system with its own encoding then you'll have to use the \\x## escape sequence to implement the special characters.
+
+   \\$   - Replaced with the '$' character.
+   \\"   - Replaced with the '"' character.
+   \\'   - Replaced with the ''' character.
+   \\[   - Replaced with the '[' character.
+   \\]   - Replaced with the ']' character.
+   \\\\   - Replaced with the '\\' character.
+   \\a   - Bell/Alarm character "\\x07".
+   \\b   - Backspace character "\\x08".
+   \\e   - Escape character "\\x1b".
+   \\f   - Formfeed character "\\x0c".
+   \\n   - Newline character "\\x0a".
+   \\r   - Carrage return character "\\x0d".
+   \\t   - Horizontal tab character "\\x09".
+   \\v   - Vertical tab character "\\x0b".
+   \\x## - The '#' characters are hexidecimal numbers for the byte encoded character to be replaced in the string. For example a space would be "\\x20".
+
+6. Blocks are denoted with curly brackets, {}. They can be used as literal strings and the only part of the language that can span multiple lines.
+
+   print {Hello World}
+
+   def my_command {
+     command one
+     command two
+   }
+
+7. Lines starting with the '#' character are comment lines and are ignored by Cutlet.
+
+   # This is a comment.
+   print Hello # This is not a comment
+
+.SH BUILTIN COMMANDS
+.IP "def def name ¿parameters? body"
+Defines a new function in the global environment.
+
+  # A function without parameters.
+  def get_number {
+    return 10
+  }
+
+  # A function with parameters.
+  def max {value1 value2} {
+    if {$value1 > $value2} then {
+      return $value1
+    }
+    return $value2
+  }
+
+  # Parameter with a default value.
+  def hello {{to_who "me"}} {
+    print "Hello $to_who"
+  }
+
+  # Variadic parameters to a function.
+  def to_everybody {*args} {
+    print "Hello to [$args join]"
+  }
+.IP "return ¿value?"
+This finishes the current stack frame and optionally sets a return value. It’s typically used to return from a function or from the program itself if in the top stack frame.
+
+  def concat {val1 val2} {
+    return "$val1 $val2"
+  }
+
+  # Return from the program with all is fine.
+  return 0
+.IP "def global name ¿=? ¿value?"
+.SH ENVIRONMENT
+.IP CUTLETPATH
+If set, is a colon delimited list of directories added to the library search path.
+.SH COPYRIGHT
+Copyright (c) 2019 Ron R Wills <ron@digitalcombine.ca>
+
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+
+This is free software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law."
