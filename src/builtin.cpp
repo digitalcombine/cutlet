@@ -135,6 +135,27 @@ builtin::def(cutlet::interpreter &interp,
   return nullptr;
 }
 
+// def include filename
+cutlet::variable_ptr
+builtin::incl(cutlet::interpreter &interp,
+              const cutlet::list &parameters) {
+  if (parameters.size() != 1) {
+    std::stringstream mesg;
+    mesg << "Invalid number of parameters for include "
+         << " (1 <= " << parameters.size()
+         << " <= 1).\n include filename";
+    throw std::runtime_error(mesg.str());
+  }
+  if (fexists(*parameters[0])) {
+    interp.evalfile(*parameters[0]);
+    return nullptr;
+  }
+
+  throw std::runtime_error(std::string("Import file ") +
+                           (std::string)*parameters[0] +
+                           " not found.");
+}
+
 // def import library
 cutlet::variable_ptr
 builtin::import(cutlet::interpreter &interp,
@@ -145,9 +166,7 @@ builtin::import(cutlet::interpreter &interp,
   for (auto &path: cutlet::cast<cutlet::list>(paths)) {
     std::string dir = cutlet::convert<std::string>(path);
     if (fexists(dir + "/" + libname + ".ctl")) {
-      //std::ifstream libfile(dir + "/" + libname + ".ctl");
       interp.evalfile(dir + "/" + libname + ".cutlet");
-      //libfile.close();
       return nullptr;
     } else if (fexists(dir + "/" + libname + SOEXT)) {
       interp.load(dir + "/" + libname + SOEXT);

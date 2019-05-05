@@ -917,12 +917,13 @@ cutlet::interpreter::interpreter() {
   _global->add("def", ::builtin::def);
   _global->add("return", ::builtin::ret);
   _global->add("list", ::builtin::list);
+  _global->add("include", ::builtin::incl);
   _global->add("import", ::builtin::import);
   _global->add("sandbox", ::builtin::sandbox);
 
   // Create the global library.path list variable.
   cutlet::list *path = new cutlet::list();
-  std::string env_path = env("CUTLET_PATH");
+  std::string env_path = env("CUTLETPATH");
 
   auto start = 0U;
   auto end = env_path.find(":");
@@ -931,11 +932,15 @@ cutlet::interpreter::interpreter() {
     start = end + 1;
     end = env_path.find(":", start);
   }
+
+  cutlet::variable_ptr pkglibdir = new cutlet::string(PKGLIBDIR);
+  path->push_back(pkglibdir);
   global("library.path", path);
+  global("library.dir", pkglibdir);
 
   // Create the toplevel frame with the default program return value.
   _frame = new cutlet::frame();
-  _frame->_return = new cutlet::string("0");
+  _frame->_return = new cutlet::string(0);
 
   _interpreters++;
 }
@@ -972,7 +977,8 @@ cutlet::variable_ptr cutlet::interpreter::var(const std::string &name) {
     result = _global->variable(*this, name);
 
   if (result.is_null())
-    throw std::runtime_error(std::string("Unable to resolve variable $") + name);
+    throw std::runtime_error(std::string("Unable to resolve variable $") +
+                             name);
 
   return result;
 }
@@ -1336,14 +1342,19 @@ cutlet::ast::node_ptr cutlet::interpreter::string() {
         part += "\"";
       else if (*index == "'")
         part += "'";
+      else if (*index == "[")
+        part += "[";
+      else if (*index == "]")
+        part += "]";
       else if (*index == "\\")
         part += "\\";
+
 
       else if (*index == "a") // Bell/Alarm
         part += "\x07";
       else if (*index == "b") // Backspace
         part += "\x08";
-      else if (*index == "e") // Backspace
+      else if (*index == "e") // Escape
         part += "\x1b";
       else if (*index == "f") // Form feed
         part += "\x0c";

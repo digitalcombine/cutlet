@@ -27,6 +27,9 @@ namespace builtin {
   cutlet::variable_ptr def(cutlet::interpreter &interp,
                            const cutlet::list &parameters);
 
+  cutlet::variable_ptr incl(cutlet::interpreter &interp,
+                            const cutlet::list &parameters);
+
   cutlet::variable_ptr import(cutlet::interpreter &interp,
                               const cutlet::list &parameters);
 
