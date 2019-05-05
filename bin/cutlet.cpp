@@ -22,6 +22,35 @@
 #include <fstream>
 #include <getopt.h>
 
+/********
+ * help *
+ ********/
+
+static void help() {
+  std::cout << "Cutlet v" << VERSION << "\n\n"
+            << "cutlet [-i path] filename ...\n"
+            << "cutlet -h\n"
+            << "  -i path      Include path to the library search\n"
+            << "  -V           Display the version\n"
+            << "  -h           Displays this help"
+            << std::endl;
+}
+
+/***********
+ * version *
+ ***********/
+
+static void version () {
+  std::cout << "Cutlet Version " << VERSION << "\n\n"
+            << "Copyright (c) 2019 Ron R Wills <ron@digitalcombine.ca>\n"
+            << "License GPLv3+: GNU GPL version 3 or later "
+            << "<http://gnu.org/licenses/gpl.html>\n"
+            << "This is free software: you are free to change and "
+            << "redistribute it.\n"
+            << "There is NO WARRANTY, to the extent permitted by law."
+            << std::endl;
+}
+
 /************
  * add_path *
  ************/
@@ -38,14 +67,22 @@ static void add_path(cutlet::interpreter &interp, const std::string &path) {
 int main(int argc, char *argv[]) {
   cutlet::interpreter interpreter;
 
+  // Parse the command line options.
+  opterr = 0;
   int opt;
-  while ((opt = getopt(argc, argv, "i:")) != -1) {
+  while ((opt = getopt(argc, argv, "i:hV")) != -1) {
     switch (opt) {
-    case 'i':
+    case 'i': // Path option
       add_path(interpreter, optarg);
       break;
-    default:
-      std::cerr << "FATAL: unknown option" << '\n';
+    case 'h': // Help option
+      help();
+      return 0;
+    case 'V': // Version option
+      version();
+      return 0;
+    default: // Unknown option.
+      std::cerr << "FATAL: unknown option -" << (char)optopt << '\n';
       return 1;
     }
   }
@@ -53,11 +90,8 @@ int main(int argc, char *argv[]) {
   try {
     if (optind < argc) {
       // Iterate over command lines for script files.
-      for (int i = optind; i < argc; ++i) {
-        std::ifstream input_file(argv[i]);
-        interpreter.eval(input_file);
-        input_file.close();
-      }
+      for (int i = optind; i < argc; ++i)
+        interpreter.evalfile(argv[i]);
 
     } else {
       // Nothing on the command line so read from stdin.

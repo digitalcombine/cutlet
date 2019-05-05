@@ -1,8 +1,8 @@
-#                                               -*- Autoconf -*-
+#                                                             -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([cutlet], [0.9], [ron.rwsoft@gmail.com])
+AC_INIT([cutlet], [0.9.1], [ron@digitalcombine.ca])
 AM_INIT_AUTOMAKE
 AM_SILENT_RULES
 AC_CONFIG_SRCDIR([src/cutlet.cpp])
@@ -72,5 +72,6 @@ AC_CONFIG_FILES([Makefile
                  include/Makefile
                  bin/Makefile
                  libs/Makefile
+                 man/Makefile
                  tests/Makefile])
 AC_OUTPUT
