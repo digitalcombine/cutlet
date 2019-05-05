@@ -709,15 +709,17 @@ static cutlet::variable_ptr _class(cutlet::interpreter &interp,
   cutlet::component_ptr new_class = new _def_class(interp, name, parents);
 
   // Evaluation the class body.
-  interp.frame_push(_oo_sandbox());
-  interp.add("self", new_class);
-  try {
-    interp.eval(body);
-  } catch (std::exception &err) {
+  if (not body.empty()) {
+    interp.frame_push(_oo_sandbox());
+    interp.add("self", new_class);
+    try {
+      interp.eval(body);
+    } catch (std::exception &err) {
+      interp.frame_pop();
+      throw;
+    }
     interp.frame_pop();
-    throw;
   }
-  interp.frame_pop();
 
   // If we get here, add the class component to the interpreter.
   interp.add(name, new_class);

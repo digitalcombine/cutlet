@@ -2,6 +2,16 @@
 import stdlib
 import oo
 
+# Test an empty class.
+class test_empty_class {}
+
+# Test empty methods.
+class test_empty_method_class {
+  method empty {}
+
+  class.method empty {}
+}
+
 # Class test
 class test_class {
 
