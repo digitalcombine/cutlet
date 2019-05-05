@@ -85,12 +85,16 @@ static cutlet::frame::state_t eval_body(cutlet::interpreter &interp,
 // def false
 static cutlet::variable_ptr
 _false(cutlet::interpreter &interp, const cutlet::list &parameters) {
+  (void)interp;
+  (void)parameters;
   return new cutlet::string("false");
 }
 
 // def true
 static cutlet::variable_ptr
 _true(cutlet::interpreter &interp, const cutlet::list &parameters) {
+  (void)interp;
+  (void)parameters;
   return new cutlet::string("true");
 }
 
@@ -192,6 +196,8 @@ _while(cutlet::interpreter &interp, const cutlet::list &parameters) {
 // def break
 static cutlet::variable_ptr
 _break(cutlet::interpreter &interp, const cutlet::list &parameters) {
+  (void)parameters;
+
   interp.frame()->state(cutlet::frame::FS_BREAK);
   return nullptr;
 }
@@ -199,6 +205,8 @@ _break(cutlet::interpreter &interp, const cutlet::list &parameters) {
 // def continue
 static cutlet::variable_ptr
 _continue(cutlet::interpreter &interp, const cutlet::list &parameters) {
+  (void)parameters;
+
   interp.frame()->state(cutlet::frame::FS_CONTINUE);
   return nullptr;
 }
@@ -206,6 +214,8 @@ _continue(cutlet::interpreter &interp, const cutlet::list &parameters) {
 // def raise *args
 static cutlet::variable_ptr
 _raise(cutlet::interpreter &interp, const cutlet::list &parameters) {
+  (void)interp;
+
   // Throw the error.
   throw std::runtime_error(parameters.join());
 }
