@@ -47,3 +47,4 @@ Makefile.in
 tests/*.log
 tests/*.trs
 tests/memory-tests
+cutlet-*.tar.gz
