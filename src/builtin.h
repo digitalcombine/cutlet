@@ -24,50 +24,51 @@
 
 namespace builtin {
 
-  cutlet::variable_ptr def(cutlet::interpreter &interp,
-                           const cutlet::list &parameters);
+  cutlet::variable::pointer def(cutlet::interpreter &interp,
+                                const cutlet::list &parameters);
 
-  cutlet::variable_ptr incl(cutlet::interpreter &interp,
-                            const cutlet::list &parameters);
+  cutlet::variable::pointer incl(cutlet::interpreter &interp,
+                                 const cutlet::list &parameters);
 
-  cutlet::variable_ptr import(cutlet::interpreter &interp,
-                              const cutlet::list &parameters);
+  cutlet::variable::pointer import(cutlet::interpreter &interp,
+                                   const cutlet::list &parameters);
 
-  cutlet::variable_ptr local(cutlet::interpreter &interp,
-                             const cutlet::list &parameters);
+  cutlet::variable::pointer local(cutlet::interpreter &interp,
+                                  const cutlet::list &parameters);
 
-  cutlet::variable_ptr global(cutlet::interpreter &interp,
-                              const cutlet::list &parameters);
+  cutlet::variable::pointer global(cutlet::interpreter &interp,
+                                   const cutlet::list &parameters);
 
-  cutlet::variable_ptr block(cutlet::interpreter &interp,
-                             const cutlet::list &parameters);
+  cutlet::variable::pointer block(cutlet::interpreter &interp,
+                                  const cutlet::list &parameters);
 
-  cutlet::variable_ptr ret(cutlet::interpreter &interp,
-                           const cutlet::list &parameters);
+  cutlet::variable::pointer ret(cutlet::interpreter &interp,
+                                const cutlet::list &parameters);
 
-  cutlet::variable_ptr print(cutlet::interpreter &interp,
-                             const cutlet::list &parameters);
+  cutlet::variable::pointer print(cutlet::interpreter &interp,
+                                  const cutlet::list &parameters);
 
-  cutlet::variable_ptr list(cutlet::interpreter &interp,
-                            const cutlet::list &parameters);
+  cutlet::variable::pointer list(cutlet::interpreter &interp,
+                                 const cutlet::list &parameters);
 
-  cutlet::variable_ptr sandbox(cutlet::interpreter &interp,
-                               const cutlet::list &parameters);
+  cutlet::variable::pointer sandbox(cutlet::interpreter &interp,
+                                    const cutlet::list &parameters);
 
   /** This class is a Cutlet variable that wraps a cutlet sandbox. It allows
    * access to the sandbox API within scripts and interpreters.
    */
   class sandbox_var : public cutlet::variable {
   public:
-    sandbox_var(cutlet::sandbox_ptr sb);
+    sandbox_var(cutlet::sandbox::pointer sb);
     ~sandbox_var() noexcept;
 
-    virtual cutlet::variable_ptr operator()(cutlet::variable_ptr self,
-                                            cutlet::interpreter &interp,
-                                            const cutlet::list &parameters);
+    virtual cutlet::variable::pointer
+    operator()(cutlet::variable::pointer self,
+               cutlet::interpreter &interp,
+               const cutlet::list &parameters);
 
   private:
-    cutlet::sandbox_ptr _sandbox;
+    cutlet::sandbox::pointer _sandbox;
   };
 }
 

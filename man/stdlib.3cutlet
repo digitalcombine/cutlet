@@ -1,0 +1,32 @@
+.TH stdlib 3cutlet "11 August 2019" "Cutlet" "Cutlet Programmers's Manual"
+.SH NAME
+cutlet standard library
+.SH SYNOPSIS
+.nf
+# Boolean values
+.B def false
+.B def true
+.PP
+# Arbitrary execution
+.B def eval *args
+.B def expr *args
+.PP
+# Execution flow control.
+.B def if ¿then? body ¿elif condition ¿then? body ...? ¿else body?
+.B def while condition ¿do? body
+.B def break
+.B def continue
+.PP
+# Error management.
+.B def raise *args
+.B def try body ¿catch varname body?
+.SH DESCRIPTION
+The standard library is a set of routines that would be found in most languages
+to make cutlet more of a generic programming language.
+.SS Boolean Values
+Both of the string values
+.BI true
+and
+.BI false
+are considered boolean values. The
+.SS Arbitrary execution

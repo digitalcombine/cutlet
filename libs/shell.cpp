@@ -39,14 +39,14 @@ static int _exec_pipe(const cutlet::list &cmd, int read = 0, int write = 1) {
       }
       args.push_back(nullptr);
 
-      if (read != 0) {
+      /*if (read != 0) {
         dup2(read, 0);
         close(read);
       }
       if (write != 1) {
         dup2(write, 1);
         close(write);
-      }
+      }*/
       if (execvp(args[0], (char * const*)&args[0]) == -1) {
         std::cerr << strerror(errno) << std::endl;
         exit(errno);
@@ -58,12 +58,18 @@ static int _exec_pipe(const cutlet::list &cmd, int read = 0, int write = 1) {
     }
   }
 
-  throw std::runtime_error("");
+  throw std::runtime_error(strerror(errno));
 }
 
- // def exec command
-static cutlet::variable_ptr _exec(cutlet::interpreter &interp,
+// def exec command
+static cutlet::variable::pointer _exec(cutlet::interpreter &interp,
                                   const cutlet::list &parameters) {
+  return new cutlet::string(_exec_pipe(parameters));
+}
+
+// def env variable ¿=? ¿value?
+static cutlet::variable::pointer _env(cutlet::interpreter &interp,
+                                 const cutlet::list &parameters) {
   return new cutlet::string(_exec_pipe(parameters));
 }
 
@@ -77,5 +83,7 @@ extern "C" {
 }
 
 void init_cutlet(cutlet::interpreter *interp) {
-  interp->add("¿component?", _exec);
+  interp->add("exec", _exec);
+  interp->add("env", _env);
+  //interp->add("glob")
 }

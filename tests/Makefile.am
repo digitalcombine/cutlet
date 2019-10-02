@@ -1,7 +1,7 @@
 #                                                           -*- Makefile.am -*-
 
-TESTS = memory-tests hello.cutlet strings.cutlet stdlib.cutlet unknown.cutlet \
-  bad_method.cutlet sandbox.cutlet oo.cutlet
+TESTS = memory-tests core.cutlet hello.cutlet strings.cutlet stdlib.cutlet \
+  unknown.cutlet bad_method.cutlet sandbox.cutlet oo.cutlet
 XFAIL_TESTS = bad_method.cutlet
 TEST_EXTENSIONS = .cutlet
 CUTLET_LOG_COMPILER = @top_srcdir@/bin/cutlet

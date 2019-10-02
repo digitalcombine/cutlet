@@ -1,6 +1,8 @@
 # Test the standard library.
 
-$library.path append "../libs/.libs"
+# Remove the system library directory path
+$library.path remove 0
+
 import stdlib
 
 #=============================================================================#
@@ -10,7 +12,7 @@ try {
   raise "I threw an error"
   return 1
 } catch err {
-  if {$err == "2:3: I threw an error"} then {
+  if {$err == "I threw an error"} then {
     print "I caught an error ->" $err
   } else {
     print "I caught an unexpected error ->" $err

@@ -29,16 +29,17 @@
 
 class _def_function : public cutlet::component {
 public:
-  _def_function(cutlet::variable_ptr parameters,
-                cutlet::variable_ptr body)
-    : _parameters(parameters), _body(body) {}
+  _def_function(const std::string &label,
+                cutlet::variable::pointer parameters,
+                cutlet::variable::pointer body)
+    : _label(label), _parameters(parameters), _body(body) {}
   virtual ~_def_function() noexcept {}
 
   /** Execute the function.
    */
-  virtual cutlet::variable_ptr
+  virtual cutlet::variable::pointer
   operator ()(cutlet::interpreter &interp, const cutlet::list &args) {
-    interp.frame_push(); // New frame for the function.
+    interp.frame_push(_label); // New frame for the function.
 
     // Populate the parameters of the function.
     auto p_it = cutlet::cast<cutlet::list>(_parameters).begin();
@@ -91,17 +92,18 @@ public:
   }
 
 private:
-  cutlet::variable_ptr _parameters;
-  cutlet::variable_ptr _body;
+  std::string _label;
+  cutlet::variable::pointer _parameters;
+  cutlet::variable::pointer _body;
 
-  cutlet::ast::node_ptr _compiled;
+  cutlet::ast::node::pointer _compiled;
 };
 
 /*****************************************************************************
  */
 
 // def def name ¿parameters? body
-cutlet::variable_ptr
+cutlet::variable::pointer
 builtin::def(cutlet::interpreter &interp,
              const cutlet::list &parameters) {
   // Make sure we have to right number of parameters.
@@ -119,8 +121,8 @@ builtin::def(cutlet::interpreter &interp,
   std::string name = *(parameters[0]);
 
   // Get the method parameters and body.
-  cutlet::variable_ptr body;
-  cutlet::variable_ptr def_parameters;
+  cutlet::variable::pointer body;
+  cutlet::variable::pointer def_parameters;
   if (p_count == 2) {
     def_parameters = new cutlet::list();
     body = parameters[1];
@@ -130,13 +132,13 @@ builtin::def(cutlet::interpreter &interp,
   }
 
   // Add the function to the interpreter.
-  interp.add(name, new _def_function(def_parameters, body));
+  interp.add(name, new _def_function(name, def_parameters, body));
 
   return nullptr;
 }
 
 // def include filename
-cutlet::variable_ptr
+cutlet::variable::pointer
 builtin::incl(cutlet::interpreter &interp,
               const cutlet::list &parameters) {
   if (parameters.size() != 1) {
@@ -157,10 +159,10 @@ builtin::incl(cutlet::interpreter &interp,
 }
 
 // def import library
-cutlet::variable_ptr
+cutlet::variable::pointer
 builtin::import(cutlet::interpreter &interp,
                 const cutlet::list &parameters) {
-  cutlet::variable_ptr paths = interp.var("library.path");
+  cutlet::variable::pointer paths = interp.var("library.path");
   std::string libname = cutlet::convert<std::string>(parameters[0]);
 
   for (auto &path: cutlet::cast<cutlet::list>(paths)) {
@@ -178,7 +180,7 @@ builtin::import(cutlet::interpreter &interp,
 }
 
 // def global name ¿=? ¿value?
-cutlet::variable_ptr
+cutlet::variable::pointer
 builtin::global(cutlet::interpreter &interp,
                 const cutlet::list &parameters) {
   switch (parameters.size()) {
@@ -206,28 +208,28 @@ builtin::global(cutlet::interpreter &interp,
 }
 
 // def local name ¿=? value
-cutlet::variable_ptr
+cutlet::variable::pointer
 builtin::local(cutlet::interpreter &interp,
                const cutlet::list &parameters) {
 
   if (parameters.size() == 2) {
-    interp.local((std::string)*(parameters[0]), parameters[1]);
+    interp.frame(1)->variable((std::string)*(parameters[0]), parameters[1]);
   } else if (parameters.size() == 3) {
     // XXX Trigger an error here.
     if ((std::string)*(parameters[1]) != "=") return nullptr;
 
-    interp.local((std::string)*(parameters[0]), parameters[2]);
+    interp.frame(1)->variable((std::string)*(parameters[0]), parameters[2]);
   }
 
   return nullptr;
 }
 
 // def block ¿levels? body
-cutlet::variable_ptr
+cutlet::variable::pointer
 builtin::block(cutlet::interpreter &interp,
                const cutlet::list &parameters) {
   unsigned int levels = 0, p_count = parameters.size();
-  cutlet::variable_ptr body;
+  cutlet::variable::pointer body;
   if (p_count == 2) {
     levels = cutlet::convert<int>(parameters[0]);
     body = parameters[1];
@@ -242,7 +244,7 @@ builtin::block(cutlet::interpreter &interp,
   }
 
   try {
-    interp.frame_push(new cutlet::block_frame(interp.frame()));
+    interp.frame_push(new cutlet::block_frame(interp.frame(levels)));
     interp.eval(*body);
     interp.frame_pop();
   } catch (...) {
@@ -254,29 +256,32 @@ builtin::block(cutlet::interpreter &interp,
 }
 
 // def return ¿value?
-cutlet::variable_ptr
+cutlet::variable::pointer
 builtin::ret(cutlet::interpreter &interp,
              const cutlet::list &parameters) {
+  cutlet::frame::pointer uplevel = interp.frame(1);
   if (parameters.size() > 0)
-    interp.frame_done(parameters[0]);
+    uplevel->done(parameters[0]);
   else
-    interp.frame_done();
+    uplevel->done();
   return nullptr;
 }
 
 // def print *args
-cutlet::variable_ptr
+cutlet::variable::pointer
 builtin::print(cutlet::interpreter &interp,
                const cutlet::list &parameters) {
+  (void)interp;
+
   std::cout << parameters.join() << std::endl;
   return nullptr;
 }
 
 // def list *args
-cutlet::variable_ptr
+cutlet::variable::pointer
 builtin::list(cutlet::interpreter &interp,
               const cutlet::list &parameters) {
-  cutlet::variable_ptr result;
+  cutlet::variable::pointer result;
   if (parameters.size() == 1)
     result = interp.list(cutlet::convert<std::string>(parameters[0]));
   else
@@ -285,8 +290,11 @@ builtin::list(cutlet::interpreter &interp,
 }
 
 // def sandbox
-cutlet::variable_ptr
+cutlet::variable::pointer
 builtin::sandbox(cutlet::interpreter &interp,
                  const cutlet::list &parameters) {
+  (void)interp;
+  (void)parameters;
+
   return new builtin::sandbox_var(new cutlet::sandbox);
 }

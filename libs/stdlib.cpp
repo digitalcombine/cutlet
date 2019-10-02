@@ -32,8 +32,8 @@
 #include <cutlet.h>
 
 /******************************************************************************
- *  To make our lives easier we recursive decent parser like methods to help
- * us parse the function parameters.
+ *  To make our lives easier we uses recursive decent parser like methods to
+ * help us parse the function parameters.
  */
 
 static bool is_more(cutlet::list::const_iterator &it,
@@ -63,9 +63,10 @@ static void permit(cutlet::list::const_iterator &it,
 }
 
 static cutlet::frame::state_t eval_body(cutlet::interpreter &interp,
-                                        const std::string &body) {
+                                        const std::string &body,
+                                        const std::string &label) {
   cutlet::frame::state_t result;
-  interp.frame_push(new cutlet::block_frame(interp.frame()));
+  interp.frame_push(new cutlet::block_frame(label, interp.frame(1)));
   try {
     interp.eval(body);
   } catch(...) {
@@ -83,7 +84,7 @@ static cutlet::frame::state_t eval_body(cutlet::interpreter &interp,
  */
 
 // def false
-static cutlet::variable_ptr
+static cutlet::variable::pointer
 _false(cutlet::interpreter &interp, const cutlet::list &parameters) {
   (void)interp;
   (void)parameters;
@@ -91,7 +92,7 @@ _false(cutlet::interpreter &interp, const cutlet::list &parameters) {
 }
 
 // def true
-static cutlet::variable_ptr
+static cutlet::variable::pointer
 _true(cutlet::interpreter &interp, const cutlet::list &parameters) {
   (void)interp;
   (void)parameters;
@@ -99,7 +100,7 @@ _true(cutlet::interpreter &interp, const cutlet::list &parameters) {
 }
 
 // def eval *args
-static cutlet::variable_ptr
+static cutlet::variable::pointer
 _eval(cutlet::interpreter &interp, const cutlet::list &parameters) {
   interp.eval(parameters.join());
 
@@ -107,7 +108,7 @@ _eval(cutlet::interpreter &interp, const cutlet::list &parameters) {
 }
 
 // def expr *args
-static cutlet::variable_ptr
+static cutlet::variable::pointer
 _expr(cutlet::interpreter &interp, const cutlet::list &parameters) {
   return interp.expr(parameters.join());
 }
@@ -116,7 +117,7 @@ _expr(cutlet::interpreter &interp, const cutlet::list &parameters) {
  *  ¿elif condition ¿then? body ...?
  *  ¿else body?
  */
-static cutlet::variable_ptr
+static cutlet::variable::pointer
 _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
   cutlet::list::const_iterator it = parameters.begin();
   std::string cond, body;
@@ -131,9 +132,13 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
     body = *(*it);
   }
 
+  interp.frame_push(new cutlet::block_frame(cond, interp.frame(1)));
+  bool cond_res = cutlet::convert<bool>(interp.expr(cond));
+  interp.frame_pop();
+
   // If the condition is true then eval the body and return.
-  if (cutlet::convert<bool>(interp.expr(cond))) {
-    eval_body(interp, body);
+  if (cond_res) {
+    eval_body(interp, body, "then");
     return nullptr;
   }
 
@@ -151,15 +156,19 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
         body = *(*it);
       }
 
-      if (cutlet::convert<bool>(interp.expr(cond))) {
-        eval_body(interp, body);
+      interp.frame_push(new cutlet::block_frame(cond, interp.frame(1)));
+      cond_res = cutlet::convert<bool>(interp.expr(cond));
+      interp.frame_pop();
+
+      if (cond_res) {
+        eval_body(interp, body, "elif");
         return nullptr;
       }
 
     } else {
       permit(it, "else");
       next(it, parameters);
-      eval_body(interp, *(*it));
+      eval_body(interp, *(*it), "else");
       return nullptr;
     }
   }
@@ -168,7 +177,7 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
 }
 
 // def while condition ¿do? body
-static cutlet::variable_ptr
+static cutlet::variable::pointer
 _while(cutlet::interpreter &interp, const cutlet::list &parameters) {
   cutlet::list::const_iterator it = parameters.begin();
   std::string cond, body;
@@ -185,7 +194,7 @@ _while(cutlet::interpreter &interp, const cutlet::list &parameters) {
 
   // If the condition is true then eval the body and return.
   while (cutlet::convert<bool>(interp.expr(cond))) {
-    cutlet::frame::state_t st = eval_body(interp, body);
+    cutlet::frame::state_t st = eval_body(interp, body, "while");
     if (st == cutlet::frame::FS_BREAK or
         st == cutlet::frame::FS_DONE) break;
   }
@@ -194,48 +203,53 @@ _while(cutlet::interpreter &interp, const cutlet::list &parameters) {
 }
 
 // def break
-static cutlet::variable_ptr
+static cutlet::variable::pointer
 _break(cutlet::interpreter &interp, const cutlet::list &parameters) {
   (void)parameters;
 
-  interp.frame()->state(cutlet::frame::FS_BREAK);
+  interp.frame(1)->state(cutlet::frame::FS_BREAK);
   return nullptr;
 }
 
 // def continue
-static cutlet::variable_ptr
+static cutlet::variable::pointer
 _continue(cutlet::interpreter &interp, const cutlet::list &parameters) {
   (void)parameters;
 
-  interp.frame()->state(cutlet::frame::FS_CONTINUE);
+  interp.frame(1)->state(cutlet::frame::FS_CONTINUE);
   return nullptr;
 }
 
 // def raise *args
-static cutlet::variable_ptr
+static cutlet::variable::pointer
 _raise(cutlet::interpreter &interp, const cutlet::list &parameters) {
-  (void)interp;
+  // We remove our frame from the stack.
+  interp.frame_pop();
 
   // Throw the error.
   throw std::runtime_error(parameters.join());
 }
 
 // def try body ¿catch varname err_body?
-static cutlet::variable_ptr
+static cutlet::variable::pointer
 _try(cutlet::interpreter &interp, const cutlet::list &parameters) {
   auto it = parameters.begin();
 
   try {
     // Eval the body.
-    eval_body(interp, *(*it));
+    interp.eval(*(*it));
   } catch (std::exception &err) {
     // An exception was caught, so eval the err_body.
     ++it;
     if (is_more(it, parameters)) {
-      interp.frame_push(new cutlet::block_frame(interp.frame()));
       permit(it, "catch");
+
+      // Set the local variable with the error in it.
       next(it, parameters);
+      interp.frame_push(new cutlet::block_frame("catch", interp.frame(1)));
       interp.local(*(*it), new cutlet::string(err.what()));
+
+      // Eval the catch block
       next(it, parameters);
       try {
         interp.eval(*(*it));

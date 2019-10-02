@@ -45,11 +45,11 @@ cutlet::string::string(int value) {
 
 cutlet::string::~string() noexcept {}
 
-/*
- *
- */
+/*******************************
+ * cutlet::string::operator () *
+ *******************************/
 
-cutlet::variable_ptr cutlet::string::operator()(variable_ptr self,
+cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
                                                 interpreter &interp,
                                                 const list &parameters) {
   if (parameters.size() == 2) {
@@ -86,7 +86,7 @@ cutlet::variable_ptr cutlet::string::operator()(variable_ptr self,
 
 cutlet::string::operator std::string() const { return *this; }
 
-template <> int cutlet::convert<int>(variable_ptr object) {
+template <> int cutlet::convert<int>(variable::pointer object) {
   if (object.is_null()) return 0;
 
   std::stringstream ss((std::string)(*(object)));
@@ -95,7 +95,7 @@ template <> int cutlet::convert<int>(variable_ptr object) {
   return result;
 }
 
-template <> bool cutlet::convert<bool>(variable_ptr object) {
+template <> bool cutlet::convert<bool>(variable::pointer object) {
   if (object.is_null()) return false;
 
   std::string value = *object;

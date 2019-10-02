@@ -37,6 +37,7 @@ std::ostream &operator <<(std::ostream &os, const parser::token &token);
 std::ostream &operator <<(std::ostream &os,
                           const parser::tokenizer &tokenizer);
 
+/** @ns */
 namespace parser {
 
 	/**
@@ -44,14 +45,12 @@ namespace parser {
   class token {
   public:
     token(unsigned int id, const std::string &value);
-    token(unsigned int id, const std::string &value, unsigned int line,
-          unsigned int offset);
+    token(unsigned int id, const std::string &value, std::streampos position);
     token(const token &other);
 
     virtual ~token() noexcept;
 
-    unsigned int line() const { return _line; }
-    unsigned int offset() const { return _offset; }
+    std::streampos position() const { return _position; }
 
     token &operator =(const token &other);
 
@@ -66,7 +65,7 @@ namespace parser {
   private:
     unsigned int _id;
     std::string _value;
-    unsigned int _line, _offset;
+    std::streampos _position;
   };
 
   class syntax_error : public std::exception {
@@ -75,6 +74,7 @@ namespace parser {
     syntax_error(const std::string &message) noexcept;
     syntax_error(const std::string &message, token token) noexcept;
     syntax_error(const exception& other) noexcept;
+    syntax_error(const syntax_error& other) noexcept;
     virtual ~syntax_error() noexcept;
 
     syntax_error& operator=(const syntax_error &other) noexcept;
@@ -87,6 +87,8 @@ namespace parser {
     token _token;
   };
 
+  /** Tokenizer for a recursive decent parser.
+   */
   class tokenizer {
   public:
     static const unsigned int T_EOF = 0;
@@ -127,8 +129,7 @@ namespace parser {
     std::string code;
     std::istream *stream;
 
-    unsigned int line;
-    unsigned int offset;
+    std::streampos position;
 
     void add_token_pattern(unsigned int token_id, const std::string &pattern);
     void clear_token_patterns();
@@ -148,8 +149,7 @@ namespace parser {
       std::list<token> tokens;
       std::string code;
       std::istream *stream;
-      unsigned int line;
-      unsigned int offset;
+      std::streampos position;
     };
     std::stack<stack_s> _states;
 

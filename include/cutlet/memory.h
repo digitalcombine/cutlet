@@ -335,7 +335,8 @@ namespace memory {
     /** Check if the reference is referencing the same object as @c other.
      */
     bool operator ==(const Ty *other) const {
-      return ((Ty *)(obj) == other);
+      if (other == nullptr) return is_null();
+      else return ((Ty *)(obj) == other);
     }
 
     /** Check if the reference is referencing a different object as @c other.

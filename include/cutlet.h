@@ -36,6 +36,14 @@
 #define _CUTLET_H
 
 namespace cutlet {
+  class frame;
+}
+
+/**
+ */
+std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame);
+
+namespace cutlet {
 
   namespace utf8 {
 
@@ -90,19 +98,27 @@ namespace cutlet {
    */
 
   class list;
-  class variable;
-  typedef memory::reference<variable> variable_ptr;
   class interpreter;
 
   /** Variable type.
    */
   class DECLSPEC variable : public memory::recyclable {
   public:
+    typedef memory::reference<variable> pointer;
+
+    /** Cleans up the variable.
+     */
     virtual ~variable() noexcept;
 
-    virtual variable_ptr operator()(variable_ptr self,
-                                    interpreter &interp,
-                                    const list &parameters);
+    /** When a variable is called this is used to implement operators for the
+     * variable type.
+     *
+     * @param self Reference to the variable called.
+     * @param interp Reference to the Cutlet interpreter.
+     */
+    virtual variable::pointer operator()(pointer self,
+                                         interpreter &interp,
+                                         const list &parameters);
 
     /** Cast the variable to a std::string type.
      */
@@ -110,30 +126,67 @@ namespace cutlet {
   };
 
   template <class Ty>
-  Ty &cast(variable_ptr object) { return dynamic_cast<Ty &>(*(object)); }
+  Ty &cast(variable::pointer object) {
+    try {
+      if (object.is_null())
+        throw std::runtime_error("Unable to cast a null reference");
+      return dynamic_cast<Ty &>(*(object));
+    } catch (std::bad_cast) {
+      throw std::runtime_error("Unable to cast variable to Ty");
+    }
+  }
 
   /** Utility template for creating value converters for variable values.
    */
   template <class Ty>
-  Ty DECLSPEC convert(variable_ptr object) { return (Ty)(*(object)); }
+  Ty DECLSPEC convert(variable::pointer object) { return (Ty)(*(object)); }
 
-  template <> int DECLSPEC convert<int>(variable_ptr object);
-  template <> bool DECLSPEC convert<bool>(variable_ptr object);
+  template <> int DECLSPEC convert<int>(variable::pointer object);
+  template <> bool DECLSPEC convert<bool>(variable::pointer object);
 
+  /** @ns */
   namespace ast {
+
+    /** Base abstract syntax tree node.
+     * Code is compiled into an abstract syntax tree and all execution is
+     * done from it.
+     */
     class node : public memory::recyclable {
     public:
+      typedef memory::reference<node> pointer;
+
       virtual ~node() noexcept;
 
       /** Execute the node.
        * @param interp The cutlet interpreter for the execution context.
        */
-      virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp) = 0;
+      virtual cutlet::variable::pointer
+      operator()(cutlet::interpreter &interp) = 0;
 
       virtual std::string location() const;
     };
-    typedef memory::reference<node> node_ptr;
   }
+
+  /**
+   */
+  class exception : public std::exception {
+  public:
+    exception() noexcept;
+    exception(const std::string &message) noexcept;
+    exception(const std::string &message, ast::node &node) noexcept;
+    exception(const std::exception &other) noexcept;
+    exception(const cutlet::exception &other) noexcept;
+    virtual ~exception() noexcept;
+
+    exception& operator=(const exception &other) noexcept;
+
+    virtual const char *what() const noexcept;
+    const ast::node *node() const noexcept { return _node; }
+
+  protected:
+    std::string _message;
+    ast::node *_node;
+  };
 
   /***************************************************************************
    */
@@ -145,9 +198,9 @@ namespace cutlet {
     string(int value);
     virtual ~string() noexcept;
 
-    virtual variable_ptr operator()(variable_ptr self,
-                                    interpreter &interp,
-                                    const list &parameters);
+    virtual variable::pointer operator()(variable::pointer self,
+                                         interpreter &interp,
+                                         const list &parameters);
 
     virtual operator std::string() const;
 
@@ -157,48 +210,65 @@ namespace cutlet {
   /***************************************************************************
    */
 
-  class DECLSPEC list : public variable, public std::deque<variable_ptr> {
+  class DECLSPEC list : public variable,
+                        public std::deque<variable::pointer> {
   public:
     list();
     list(const_iterator first, const_iterator last);
-    list(const std::initializer_list<variable_ptr> &items);
+    list(const std::initializer_list<variable::pointer> &items);
+
+    /** Copy constructor.
+     */
     list(const list &other);
 
     std::string join(const std::string &delim = " ") const;
 
-    virtual variable_ptr operator()(variable_ptr self,
-                                    interpreter &interp,
-                                    const list &parameters);
+    virtual variable::pointer operator()(variable::pointer self,
+                                         interpreter &interp,
+                                         const list &parameters);
 
     virtual operator std::string() const;
 
   private:
-    variable_ptr _join(interpreter &interp, const list &parameters);
-    variable_ptr _append(interpreter &interp, const list &parameters);
-    variable_ptr _prepend(interpreter &interp, const list &parameters);
-    variable_ptr _extend(interpreter &interp, const list &parameters);
-    variable_ptr _index(interpreter &interp, const list &parameters);
-    variable_ptr _delete(interpreter &interp, const list &parameters);
-    variable_ptr _foreach(interpreter &interp, const list &parameters);
+    variable::pointer _join(interpreter &interp, const list &parameters);
+    variable::pointer _append(interpreter &interp, const list &parameters);
+    variable::pointer _prepend(interpreter &interp, const list &parameters);
+    variable::pointer _extend(interpreter &interp, const list &parameters);
+    variable::pointer _index(interpreter &interp, const list &parameters);
+    variable::pointer _remove(interpreter &interp, const list &parameters);
+    variable::pointer _foreach(interpreter &interp, const list &parameters);
   };
 
   /***************************************************************************
    */
 
+  /** Executable component for the Cutlet interpreter.
+   */
   class DECLSPEC component {
   public:
+    /** Smart component reference pointer. */
+    typedef memory::reference<component> pointer;
+
+    /** Component clean up. */
     virtual ~component() noexcept;
 
-    virtual variable_ptr
-    operator ()(interpreter &interp, const list &parameters) = 0;
+    /** Call operator for the component.
+     * @param interp The Cutlet interpreter.
+     * @param parameters List of the parameters passed in the component call.
+     */
+    virtual variable::pointer
+      operator ()(interpreter &interp, const list &parameters) = 0;
   };
-
-  typedef memory::reference<component> component_ptr;
 
   /***************************************************************************
    */
 
-  typedef variable_ptr (*function_t)(interpreter &, const list &);
+  /** Simplified function pointer type used by sandboxes. The sandbox will
+   * automatically wrap the function pointer with a component, so a component
+   * object doesn't have to developed for every function component.
+   * @see cutlet::sandbox
+   */
+  typedef variable::pointer (*function_t)(interpreter &, const list &);
 
   extern "C" {
     typedef void (*libinit_t)(interpreter *);
@@ -208,97 +278,124 @@ namespace cutlet {
    */
   class DECLSPEC sandbox {
   public:
+    /** Smart sandbox reference pointer. */
+    typedef memory::reference<sandbox> pointer;
+
     sandbox();
     sandbox(const sandbox &other) = delete;
     virtual ~sandbox() noexcept;
 
     void add(const std::string &name, function_t func);
-    void add(const std::string &name, component_ptr comp);
+    void add(const std::string &name, component::pointer comp);
     void remove(const std::string &name);
-    void clear();
-    component_ptr get(const std::string &name) const;
 
-    variable_ptr variable(interpreter &interp, const std::string &name);
-    void variable(const std::string &name, variable_ptr value);
+    /** Removes all components from the sandbox.
+     * @note All variables are left alone. Not sure if that is the right thing
+     *       to do.
+     */
+    void clear();
+
+    component::pointer get(const std::string &name) const;
+
+    cutlet::variable::pointer variable(interpreter &interp,
+                                       const std::string &name);
+    void variable(const std::string &name, variable::pointer value);
     bool has_variable(const std::string &name);
 
-    variable_ptr call(interpreter &interp,
-                      const std::string &procedure,
-                      const list &parameters);
+    cutlet::variable::pointer call(interpreter &interp,
+                                   const std::string &procedure,
+                                   const list &parameters);
+
+    void *symbol(const std::string &name) const;
 
     friend class interpreter;
 
   private:
-    std::map<std::string, variable_ptr> _variables;
-    std::map<std::string, component_ptr> _components;
+    std::map<std::string, variable::pointer> _variables;
+    std::map<std::string, component::pointer> _components;
     std::list<void *> _native_libs;
 
     void load(interpreter &interp, const std::string &library_name);
   };
 
-  typedef memory::reference<sandbox> sandbox_ptr;
-
   /** Execution frame.
    */
   class DECLSPEC frame : public memory::recyclable {
   public:
+    /** The possible executions states for the execution frame.
+     */
     typedef enum {FS_DONE = 0, FS_RUNNING = 1, FS_BREAK = 2, FS_CONTINUE = 3}
-      state_t;
+    state_t;
+
+    typedef memory::reference<frame> pointer;
 
     frame();
-    frame(memory::reference<frame> uplevel);
+    frame(memory::reference<frame> uplevel, bool isblock = false);
     frame(const frame &other) = delete;
     virtual ~frame() noexcept;
 
     /** Retrieve the value of a local variable. If the variable doesn't exist
-     * then the return value will be null.
+     * then a null pointer is returned.
      * @param name The name of the local variable.
      */
-    virtual variable_ptr variable(const std::string &name) const;
-    virtual void variable(const std::string &name, variable_ptr value);
+    virtual cutlet::variable::pointer variable(const std::string &name) const;
+    virtual void variable(const std::string &name, variable::pointer value);
 
     /** Set the frame state to FS_DONE and
      */
-    virtual void done(variable_ptr result);
+    virtual void done(variable::pointer result);
     virtual bool done() const;
 
+    /** Return the current execution state of the frame.
+     * @return The currently set execution state of the frame.
+     */
     state_t state() const;
+
+    /** Set the execution state for the execution frame.
+     * @see state_t
+     */
     virtual void state(state_t new_state);
+
+    void label(const std::string &value);
 
     friend class component;
     friend class interpreter;
+    friend std::ostream &::operator <<(std::ostream &os,
+                                       const cutlet::frame &frame);
 
   protected:
     state_t _state;
+    bool _isblock;
 
   private:
     memory::reference<frame> _uplevel;
+    //bool _isblock;
+    std::string _label;
 
     // Used to restore the global environment if it was changed.
     memory::reference<sandbox> _sandbox_orig;
-    std::map<std::string, variable_ptr> _variables;
+    std::map<std::string, variable::pointer> _variables;
 
-    variable_ptr _return;
+    variable::pointer _return;
 
     memory::reference<frame> uplevel(unsigned int levels) const;
   };
 
-  typedef memory::reference<frame> frame_ptr;
-
   class DECLSPEC block_frame : public cutlet::frame {
   public:
-    block_frame(frame_ptr parent);
+    block_frame(frame::pointer parent);
+    block_frame(const std::string &label, frame::pointer parent);
     virtual ~block_frame() noexcept;
 
-    virtual variable_ptr variable(const std::string &name) const;
+    virtual variable::pointer variable(const std::string &name) const;
 
-    virtual void done(variable_ptr result);
+    virtual void done(variable::pointer result);
     virtual bool done() const;
 
     virtual void state(state_t new_state);
 
   private:
-    cutlet::frame_ptr _parent;
+    cutlet::frame::pointer _parent;
   };
 
   /**
@@ -313,6 +410,8 @@ namespace cutlet {
      */
     interpreter(const interpreter &other) = delete;
 
+    /** Disable the default assignment operator.
+     */
     interpreter &operator =(const interpreter &) = delete;
 
     /** Cleans up the interpreter.
@@ -320,74 +419,85 @@ namespace cutlet {
     virtual ~interpreter() noexcept;
 
     /** Get the value of a variable.
+     * First the current frame is checked for the variable. If it doesn't
+     * on the frame then the current sandbox is checked for a global
+     * variable.
+     *
      * @return A reference to the variable's value.
      */
-    variable_ptr var(const std::string &name);
+    variable::pointer var(const std::string &name);
 
-    /** Set the value for a variable in the currently active sandbox.
+    /** Set the value for a global variable in the currently active sandbox.
      * @param name The name of the variable.
-     * @param value The value set for variable. If the value is null then the
-     *              variable is removed from the sandbox.
+     * @param value The value set for variable. If the value is a null pointer
+     *              then the variable is removed from the sandbox.
      */
-    void global(const std::string &name, variable_ptr value);
-    void local(const std::string &name, variable_ptr value);
+    void global(const std::string &name, variable::pointer value);
+    void local(const std::string &name, variable::pointer value);
 
     /** Use the parser to create a list variable.
      */
-    variable_ptr list(const std::string code);
+    variable::pointer list(const std::string code);
 
     void add(const std::string &name, function_t func);
-    void add(const std::string &name, component_ptr comp);
+    void add(const std::string &name, component::pointer comp);
     sandbox &environment();
 
     /**
      * @todo Rename to comp.
      */
-    component_ptr get(const std::string &name) const;
+    component::pointer get(const std::string &name) const;
 
-    ast::node_ptr eval(const std::string &code);
+    ast::node::pointer eval(const std::string &code);
 
-    ast::node_ptr eval(std::istream &in);
+    ast::node::pointer eval(std::istream &in);
 
-    ast::node_ptr evalfile(const std::string &filename);
+    ast::node::pointer evalfile(const std::string &filename);
 
-    variable_ptr expr(const std::string &cmd);
+    variable::pointer expr(const std::string &cmd);
 
-    variable_ptr call(const std::string &procedure,
-                      const cutlet::list &parameters);
+    variable::pointer call(const std::string &procedure,
+                           const cutlet::list &parameters);
 
-    /** Get a reference to a frame on the stack.
+    /** Get a reference to an excution stack frame.
+     * @param levels The number of callers up the stack to go to retrieve the
+     *               the frame. Level 0 is the current execution frame to the
+     *               very top of the stack.
+     * @see cutlet::frame
      */
-    frame_ptr frame(unsigned int levels = 0) const;
+    cutlet::frame::pointer frame(unsigned int levels = 0) const;
 
-    /** Create and push a new frame on the stack.
+    /** Create a new execution frame and push it on to the top of the stack.
+     * @see cutlet::frame
      * @see frame
      * @see frame_pop
      */
-    void frame_push();
-    void frame_push(frame_ptr frm);
-    void frame_push(frame_ptr frm, sandbox_ptr sb);
+    void frame_push(const std::string &label = "-");
+    void frame_push(frame::pointer frm);
+    void frame_push(frame::pointer frm, sandbox::pointer sb);
 
     /** Creates and new frame on the stack and replaces the global environment
      * with the given sandbox. When the frame is popped off the stack the
      * global frame will be restored as well.
      * @see frame_pop
      */
-    void frame_push(sandbox_ptr sb);
+    void frame_push(sandbox::pointer sb);
 
-    /** Pop the current execution frame off the stack.
-     * @return If a return value was set, then return that value. If a return
-     *         wasn't set then null is returned.
+    /** Pops the current execution frame off the top of the stack.
+     * @return If a return value was set in the frame, then that value is
+     *         returned, otherwise a null pointer is returned.
      * @see frame_done
      */
-    variable_ptr frame_pop();
+    variable::pointer frame_pop();
+
+    variable::pointer frame_pop(variable::pointer result);
 
     /** End the execution of the current frame with an optional return value.
      * The return value is returned when the frame is popped off the stack.
      * @param result The return value from the completed frame.
      * @see frame_pop
      */
-    void frame_done(variable_ptr result = nullptr);
+    void frame_done(variable::pointer result = nullptr);
 
     frame::state_t frame_state() const;
 
@@ -403,20 +513,20 @@ namespace cutlet {
     friend class component;
 
   protected:
-    /** Entry point to the recursive descent parser.
-     */
+    /** The entry point to the recursive descent parser. */
     virtual void entry();
 
-    ast::node_ptr command();
-    ast::node_ptr variable();
-    ast::node_ptr string();
-    ast::node_ptr subcommand();
+    ast::node::pointer comment_();
+    ast::node::pointer command_();
+    ast::node::pointer variable_();
+    ast::node::pointer string_();
+    ast::node::pointer subcommand_();
 
   private:
     memory::reference<sandbox> _global;
     memory::reference<cutlet::frame> _frame;
 
-    ast::node_ptr _compiled;
+    ast::node::pointer _compiled;
 
     static unsigned int _interpreters;
   };

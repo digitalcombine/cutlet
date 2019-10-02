@@ -20,17 +20,17 @@
 #include <cutlet/parser.h>
 #include <iostream>
 
-/*****************************************************************************
+/******************************************************************************
  */
 
-std::ostream &operator << (std::ostream &os, const parser::token &token) {
-  os << token.line() << ":" << token.offset() << " " << (unsigned int)token
+std::ostream &operator <<(std::ostream &os, const parser::token &token) {
+  os << token.position() << ": " << (unsigned int)token
      << " " << (const std::string &)token;
   return os;
 }
 
-std::ostream &operator << (std::ostream &os,
-                           const parser::tokenizer &tokenizer) {
+std::ostream &operator <<(std::ostream &os,
+                          const parser::tokenizer &tokenizer) {
   for (auto &token: tokenizer.tokens) {
     os << token << "\n";
   }
@@ -46,17 +46,16 @@ std::ostream &operator << (std::ostream &os,
  ************************/
 
 parser::token::token(unsigned int id, const std::string &value)
-  : _id(id), _value(value), _line(0), _offset(0) {
+  : _id(id), _value(value), _position(0) {
 }
 
 parser::token::token(const token &other)
-  : _id(other._id), _value(other._value), _line(other._line),
-    _offset(other._offset) {
+  : _id(other._id), _value(other._value), _position(other._position) {
 }
 
 parser::token::token(unsigned int id, const std::string &value,
-                     unsigned int line, unsigned int offset)
-  : _id(id), _value(value), _line(line), _offset(offset) {
+                     std::streampos position)
+  : _id(id), _value(value), _position(position) {
 }
 
 /*************************
@@ -74,8 +73,7 @@ parser::token &parser::token::operator =(const token &other) {
   if (this != &other) {
     _id = other._id;
     _value = other._value;
-    _line = other._line;
-    _offset = other._offset;
+    _position = other._position;
   }
   return *this;
 }
@@ -117,6 +115,10 @@ parser::syntax_error::syntax_error(const std::string &message,
 
 parser::syntax_error::syntax_error(const exception& other) noexcept
   : _message(other.what()), _token(0, "") {
+}
+
+parser::syntax_error::syntax_error(const syntax_error& other) noexcept
+  : _message(other._message), _token(other._token) {
 }
 
 /***************************************
@@ -161,8 +163,8 @@ const parser::token &parser::syntax_error::get_token() const noexcept {
  * parser::tokenizer::tokenizer *
  ********************************/
 
-parser::tokenizer::tokenizer() : stream(NULL), line(0), offset(0) {
-  tokens.push_back(token(T_EOF, "", line, offset));
+parser::tokenizer::tokenizer() : stream(NULL), position(0) {
+  tokens.push_back(token(T_EOF, "", position));
 }
 
 /*********************************
@@ -178,18 +180,10 @@ parser::tokenizer::~tokenizer() noexcept {
 
 void parser::tokenizer::parse(const std::string &code) {
   push(code);
-  /*tokens.clear();
-  stream = NULL;
-  this->code = code;
-  parse_tokens();*/
 }
 
 void parser::tokenizer::parse(std::istream &code) {
   push(code);
-  /*tokens.clear();
-  stream = &code;
-  this->code = "";
-  parse_tokens();*/
 }
 
 /********************************
@@ -202,7 +196,7 @@ parser::token parser::tokenizer::get_token() {
     tokens.pop_front();
     return result;
   }
-  throw syntax_error("Incomplete syntax", token(T_INVALID, "", line, offset));
+  throw syntax_error("Incomplete syntax", token(T_INVALID, "", position));
 }
 
 /*****************************
@@ -286,35 +280,33 @@ void parser::tokenizer::reset() noexcept {
 
 void parser::tokenizer::push() {
   auto token = get_token();
-  _states.push({tokens, code, stream, line, offset});
+  _states.push({tokens, code, stream, position});
   reset();
-  line = token._line;
-  offset = token._offset;
+  position = token._position;
   code = token._value;
   parse_tokens();
 }
 
 void parser::tokenizer::push(token value) {
-  _states.push({tokens, code, stream, line, offset});
+  _states.push({tokens, code, stream, position});
   reset();
-  line = value._line;
-  offset = value._offset;
+  position = value._position;
   code = value._value;
   parse_tokens();
 }
 
 void parser::tokenizer::push(const std::string &value) {
-  _states.push({tokens, code, stream, line, offset});
+  _states.push({tokens, code, stream, position});
   reset();
-  line = offset = 1;
+  position = 0;
   code = value;
   parse_tokens();
 }
 
 void parser::tokenizer::push(std::istream &value) {
-  _states.push({tokens, code, stream, line, offset});
+  _states.push({tokens, code, stream, position});
   reset();
-  line = offset = 1;
+  position = value.tellg();
   stream = &value;
   code.clear();
   parse_tokens();
@@ -329,8 +321,7 @@ void parser::tokenizer::pop() {
   tokens = top.tokens;
   code = top.code;
   stream = top.stream;
-  line = top.line;
-  offset = top.offset;
+  position = top.position;
   _states.pop();
 }
 
@@ -362,14 +353,14 @@ void parser::tokenizer::parse_next_token() {
     for (auto &pattern: _patterns) {
       if (regex_search(code, match, pattern.pattern,
                        std::regex_constants::match_continuous)) {
-        tokens.push_back(token(pattern.token_id, match.str(), line, offset));
+        tokens.push_back(token(pattern.token_id, match.str(), position));
         code = code.substr(match.length());
-        offset += match.length();
+        position += match.length();
         return;
       }
     }
 
-    throw syntax_error("Syntax error", token(T_INVALID, code, line, offset));
+    throw syntax_error("Syntax error", token(T_INVALID, code, position));
   }
 }
 
@@ -381,13 +372,12 @@ void parser::tokenizer::parse_tokens() {
   // If we don't have any code then see if we can get more from the stream.
   if (code.empty()) {
     if (stream) {
+      position = stream->tellg();
       if (not getline(*stream, code, '\0')) {
-        tokens.push_back(token(T_EOF, "", line, offset));
+        tokens.push_back(token(T_EOF, "", position));
         stream = NULL;
         return;
       }
-      ++line;
-      offset = 0;
     } else
       return;
   }
@@ -397,7 +387,7 @@ void parser::tokenizer::parse_tokens() {
     while (not code.empty())
       parse_next_token();
     if (not stream)
-      tokens.push_back(token(T_EOF, "", line, offset));
+      tokens.push_back(token(T_EOF, "", position));
   }
 }
 

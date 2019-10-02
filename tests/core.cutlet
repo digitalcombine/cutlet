@@ -1,0 +1,9 @@
+
+# Test a frame within a frame.
+def hello {from *args} {
+  $args foreach person {
+    print "Hello $person from $from"
+  }
+}
+
+hello Ron George Bill Jane

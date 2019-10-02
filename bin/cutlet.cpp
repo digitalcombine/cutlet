@@ -56,7 +56,7 @@ static void version () {
  ************/
 
 static void add_path(cutlet::interpreter &interp, const std::string &path) {
-  cutlet::variable_ptr lib_path = interp.var("library.path");
+  cutlet::variable::pointer lib_path = interp.var("library.path");
   cutlet::cast<cutlet::list>(lib_path).push_back(new cutlet::string(path));
 }
 
@@ -109,9 +109,16 @@ int main(int argc, char *argv[]) {
               << (const std::string &)err.get_token() << "\"" << std::endl;
     return 1;
 
+  } catch (cutlet::exception &err) {
+    // Caught a exception through the AST.
+    std::cerr << "ERROR: " << err.what() << std::endl;
+    std::cerr << interpreter.frame() << std::flush;
+    return 1;
+
   } catch (std::exception &err) {
     // Caught some kind of exception.
     std::cerr << "ERROR: " << err.what() << std::endl;
+    std::cerr << interpreter.frame() << std::flush;
     return 1;
   }
 }

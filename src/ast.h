@@ -25,25 +25,31 @@
 namespace cutlet {
   namespace ast {
 
+    /**
+     */
     class block : public node {
     public:
       block();
       virtual ~block() noexcept;
 
-      void add(node_ptr n);
+      void add(node::pointer n);
 
-      virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp);
+      virtual cutlet::variable::pointer
+      operator()(cutlet::interpreter &interp);
 
     private:
-      std::list<node_ptr> _nodes;
+      std::list<node::pointer> _nodes;
     };
 
+    /**
+     */
     class value : public node {
     public:
       value(const parser::token &token);
       virtual ~value() noexcept;
 
-      virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp);
+      virtual cutlet::variable::pointer
+      operator()(cutlet::interpreter &interp);
 
     protected:
       virtual std::string location() const;
@@ -52,12 +58,15 @@ namespace cutlet {
       parser::token _token;
     };
 
+    /**
+     */
     class variable : public node {
     public:
       variable(const parser::token &token);
       virtual ~variable() noexcept;
 
-      virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp);
+      virtual cutlet::variable::pointer
+      operator()(cutlet::interpreter &interp);
 
     protected:
       virtual std::string location() const;
@@ -66,32 +75,38 @@ namespace cutlet {
       parser::token _token;
     };
 
+    /**
+     */
     class command : public node {
     public:
-      command(node_ptr n);
+      command(node::pointer n);
       virtual ~command() noexcept;
 
-      void parameter(node_ptr n);
+      void parameter(node::pointer n);
 
-      virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp);
+      virtual cutlet::variable::pointer
+      operator()(cutlet::interpreter &interp);
 
     protected:
       virtual std::string location() const;
 
     private:
-      node_ptr _function;
-      std::list<node_ptr> _parameters;
+      node::pointer _function;
+      std::list<node::pointer> _parameters;
     };
 
+    /**
+     */
     class string : public node {
     public:
       string(const parser::token &token);
       virtual ~string() noexcept;
 
       void add(const std::string &value);
-      void add(node_ptr n);
+      void add(node::pointer n);
 
-      virtual cutlet::variable_ptr operator()(cutlet::interpreter &interp);
+      virtual cutlet::variable::pointer
+      operator()(cutlet::interpreter &interp);
 
     protected:
       virtual std::string location() const;
@@ -99,11 +114,25 @@ namespace cutlet {
     private:
       struct _parts_s {
         std::string s;
-        node_ptr n;
+        node::pointer n;
       };
 
       parser::token _token;
       std::list<_parts_s> _stringy;
+    };
+
+    /**
+     */
+    class comment : public node {
+    public:
+      comment(const parser::token &token);
+      virtual ~comment() noexcept;
+
+      virtual cutlet::variable::pointer
+      operator()(cutlet::interpreter &interp);
+
+    private:
+      parser::token _token;
     };
   }
 }

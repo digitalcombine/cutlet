@@ -27,25 +27,25 @@
  * builtin::sandbox_var::sandbox_var *
  *************************************/
 
-builtin::sandbox_var::sandbox_var(cutlet::sandbox_ptr sb) : _sandbox(sb) {
-}
+builtin::sandbox_var::sandbox_var(cutlet::sandbox::pointer sb)
+  : _sandbox(sb) {}
 
 /**************************************
  * builtin::sandbox_var::~sandbox_var *
  **************************************/
 
-builtin::sandbox_var::~sandbox_var() noexcept {
-
-}
+builtin::sandbox_var::~sandbox_var() noexcept {}
 
 /*************************************
  * builtin::sandbox_var::operator () *
  *************************************/
 
-cutlet::variable_ptr
-builtin::sandbox_var::operator()(cutlet::variable_ptr self,
+cutlet::variable::pointer
+builtin::sandbox_var::operator()(cutlet::variable::pointer self,
                                  cutlet::interpreter &interp,
                                  const cutlet::list &parameters) {
+  (void)self;
+
   if (cutlet::convert<std::string>(parameters[0]) == "eval") {
     std::string command;
 

@@ -28,7 +28,7 @@
 #endif
 
 template <typename Ty>
-static bool is_type(cutlet::ast::node_ptr ast_object) {
+static bool is_type(cutlet::ast::node::pointer ast_object) {
   return ((dynamic_cast<Ty *>(&(*ast_object))) != nullptr);
 }
 
@@ -70,7 +70,7 @@ cutlet::ast::block::~block() noexcept {}
  * cutlet::ast::block::add *
  ***************************/
 
-void cutlet::ast::block::add(cutlet::ast::node_ptr n) {
+void cutlet::ast::block::add(cutlet::ast::node::pointer n) {
 #if DEBUG_AST
   if (n.is_null()) {
     std::clog << "ast::block warning adding null ast node to block"
@@ -84,7 +84,7 @@ void cutlet::ast::block::add(cutlet::ast::node_ptr n) {
  * cutlet::ast::block::operator () *
  ***********************************/
 
-cutlet::variable_ptr
+cutlet::variable::pointer
 cutlet::ast::block::operator()(cutlet::interpreter &interp) {
   for (auto node: _nodes) {
 #if DEBUG_AST
@@ -119,8 +119,14 @@ cutlet::ast::value::~value() noexcept {}
  * cutlet::ast::value::operator () *
  ***********************************/
 
-cutlet::variable_ptr
+cutlet::variable::pointer
 cutlet::ast::value::operator()(cutlet::interpreter &interp) {
+  (void)interp;
+
+#if DEBUG_AST
+    std::clog << "AST: word " << (std::string)_token << std::endl;
+#endif
+
   return new cutlet::string((const std::string &)_token);
 }
 
@@ -130,7 +136,7 @@ cutlet::ast::value::operator()(cutlet::interpreter &interp) {
 
 std::string cutlet::ast::value::location() const {
   std::stringstream result;
-  result << _token.line() << ":" << _token.offset() << ": ";
+  result << _token.position() << ": ";
   return result.str();
 }
 
@@ -142,7 +148,8 @@ std::string cutlet::ast::value::location() const {
  * cutlet::ast::variable::variable *
  ***********************************/
 
-cutlet::ast::variable::variable(const parser::token &token) : _token(token) {}
+cutlet::ast::variable::variable(const parser::token &token)
+  : _token(token) {}
 
 /************************************
  * cutlet::ast::variable::~variable *
@@ -154,16 +161,19 @@ cutlet::ast::variable::~variable() noexcept {}
  * cutlet::ast::variable::operator() *
  *************************************/
 
-cutlet::variable_ptr
+cutlet::variable::pointer
 cutlet::ast::variable::operator()(cutlet::interpreter &interp) {
   try {
 #if DEBUG_AST
-    std::clog << location() << "resolving variable $" << (std::string)_token
+    std::clog << "AST: resolving variable $" << (std::string)_token
               << std::endl;
 #endif
     return interp.var((const std::string &)_token);
-  } catch (std::runtime_error &err) {
-    throw std::runtime_error(location() + err.what());
+  } catch (const cutlet::exception &err) {
+    if (err.node() == nullptr) throw cutlet::exception(err.what(), *this);
+    else throw;
+  } catch (const std::exception& err) {
+    throw cutlet::exception(err.what(), *this);
   }
 }
 
@@ -173,7 +183,7 @@ cutlet::ast::variable::operator()(cutlet::interpreter &interp) {
 
 std::string cutlet::ast::variable::location() const {
   std::stringstream result;
-  result << _token.line() << ":" << _token.offset() << ": ";
+  result << _token.position() << ": ";
   return result.str();
 }
 
@@ -185,7 +195,7 @@ std::string cutlet::ast::variable::location() const {
  * cutlet::ast::command::command *
  *********************************/
 
-cutlet::ast::command::command(node_ptr n) : _function(n) {}
+cutlet::ast::command::command(node::pointer n) : _function(n) {}
 
 /**********************************
  * cutlet::ast::command::~command *
@@ -197,7 +207,7 @@ cutlet::ast::command::~command() noexcept {}
  * cutlet::ast::command::parameter *
  ***********************************/
 
-void cutlet::ast::command::parameter(node_ptr n) {
+void cutlet::ast::command::parameter(node::pointer n) {
   _parameters.push_back(n);
 }
 
@@ -205,32 +215,45 @@ void cutlet::ast::command::parameter(node_ptr n) {
  * cutlet::ast::command::operator() *
  ************************************/
 
-cutlet::variable_ptr
+cutlet::variable::pointer
 cutlet::ast::command::operator()(cutlet::interpreter &interp) {
-  cutlet::variable_ptr cmd = (*_function)(interp);
-
-#if DEBUG_AST
-  std::clog << location() << "command"
-            << std::endl;
-#endif
+  cutlet::variable::pointer cmd = (*_function)(interp);
 
   cutlet::list c_params;
   for (auto &parameter: _parameters)
     c_params.push_back((*parameter)(interp));
 
   try {
-    if (is_type<ast::variable>(_function) or is_type<ast::command>(_function)) {
+    if (is_type<ast::variable>(_function)) {
       // Execute the variable.
+#if DEBUG_AST
+      std::clog << "AST: operator $" << std::endl;
+#endif
       return (*cmd)(cmd, interp, c_params);
+
+    } else if (is_type<ast::command>(_function)) {
+#if DEBUG_AST
+      std::clog << "AST: command [" << (std::string)*cmd << "]"
+                << std::endl;
+#endif
+      return (*cmd)(cmd, interp, c_params);
+
     } else {
       // Execute the function.
+#if DEBUG_AST
+      std::clog << "AST: command " << (std::string)*cmd
+                << std::endl;
+#endif
       return interp.call((std::string)(*cmd), c_params);
+
     }
-  } catch (std::runtime_error &err) {
+  } catch (const cutlet::exception &err) {
+    throw;
+  } catch (const std::exception &err) {
     /** @todo Need to add location function to nodes so we can let the users
      *        know where the problem was.
      */
-    throw std::runtime_error(location() + err.what());
+    throw cutlet::exception(err.what(), *this);
   }
 }
 
@@ -267,7 +290,7 @@ void cutlet::ast::string::add(const std::string &value) {
     _stringy.push_back({value, nullptr});
 }
 
-void cutlet::ast::string::add(node_ptr n) {
+void cutlet::ast::string::add(node::pointer n) {
   _stringy.push_back({"", n});
 }
 
@@ -275,7 +298,7 @@ void cutlet::ast::string::add(node_ptr n) {
  * cutlet::ast::string::operator () *
  ************************************/
 
-cutlet::variable_ptr
+cutlet::variable::pointer
 cutlet::ast::string::operator()(cutlet::interpreter &interp) {
   cutlet::string result;
 
@@ -286,11 +309,15 @@ cutlet::ast::string::operator()(cutlet::interpreter &interp) {
       result += part.s;
     } else {
       // Variable or command substitution.
-      variable_ptr v = (*part.n)(interp);
+      cutlet::variable::pointer v = (*(part.n))(interp);
       if (not v.is_null())
         result += (std::string)(*v);
     }
   }
+
+#if DEBUG_AST
+  std::clog << "AST: \"" << result << "\"" << std::endl;
+#endif
 
   return new cutlet::string(result);
 }
@@ -301,6 +328,36 @@ cutlet::ast::string::operator()(cutlet::interpreter &interp) {
 
 std::string cutlet::ast::string::location() const {
   std::stringstream result;
-  result << _token.line() << ":" << _token.offset() << ": ";
+  result << _token.position() << ": ";
   return result.str();
+}
+
+/*****************************************************************************
+ * class cutlet::ast::comment
+ */
+
+/*********************************
+ * cutlet::ast::comment::comment *
+ *********************************/
+
+cutlet::ast::comment::comment(const parser::token &token) : _token(token) {}
+
+/**********************************
+ * cutlet::ast::comment::~comment *
+ **********************************/
+
+cutlet::ast::comment::~comment() noexcept {}
+
+/************************************
+ * cutlet::ast::string::operator () *
+ ************************************/
+
+cutlet::variable::pointer
+cutlet::ast::comment::operator()(cutlet::interpreter &interp) {
+  (void)interp;
+#if DEBUG_AST
+  std::clog << "AST: # " << (std::string)_token << std::endl;
+#endif
+
+  return nullptr;
 }

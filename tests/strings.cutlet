@@ -1,5 +1,8 @@
 # Testing string substitutions.
 
+# Remove the system library directory path
+$library.path remove 0
+
 import stdlib
 
 global var1 = value1

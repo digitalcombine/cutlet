@@ -365,6 +365,9 @@ static bool weak_ref() {
 }
 
 int main(int argc, char *argv[]) {
+  (void)argc;
+  (void)argv;
+
 	int result = 0;
 
 	if (not basic_ref_counting()) result = 1;

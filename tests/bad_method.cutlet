@@ -1,4 +1,6 @@
-$library.path append "../libs/.libs"
+# Remove the system library directory path
+$library.path remove 0
+
 import oo
 
 class test_class {
