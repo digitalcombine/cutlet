@@ -60,7 +60,7 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
 
     interp.frame_push(_sandbox);
     try {
-      interp.eval(command);
+      interp.compile(command);
     } catch (...) {
       /* If an error was thrown within the sandbox, we pop the context off the
        * stack to restore the previous environment then rethrow the

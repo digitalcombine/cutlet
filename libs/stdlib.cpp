@@ -63,12 +63,14 @@ static void permit(cutlet::list::const_iterator &it,
 }
 
 static cutlet::frame::state_t eval_body(cutlet::interpreter &interp,
-                                        const std::string &body,
+                                        cutlet::variable::pointer body,
                                         const std::string &label) {
   cutlet::frame::state_t result;
+  cutlet::ast::node::pointer compiled;
+
   interp.frame_push(new cutlet::block_frame(label, interp.frame(1)));
   try {
-    interp.eval(body);
+    compiled = interp.compile(body);
   } catch(...) {
     result = interp.frame_state();
     interp.frame_pop();
@@ -102,7 +104,7 @@ _true(cutlet::interpreter &interp, const cutlet::list &parameters) {
 // def eval *args
 static cutlet::variable::pointer
 _eval(cutlet::interpreter &interp, const cutlet::list &parameters) {
-  interp.eval(parameters.join());
+  interp.compile(parameters.join());
 
   return nullptr;
 }
@@ -120,16 +122,17 @@ _expr(cutlet::interpreter &interp, const cutlet::list &parameters) {
 static cutlet::variable::pointer
 _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
   cutlet::list::const_iterator it = parameters.begin();
-  std::string cond, body;
+  std::string cond;
+  cutlet::variable::pointer body;
 
   // Get the initial condition ¿then? body part of the if statement.
   cond = *(*it);
   next(it, parameters);
   if (expect(it, "then")) {
     next(it, parameters);
-    body = *(*it);
+    body = *it;
   } else {
-    body = *(*it);
+    body = *it;
   }
 
   interp.frame_push(new cutlet::block_frame(cond, interp.frame(1)));
@@ -151,9 +154,9 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
       next(it, parameters);
       if (expect(it, "then")) {
         next(it, parameters);
-        body = *(*it);
+        body = *it;
       } else {
-        body = *(*it);
+        body = *it;
       }
 
       interp.frame_push(new cutlet::block_frame(cond, interp.frame(1)));
@@ -168,7 +171,7 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
     } else {
       permit(it, "else");
       next(it, parameters);
-      eval_body(interp, *(*it), "else");
+      eval_body(interp, *it, "else");
       return nullptr;
     }
   }
@@ -180,16 +183,17 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
 static cutlet::variable::pointer
 _while(cutlet::interpreter &interp, const cutlet::list &parameters) {
   cutlet::list::const_iterator it = parameters.begin();
-  std::string cond, body;
+  std::string cond;
+  cutlet::variable::pointer body;
 
   // Get the initial condition ¿then? body part of the if statement.
   cond = *(*it);
   next(it, parameters);
   if (expect(it, "do")) {
     next(it, parameters);
-    body = *(*it);
+    body = *it;
   } else {
-    body = *(*it);
+    body = *it;
   }
 
   // If the condition is true then eval the body and return.
@@ -237,7 +241,7 @@ _try(cutlet::interpreter &interp, const cutlet::list &parameters) {
 
   try {
     // Eval the body.
-    interp.eval(*(*it));
+    interp.compile(*it);
   } catch (std::exception &err) {
     // An exception was caught, so eval the err_body.
     ++it;
@@ -252,7 +256,7 @@ _try(cutlet::interpreter &interp, const cutlet::list &parameters) {
       // Eval the catch block
       next(it, parameters);
       try {
-        interp.eval(*(*it));
+        interp.compile(*it);
       } catch (...) {
         interp.frame_pop();
         throw;

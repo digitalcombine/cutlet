@@ -61,8 +61,8 @@ std::string cutlet::list::join(const std::string &delim) const {
  *****************************/
 
 cutlet::variable::pointer cutlet::list::operator()(variable::pointer self,
-                                              interpreter &interp,
-                                              const list &parameters) {
+                                                   interpreter &interp,
+                                                   const list &parameters) {
   (void)self;
 
   variable::pointer result;
@@ -72,36 +72,36 @@ cutlet::variable::pointer cutlet::list::operator()(variable::pointer self,
     if ((std::string)*(parameters[0]) == "join") {
       return _join(interp, parameters);
 
-    // $list size
+      // $list size
     } else if (convert<std::string>(parameters[0]) == "size") {
       return new cutlet::string(size());
 
-    // $list clear
+      // $list clear
     } else if (convert<std::string>(parameters[0]) == "clear") {
       clear();
       return nullptr;
 
-    // $list append item ¿…?
+      // $list append item ¿…?
     } else if (convert<std::string>(parameters[0]) == "append") {
       return _append(interp, parameters);
 
-    // $list prepend item ¿…?
+      // $list prepend item ¿…?
     } else if (convert<std::string>(parameters[0]) == "prepend") {
       return _prepend(interp, parameters);
 
-    // $list extend list ¿…?
+      // $list extend list ¿…?
     } else if (convert<std::string>(parameters[0]) == "extend") {
       return _extend(interp, parameters);
 
-    // $list index index ¿=? ¿value?
+      // $list index index ¿=? ¿value?
     } else if (convert<std::string>(parameters[0]) == "index") {
       return _index(interp, parameters);
 
-    // $list remove index ¿end?
+      // $list remove index ¿end?
     } else if (convert<std::string>(parameters[0]) == "remove") {
       return _remove(interp, parameters);
 
-    // $list foreach item body
+      // $list foreach item body
     } else if (convert<std::string>(parameters[0]) == "foreach") {
       return _foreach(interp, parameters);
 
@@ -137,7 +137,7 @@ cutlet::list::operator std::string() const {
  ***********************/
 
 cutlet::variable::pointer cutlet::list::_join(interpreter &interp,
-                                         const list &parameters) {
+                                              const list &parameters) {
   (void)interp;
 
   // Create our result variable and default deliminator.
@@ -164,7 +164,7 @@ cutlet::variable::pointer cutlet::list::_join(interpreter &interp,
  *************************/
 
 cutlet::variable::pointer cutlet::list::_append(interpreter &interp,
-                                           const list &parameters) {
+                                                const list &parameters) {
   (void)interp;
 
   auto it = parameters.begin(); ++it;
@@ -177,7 +177,7 @@ cutlet::variable::pointer cutlet::list::_append(interpreter &interp,
  **************************/
 
 cutlet::variable::pointer cutlet::list::_prepend(interpreter &interp,
-                                            const list &parameters) {
+                                                 const list &parameters) {
   (void)interp;
 
   auto it = parameters.begin(); ++it;
@@ -190,7 +190,7 @@ cutlet::variable::pointer cutlet::list::_prepend(interpreter &interp,
  *************************/
 
 cutlet::variable::pointer cutlet::list::_extend(interpreter &interp,
-                                           const list &parameters) {
+                                                const list &parameters) {
   (void)interp;
 
   auto it = parameters.begin(); ++it;
@@ -207,7 +207,7 @@ cutlet::variable::pointer cutlet::list::_extend(interpreter &interp,
  ************************/
 
 cutlet::variable::pointer cutlet::list::_index(interpreter &interp,
-                                          const list &parameters) {
+                                               const list &parameters) {
   (void)interp;
 
   int index = convert<int>(parameters[1]);
@@ -230,7 +230,7 @@ cutlet::variable::pointer cutlet::list::_index(interpreter &interp,
  *************************/
 
 cutlet::variable::pointer cutlet::list::_remove(interpreter &interp,
-                                          const list &parameters) {
+                                                const list &parameters) {
   (void)interp;
 
   int index = convert<int>(parameters[1]);
@@ -250,13 +250,13 @@ cutlet::variable::pointer cutlet::list::_remove(interpreter &interp,
  **************************/
 
 cutlet::variable::pointer cutlet::list::_foreach(interpreter &interp,
-                                            const list &parameters) {
+                                                 const list &parameters) {
   // $list foreach item block
   std::string item_name = convert<std::string>(parameters[1]);
   for (auto &item: *this) {
     interp.frame_push(new cutlet::block_frame(interp.frame(0)));
     interp.local(item_name, item);
-    interp.eval(convert<std::string>(parameters[2]));
+    interp.compile(parameters[2]);
     interp.frame_pop();
   }
   return nullptr;

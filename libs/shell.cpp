@@ -27,7 +27,12 @@
 #include <cstdlib>
 #include <sys/wait.h>
 
-static int _exec_pipe(const cutlet::list &cmd, int read = 0, int write = 1) {
+/**************
+ * _exec_pipe *
+ **************/
+
+static int _exec_pipe(const cutlet::list &cmd,
+                      int read = -1, int write = -1) {
   auto pid = fork();
   if (pid >= 0) {
     if (pid == 0) {
@@ -39,14 +44,17 @@ static int _exec_pipe(const cutlet::list &cmd, int read = 0, int write = 1) {
       }
       args.push_back(nullptr);
 
-      /*if (read != 0) {
-        dup2(read, 0);
+      if (read != -1) {
+        if (dup2(read, STDIN_FILENO) == -1) {
+        }
         close(read);
       }
-      if (write != 1) {
-        dup2(write, 1);
+      if (write != -1) {
+        if (dup2(write, STDOUT_FILENO) == -1) {
+        }
         close(write);
-      }*/
+      }
+
       if (execvp(args[0], (char * const*)&args[0]) == -1) {
         std::cerr << strerror(errno) << std::endl;
         exit(errno);
@@ -63,14 +71,62 @@ static int _exec_pipe(const cutlet::list &cmd, int read = 0, int write = 1) {
 
 // def exec command
 static cutlet::variable::pointer _exec(cutlet::interpreter &interp,
-                                  const cutlet::list &parameters) {
+                                       const cutlet::list &parameters) {
+  (void)interp;
+
   return new cutlet::string(_exec_pipe(parameters));
 }
 
-// def env variable ¿=? ¿value?
-static cutlet::variable::pointer _env(cutlet::interpreter &interp,
-                                 const cutlet::list &parameters) {
-  return new cutlet::string(_exec_pipe(parameters));
+// def environ variable ¿=? ¿value?
+static cutlet::variable::pointer _environ(cutlet::interpreter &interp,
+                                          const cutlet::list &parameters) {
+  (void)interp;
+
+  // Make sure we have to right number of parameters.
+  size_t p_count = parameters.size();
+  if (p_count < 2 or p_count > 3) {
+   std::stringstream mesg;
+   mesg << "Invalid number of parameters for environ "
+        << (p_count >= 1 ? cutlet::convert<std::string>(parameters[0]) : "")
+        << " (1 <= " << p_count
+        << " <= 3).\n environ variable ¿=? ¿value?";
+   throw std::runtime_error(mesg.str());
+  }
+
+  if (p_count == 1) {
+#ifdef HAVE_SECURE_GETENV
+    char *res =
+      secure_getenv(cutlet::convert<std::string>(parameters[0]).c_str());
+#else
+    char *res = getenv(cutlet::convert<std::string>(parameters[0]).c_str());
+#endif
+    if (res == nullptr) return nullptr;
+    return new cutlet::string(res);
+
+  } else {
+    cutlet::variable::pointer value = parameters[1];
+
+    if (p_count == 3) {
+      if (cutlet::convert<std::string>(value) != "=") {
+        std::stringstream mesg;
+        mesg << "Invalid token " << cutlet::convert<std::string>(value)
+             << " for environ\n environ variable ¿=? ¿value?";
+        throw std::runtime_error(mesg.str());
+      }
+
+      value = parameters[2];
+
+      if (cutlet::convert<std::string>(value) == "nil") {
+        unsetenv(cutlet::convert<std::string>(parameters[0]).c_str());
+      } else {
+        setenv(cutlet::convert<std::string>(parameters[0]).c_str(),
+               cutlet::convert<std::string>(value).c_str(), 1);
+      }
+    }
+
+  }
+
+  return nullptr;
 }
 
 /***************
@@ -84,6 +140,5 @@ extern "C" {
 
 void init_cutlet(cutlet::interpreter *interp) {
   interp->add("exec", _exec);
-  interp->add("env", _env);
-  //interp->add("glob")
+  interp->add("environ", _environ);
 }

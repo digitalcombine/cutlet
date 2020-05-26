@@ -1,4 +1,4 @@
-/*                                                                 -*- c++ -*-
+/*                                                                  -*- c++ -*-
  * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
  *
  * This file is part of Cutlet.
@@ -43,7 +43,25 @@ namespace cutlet {
  */
 std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame);
 
+/** @ns */
 namespace cutlet {
+
+  // Token IDs
+  const unsigned int T_WORD     = 1;
+  const unsigned int T_VARIABLE = 2;
+  const unsigned int T_STRING   = 3;
+  const unsigned int T_SUBCMD   = 4;
+  const unsigned int T_BLOCK    = 5;
+  const unsigned int T_COMMENT  = 6;
+  const unsigned int T_EOL      = 7;
+
+  // AST node IDs
+  const unsigned int A_BLOCK    = 1;
+  const unsigned int A_VALUE    = 2;
+  const unsigned int A_VARIABLE = 3;
+  const unsigned int A_COMMAND  = 4;
+  const unsigned int A_STRING   = 5;
+  const unsigned int A_COMMENT  = 6;
 
   namespace utf8 {
 
@@ -94,16 +112,21 @@ namespace cutlet {
                         const std::string &value);
   }
 
-  /***************************************************************************
+  /****************************************************************************
    */
 
   class list;
   class interpreter;
+  namespace ast {
+    class node;
+  }
 
   /** Variable type.
    */
   class DECLSPEC variable : public memory::recyclable {
   public:
+    /** Automatic managed memory pointer.
+     */
     typedef memory::reference<variable> pointer;
 
     /** Cleans up the variable.
@@ -123,6 +146,11 @@ namespace cutlet {
     /** Cast the variable to a std::string type.
      */
     virtual operator std::string() const;
+
+    friend class interpreter;
+
+  protected:
+    virtual operator ast::node *() const;
   };
 
   template <class Ty>
@@ -131,7 +159,7 @@ namespace cutlet {
       if (object.is_null())
         throw std::runtime_error("Unable to cast a null reference");
       return dynamic_cast<Ty &>(*(object));
-    } catch (std::bad_cast) {
+    } catch (std::bad_cast &) {
       throw std::runtime_error("Unable to cast variable to Ty");
     }
   }
@@ -144,6 +172,9 @@ namespace cutlet {
   template <> int DECLSPEC convert<int>(variable::pointer object);
   template <> bool DECLSPEC convert<bool>(variable::pointer object);
 
+  typedef void (*debug_function_t)(cutlet::interpreter &interp,
+                                   const ast::node &);
+
   /** @ns */
   namespace ast {
 
@@ -151,25 +182,52 @@ namespace cutlet {
      * Code is compiled into an abstract syntax tree and all execution is
      * done from it.
      */
-    class node : public memory::recyclable {
+    class DECLSPEC node : public memory::recyclable {
     public:
       typedef memory::reference<node> pointer;
+
+      static bool break_all;
+      static void debugger(debug_function_t dfunc);
 
       virtual ~node() noexcept;
 
       /** Execute the node.
        * @param interp The cutlet interpreter for the execution context.
+       * @return Reference pointer to the result of the execution of the node.
        */
       virtual cutlet::variable::pointer
       operator()(cutlet::interpreter &interp) = 0;
 
-      virtual std::string location() const;
+      virtual unsigned int id() const = 0;
+
+      /* Set or clear a break point on the node.
+       * @param value The value for the break point.
+       */
+      void set_break(bool value = true);
+
+      virtual std::streampos position() const = 0;
+
+      virtual const std::string &body() const = 0;
+
+      virtual const parser::token &token() const = 0;
+
+    protected:
+      node();
+
+      /** To be used by the operator() method to implement break points.
+       */
+      void break_point(cutlet::interpreter &interp);
+
+    private:
+      static debug_function_t _debug_function;
+
+      bool _break;
     };
   }
 
   /**
    */
-  class exception : public std::exception {
+  class DECLSPEC exception : public std::exception {
   public:
     exception() noexcept;
     exception(const std::string &message) noexcept;
@@ -188,7 +246,7 @@ namespace cutlet {
     ast::node *_node;
   };
 
-  /***************************************************************************
+  /****************************************************************************
    */
 
   class DECLSPEC string : public variable, public std::string {
@@ -207,7 +265,7 @@ namespace cutlet {
     friend class interpreter;
   };
 
-  /***************************************************************************
+  /****************************************************************************
    */
 
   class DECLSPEC list : public variable,
@@ -239,7 +297,7 @@ namespace cutlet {
     variable::pointer _foreach(interpreter &interp, const list &parameters);
   };
 
-  /***************************************************************************
+  /****************************************************************************
    */
 
   /** Executable component for the Cutlet interpreter.
@@ -258,9 +316,11 @@ namespace cutlet {
      */
     virtual variable::pointer
       operator ()(interpreter &interp, const list &parameters) = 0;
+
+    virtual std::string documentation() const;
   };
 
-  /***************************************************************************
+  /****************************************************************************
    */
 
   /** Simplified function pointer type used by sandboxes. The sandbox will
@@ -285,7 +345,8 @@ namespace cutlet {
     sandbox(const sandbox &other) = delete;
     virtual ~sandbox() noexcept;
 
-    void add(const std::string &name, function_t func);
+    void add(const std::string &name, function_t func,
+             const std::string &doc = "");
     void add(const std::string &name, component::pointer comp);
     void remove(const std::string &name);
 
@@ -371,6 +432,7 @@ namespace cutlet {
     memory::reference<frame> _uplevel;
     //bool _isblock;
     std::string _label;
+    ast::node::pointer _compiled;
 
     // Used to restore the global environment if it was changed.
     memory::reference<sandbox> _sandbox_orig;
@@ -433,14 +495,26 @@ namespace cutlet {
      *              then the variable is removed from the sandbox.
      */
     void global(const std::string &name, variable::pointer value);
+
+    /** Set the value for a local variable in the current frame.
+     * @param name The name of the variable.
+     * @param value The value set for variable. If the value is a null pointer
+     *              then the variable is removed from the frame.
+     */
     void local(const std::string &name, variable::pointer value);
 
-    /** Use the parser to create a list variable.
+    /** Use the interpreter to create a new list variable from the given code.
      */
     variable::pointer list(const std::string code);
 
+    variable::pointer list(const variable::pointer code);
+
     void add(const std::string &name, function_t func);
     void add(const std::string &name, component::pointer comp);
+
+    /** Get the current global enviroment for the interpreter.
+     * @see cutlet::sandbox
+     */
     sandbox &environment();
 
     /**
@@ -448,11 +522,18 @@ namespace cutlet {
      */
     component::pointer get(const std::string &name) const;
 
-    ast::node::pointer eval(const std::string &code);
+    /** Compile and execute the code found in code. The abstract syntax tree
+     * is returned which can be executed again later or used for debugging.
+     * @param code A reference pointer to a cutlet variable containing the
+     *             code to be compiled.
+     * @return A reference pointer to the compiled abstract syntax tree.
+     * @see cutlet::ast::node
+     */
+    ast::node::pointer compile(const variable::pointer code);
+    ast::node::pointer compile(const std::string &code);
+    ast::node::pointer compile(std::istream &in);
 
-    ast::node::pointer eval(std::istream &in);
-
-    ast::node::pointer evalfile(const std::string &filename);
+    ast::node::pointer compile_file(const std::string &filename);
 
     variable::pointer expr(const std::string &cmd);
 
@@ -461,8 +542,8 @@ namespace cutlet {
 
     /** Get a reference to an excution stack frame.
      * @param levels The number of callers up the stack to go to retrieve the
-     *               the frame. Level 0 is the current execution frame to the
-     *               very top of the stack.
+     *               the frame. Level 0 is the current execution frame on the
+     *               top of the stack.
      * @see cutlet::frame
      */
     cutlet::frame::pointer frame(unsigned int levels = 0) const;
@@ -485,7 +566,7 @@ namespace cutlet {
 
     /** Pops the current execution frame off the top of the stack.
      * @return If a return value was set in the frame, then that value is
-     *         returned, otherwise a null pointer is returned.
+     *         returned, otherwise a null reference is returned.
      * @see frame_done
      */
     variable::pointer frame_pop();
@@ -528,9 +609,9 @@ namespace cutlet {
 
     ast::node::pointer _compiled;
 
+    /** Internal reference count of all the cutlet interpreters. */
     static unsigned int _interpreters;
   };
-
 }
 
 #endif /* _CUTLET_H */

@@ -1,4 +1,4 @@
-/*                                                                 -*- c++ -*-
+/*                                                                  -*- c++ -*-
  * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
  *
  * This file is part of Cutlet.
@@ -83,7 +83,7 @@ public:
 
     // We made it, now run the function.
     if (_compiled.is_null())
-      _compiled = interp.eval((std::string)*_body);
+      _compiled = interp.compile(_body);
     else
       (*_compiled)(interp);
 
@@ -99,7 +99,7 @@ private:
   cutlet::ast::node::pointer _compiled;
 };
 
-/*****************************************************************************
+/******************************************************************************
  */
 
 // def def name ¿parameters? body
@@ -127,7 +127,7 @@ builtin::def(cutlet::interpreter &interp,
     def_parameters = new cutlet::list();
     body = parameters[1];
   } else {
-    def_parameters = interp.list(*(parameters[1]));
+    def_parameters = interp.list(parameters[1]);
     body = parameters[2];
   }
 
@@ -149,7 +149,7 @@ builtin::incl(cutlet::interpreter &interp,
     throw std::runtime_error(mesg.str());
   }
   if (fexists(*parameters[0])) {
-    interp.evalfile(*parameters[0]);
+    interp.compile_file(*parameters[0]);
     return nullptr;
   }
 
@@ -168,7 +168,7 @@ builtin::import(cutlet::interpreter &interp,
   for (auto &path: cutlet::cast<cutlet::list>(paths)) {
     std::string dir = cutlet::convert<std::string>(path);
     if (fexists(dir + "/" + libname + ".ctl")) {
-      interp.evalfile(dir + "/" + libname + ".cutlet");
+      interp.compile_file(dir + "/" + libname + ".cutlet");
       return nullptr;
     } else if (fexists(dir + "/" + libname + SOEXT)) {
       interp.load(dir + "/" + libname + SOEXT);
@@ -245,7 +245,7 @@ builtin::block(cutlet::interpreter &interp,
 
   try {
     interp.frame_push(new cutlet::block_frame(interp.frame(levels)));
-    interp.eval(*body);
+    interp.compile(body);
     interp.frame_pop();
   } catch (...) {
     interp.frame_pop();

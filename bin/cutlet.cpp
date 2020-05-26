@@ -87,15 +87,16 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  cutlet::ast::node::pointer compiled;
   try {
     if (optind < argc) {
       // Iterate over command lines for script files.
       for (int i = optind; i < argc; ++i)
-        interpreter.evalfile(argv[i]);
+        compiled = interpreter.compile_file(argv[i]);
 
     } else {
       // Nothing on the command line so read from stdin.
-      interpreter.eval(std::cin);
+      compiled = interpreter.compile(std::cin);
     }
 
     /* If the return function was called by the script then attempt to return

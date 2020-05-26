@@ -37,6 +37,14 @@ namespace cutlet {
       virtual cutlet::variable::pointer
       operator()(cutlet::interpreter &interp);
 
+      virtual unsigned int id() const;
+
+      virtual std::streampos position() const;
+
+      virtual const std::string &body() const;
+
+      virtual const parser::token &token() const;
+
     private:
       std::list<node::pointer> _nodes;
     };
@@ -51,8 +59,13 @@ namespace cutlet {
       virtual cutlet::variable::pointer
       operator()(cutlet::interpreter &interp);
 
-    protected:
-      virtual std::string location() const;
+      virtual unsigned int id() const;
+
+      virtual std::streampos position() const;
+
+      virtual const std::string &body() const;
+
+      virtual const parser::token &token() const;
 
     private:
       parser::token _token;
@@ -68,8 +81,13 @@ namespace cutlet {
       virtual cutlet::variable::pointer
       operator()(cutlet::interpreter &interp);
 
-    protected:
-      virtual std::string location() const;
+      virtual unsigned int id() const;
+
+      virtual std::streampos position() const;
+
+      virtual const std::string &body() const;
+
+      virtual const parser::token &token() const;
 
     private:
       parser::token _token;
@@ -87,8 +105,13 @@ namespace cutlet {
       virtual cutlet::variable::pointer
       operator()(cutlet::interpreter &interp);
 
-    protected:
-      virtual std::string location() const;
+      virtual unsigned int id() const;
+
+      virtual std::streampos position() const;
+
+      virtual const std::string &body() const;
+
+      virtual const parser::token &token() const;
 
     private:
       node::pointer _function;
@@ -108,8 +131,13 @@ namespace cutlet {
       virtual cutlet::variable::pointer
       operator()(cutlet::interpreter &interp);
 
-    protected:
-      virtual std::string location() const;
+      virtual unsigned int id() const;
+
+      virtual std::streampos position() const;
+
+      virtual const std::string &body() const;
+
+      virtual const parser::token &token() const;
 
     private:
       struct _parts_s {
@@ -130,6 +158,14 @@ namespace cutlet {
 
       virtual cutlet::variable::pointer
       operator()(cutlet::interpreter &interp);
+
+      virtual unsigned int id() const;
+
+      virtual std::streampos position() const;
+
+      virtual const std::string &body() const;
+
+      virtual const parser::token &token() const;
 
     private:
       parser::token _token;

@@ -15,20 +15,18 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-/* @todo Ablitiy to call super class. Use $super possibly.
+ *
+ * An Object Oriented API for Cutlet.
  */
 
 #include <cutlet.h>
-//#include <iostream>
 #include <sstream>
 #include <set>
 
 class _def_class;
 class _var_object;
 
-/** Method definition as a cutlet component.
+/** Method definition as a cutlet component for cutlet code.
  */
 class _def_method : public cutlet::component {
 public:
@@ -48,6 +46,8 @@ private:
   cutlet::ast::node::pointer _compiled;
 };
 
+/** Method definition as a cutlet component for native c++ functions.
+ */
 class _def_method_func : public cutlet::component {
 public:
   _def_method_func(cutlet::function_t func) : _function_ptr(func) {}
@@ -108,6 +108,12 @@ public:
 
   virtual ~_def_class() noexcept;
 
+  /** Compile the body of the class. This should be used instead of using
+   * cutlet::interpreter:compile directly as it keeps the resulting AST for the
+   * life of the class.
+   */
+  void compile(cutlet::interpreter &interp, cutlet::variable::pointer body);
+
   /** Class methods are called from here.
    */
   virtual cutlet::variable::pointer
@@ -152,6 +158,8 @@ private:
   std::map<std::string, cutlet::component::pointer> _methods;
   void *_data;
   deletefn_t _delete_fn;
+
+  cutlet::ast::node::pointer _compiled;
 
   void add_properties(_var_object &obj) const;
 };
@@ -265,7 +273,7 @@ cutlet::variable::pointer _def_method::operator ()(cutlet::interpreter &interp,
 
   if (_compiled.is_null()) {
     // Source code hasn't been compiled into an AST tree yet, this will do it.
-    _compiled = interp.eval((std::string)*_body);
+    _compiled = interp.compile(_body);
   } else {
     // We have a compiled AST tree, so run it.
     (*_compiled)(interp);
@@ -392,6 +400,20 @@ _def_class::_def_class(cutlet::interpreter &interp,
 
 _def_class::~_def_class() noexcept {
   if (_delete_fn != nullptr) _delete_fn(_data);
+  _compiled = nullptr;
+}
+
+/***********************
+ * _def_class::compile *
+ ***********************/
+
+void _def_class::compile(cutlet::interpreter &interp,
+                         cutlet::variable::pointer body) {
+  /* We need to keep the AST even though it should never be called again. The
+   * tokens will be needed later when compiling the methods and for the
+   * debugging API.
+   */
+  _compiled = interp.compile(body);
 }
 
 /***************************
@@ -402,7 +424,7 @@ cutlet::variable::pointer _def_class::operator ()(cutlet::interpreter &interp,
                                                   const cutlet::list &parameters) {
   cutlet::variable::pointer object;
   if (parameters.size() == 0) {
-    throw std::runtime_error("no method given calling class");
+    throw std::runtime_error("no method called for class");
   }
 
   if (cutlet::convert<std::string>(parameters[0]) == "new") {
@@ -590,13 +612,9 @@ _obj_frame::~_obj_frame() noexcept {}
  * _obj_frame::variable *
  ************************/
 
-#include <iostream>
-
 cutlet::variable::pointer _obj_frame::variable(const std::string &name) const {
   auto &self = cutlet::cast<_var_object>(_self);
   auto &cls = self.type();
-
-  std::cout << "_obj_frame.variable(\"" << name << "\")" << std::endl;
 
   if (name == "self") {
     return _self;
@@ -612,8 +630,6 @@ void _obj_frame::variable(const std::string &name,
                           cutlet::variable::pointer value) {
   auto &self = cutlet::cast<_var_object>(_self);
   auto &cls = self.type();
-
-  std::cout << "_obj_frame.variable(\"" << name << "\", ?)" << std::endl;
 
   if (self.has_property(name)) {
     self.property(name, value);
@@ -798,29 +814,30 @@ static cutlet::variable::pointer _class(cutlet::interpreter &interp,
 
   // Get the super class names and class body.
   cutlet::variable::pointer parents;
-  std::string body;
+  cutlet::variable::pointer body;
   if (parameters.size() == 3) {
     parents = interp.list(*(parameters[1]));
-    body = *(parameters[2]);
+    body = parameters[2];
   } else {
     parents = new cutlet::list();
-    body = *(parameters[1]);
+    body = parameters[1];
   }
 
   // Create the class component.
-  cutlet::component::pointer new_class = new _def_class(interp, name, parents);
+  _def_class *cls = new _def_class(interp, name, parents);
+  cutlet::component::pointer new_class = cls;
 
   // Evaluation the class body.
-  if (not body.empty()) {
+  if (not (std::string(*body)).empty()) {
     interp.frame_push(_oo_sandbox());
 
-    /* This has to be a weak reference or we get segfaults if and error is
+    /* This has to be a weak reference or we get segfaults if an error is
      * generated creating the class.
      */
     interp.add("self", new_class.weak());
 
     try {
-      interp.eval(body);
+      cls->compile(interp, body);
     } catch (std::exception &err) {
       interp.frame_pop();
       throw;

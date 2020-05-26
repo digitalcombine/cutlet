@@ -20,6 +20,12 @@
 #include <cutlet/parser.h>
 #include <iostream>
 
+//#define DEBUG_PARSER 1
+
+#if DEBUG_PARSER
+#pragma message ("PARSER debugging enabled")
+#endif
+
 /******************************************************************************
  */
 
@@ -46,16 +52,42 @@ std::ostream &operator <<(std::ostream &os,
  ************************/
 
 parser::token::token(unsigned int id, const std::string &value)
-  : _id(id), _value(value), _position(0) {
+  : _id(id), _value(value), _position(0), _offset(0) {
+#if DEBUG_PARSER
+  if (_id != 7)
+    std::clog << "TOKEN:" << _id << ":" << _position << ":" << _offset
+              << ": " <<_value << std::endl;
+#endif
 }
 
 parser::token::token(const token &other)
-  : _id(other._id), _value(other._value), _position(other._position) {
+  : _id(other._id), _value(other._value), _position(other._position),
+    _offset(other._offset) {
+#if DEBUG_PARSER
+  if (_id != 7)
+    std::clog << "TOKEN:" << _id << ":" << _position << ":" << _offset
+              << ": " << _value << std::endl;
+#endif
 }
 
 parser::token::token(unsigned int id, const std::string &value,
                      std::streampos position)
-  : _id(id), _value(value), _position(position) {
+  : _id(id), _value(value), _position(position), _offset(0) {
+#if DEBUG_PARSER
+  if (_id != 7)
+    std::clog << "TOKEN:" << _id << ":" << _position << ":" << _offset
+              << ": " << _value << std::endl;
+#endif
+}
+
+parser::token::token(unsigned int id, const std::string &value,
+                     std::streampos position, std::streamoff offset)
+  : _id(id), _value(value), _position(position), _offset(offset) {
+#if DEBUG_PARSER
+  if (_id != 7)
+    std::clog << "TOKEN:" << _id << ":" << _position << ":" << _offset
+              << ": " << _value << std::endl;
+#endif
 }
 
 /*************************
@@ -74,6 +106,7 @@ parser::token &parser::token::operator =(const token &other) {
     _id = other._id;
     _value = other._value;
     _position = other._position;
+    _offset = other._offset;
   }
   return *this;
 }
@@ -199,6 +232,15 @@ parser::token parser::tokenizer::get_token() {
   throw syntax_error("Incomplete syntax", token(T_INVALID, "", position));
 }
 
+/****************************
+ * parser::tokenizer::front *
+ ****************************/
+
+parser::token parser::tokenizer::front() {
+  if (is_more()) return tokens.front();
+  throw syntax_error("Incomplete syntax", token(T_INVALID, "", position));
+}
+
 /*****************************
  * parser::tokenizer::expect *
  *****************************/
@@ -282,7 +324,7 @@ void parser::tokenizer::push() {
   auto token = get_token();
   _states.push({tokens, code, stream, position});
   reset();
-  position = token._position;
+  position = token._position + token._offset;
   code = token._value;
   parse_tokens();
 }
@@ -290,7 +332,7 @@ void parser::tokenizer::push() {
 void parser::tokenizer::push(token value) {
   _states.push({tokens, code, stream, position});
   reset();
-  position = value._position;
+  position = value._position + value._offset;
   code = value._value;
   parse_tokens();
 }
@@ -398,6 +440,15 @@ void parser::tokenizer::parse_tokens() {
 /*************************
  * parser::grammer::eval *
  *************************/
+
+void parser::grammer::eval(const token &code) {
+  if (tokens) {
+    tokens->push(code);
+    entry();
+    tokens->pop();
+  } else
+    throw std::runtime_error("parser::grammer tokenizer not set");
+}
 
 void parser::grammer::eval(const std::string &code) {
   if (tokens) {

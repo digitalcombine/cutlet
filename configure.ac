@@ -1,8 +1,8 @@
-#                                                             -*- Autoconf -*-
+#                                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([cutlet], [0.9.2], [ron@digitalcombine.ca])
+AC_INIT([cutlet], [0.9.3], [ron@digitalcombine.ca])
 AM_INIT_AUTOMAKE
 AM_SILENT_RULES
 AC_CONFIG_SRCDIR([src/cutlet.cpp])
@@ -66,6 +66,7 @@ AC_CHECK_HEADER_STDBOOL
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
+AC_CHECK_FUNCS([secure_getenv])
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile

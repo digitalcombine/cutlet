@@ -24,7 +24,7 @@
 #include "utilities.h"
 #include "ast.h"
 
-/** Class wrapper for dynamic library loading.
+/** Wrapper for dynamic library loading.
  */
 class native_lib {
 public:
@@ -65,6 +65,10 @@ private:
   nativelib_t _handle;
 };
 
+/***************
+ * operator << *
+ ***************/
+
 std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame) {
   cutlet::frame::pointer ptr = frame._uplevel;
 
@@ -89,20 +93,20 @@ std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame) {
   return os;
 }
 
-/*****************************************************************************
+/******************************************************************************
  * class cutlet_tokenizer
  */
 
 class cutlet_tokenizer : public parser::tokenizer {
 public:
   // All of our token types
-  static const unsigned int T_WORD     = 1;
+  /*static const unsigned int T_WORD     = 1;
   static const unsigned int T_VARIABLE = 2;
   static const unsigned int T_STRING   = 3;
   static const unsigned int T_SUBCMD   = 4;
   static const unsigned int T_BLOCK    = 5;
   static const unsigned int T_COMMENT  = 6;
-  static const unsigned int T_EOL      = 7;
+  static const unsigned int T_EOL      = 7;*/
 
   cutlet_tokenizer() {}
 
@@ -350,7 +354,7 @@ std::string cutlet::utf8::replace(const iterator &start, const iterator &end,
 }
 
 
-/*****************************************************************************
+/******************************************************************************
  * class cutlet_tokenizer
  */
 
@@ -418,8 +422,8 @@ void cutlet_tokenizer::parse_tokens() {
       delete[] codev;
     }
   } else {
-    for (auto &token: tokens) {
-    }
+    /*for (auto &token: tokens) {
+      }*/
   }
 #endif /* TESTING */
 
@@ -459,9 +463,9 @@ void cutlet_tokenizer::parse_next_token() {
         ++it;
 
       // Add the token.
-      tokens.push_back(parser::token(T_VARIABLE,
+      tokens.push_back(parser::token(cutlet::T_VARIABLE,
                                      cutlet::utf8::substr(start, it),
-                                     position));
+                                     position, 1));
       break;
     }
 
@@ -482,16 +486,16 @@ void cutlet_tokenizer::parse_next_token() {
         // Matching " not found, throw and error.
         if (is_eol(*it) or it == it.end())
           throw parser::syntax_error("Unmatched \"",
-                                     parser::token(T_STRING,
+                                     parser::token(cutlet::T_STRING,
                                                    cutlet::utf8::substr(start,
                                                                         it),
                                                    position));
       }
 
       // Add the token.
-      tokens.push_back(parser::token(T_STRING,
+      tokens.push_back(parser::token(cutlet::T_STRING,
                                      cutlet::utf8::substr(start, it),
-                                     position));
+                                     position, 1));
       ++it; // Remove trailing "
       break;
     }
@@ -513,16 +517,16 @@ void cutlet_tokenizer::parse_next_token() {
         // Matching ' not found, throw and error.
         if (is_eol(*it) or it == it.end())
           throw parser::syntax_error("Unmatched '",
-                                     parser::token(T_STRING,
+                                     parser::token(cutlet::T_STRING,
                                                    cutlet::utf8::substr(start,
                                                                         it),
                                                    position));
       }
 
       // Add the token.
-      tokens.push_back(parser::token(T_STRING,
+      tokens.push_back(parser::token(cutlet::T_STRING,
                                      cutlet::utf8::substr(start, it),
-                                     position));
+                                     position, 1));
       ++it; // Remove trailing '
       break;
     }
@@ -540,7 +544,7 @@ void cutlet_tokenizer::parse_next_token() {
         // Matching ] character not found, throw and error.
         if (is_eol(*it) or it == it.end())
           throw parser::syntax_error("Unmatched [",
-                                     parser::token(T_SUBCMD,
+                                     parser::token(cutlet::T_SUBCMD,
                                                    cutlet::utf8::substr(start,
                                                                         it),
                                                    position));
@@ -555,9 +559,9 @@ void cutlet_tokenizer::parse_next_token() {
       }
 
       // Add the token.
-      tokens.push_back(parser::token(T_SUBCMD,
+      tokens.push_back(parser::token(cutlet::T_SUBCMD,
                                      cutlet::utf8::substr(start, previous),
-                                     position));
+                                     position, 1));
       break;
     }
 
@@ -574,7 +578,7 @@ void cutlet_tokenizer::parse_next_token() {
         // Matching } character not found, throw and error.
         if (it == it.end())
           throw parser::syntax_error("Unmatched {",
-                                     parser::token(T_BLOCK,
+                                     parser::token(cutlet::T_BLOCK,
                                                    cutlet::utf8::substr(start,
                                                                         it),
                                                    position));
@@ -589,9 +593,9 @@ void cutlet_tokenizer::parse_next_token() {
       }
 
       // Add the token.
-      tokens.push_back(parser::token(T_BLOCK,
+      tokens.push_back(parser::token(cutlet::T_BLOCK,
                                      cutlet::utf8::substr(start, previous),
-                                     position));
+                                     position, 1));
       break;
     }
 
@@ -600,24 +604,26 @@ void cutlet_tokenizer::parse_next_token() {
 
       if (is_eol(*it) or it == it.end()) {
         // Add an end of line token.
-        tokens.push_back(parser::token(T_EOL, *it, position));
+        tokens.push_back(parser::token(cutlet::T_EOL, *it, position));
         ++it;
 
-      } else if ((tokens.empty() or (unsigned int)tokens.back() == T_EOL) and
+      } else if ((tokens.empty() or
+                  (unsigned int)tokens.back() == cutlet::T_EOL) and
                  (*it)[0] == '#') {
         // Add a comment token.
         cutlet::utf8::iterator start(it);
         while (not is_eol(*it)) ++it;
-        tokens.push_back(parser::token(T_COMMENT,
+        tokens.push_back(parser::token(cutlet::T_COMMENT,
                                        cutlet::utf8::substr(start + 1,
                                                             it),
-                                       position));
+                                       position, 1));
 
       } else {
         // Add a word token.
         while (not is_space(*it) and not is_eol(*it) and it != it.end())
           ++it;
-        tokens.push_back(parser::token(T_WORD, cutlet::utf8::substr(start, it),
+        tokens.push_back(parser::token(cutlet::T_WORD,
+                                       cutlet::utf8::substr(start, it),
                                        position));
       }
       break;
@@ -631,7 +637,7 @@ void cutlet_tokenizer::parse_next_token() {
   }
 }
 
-/*****************************************************************************
+/******************************************************************************
  * class cutlet::component
  */
 
@@ -641,7 +647,15 @@ void cutlet_tokenizer::parse_next_token() {
 
 cutlet::component::~component() noexcept {}
 
-/*****************************************************************************
+/************************************
+ * cutlet::component::documentation *
+ ************************************/
+
+std::string cutlet::component::documentation() const {
+  return "";
+}
+
+/******************************************************************************
  * class cutlet::variable
  */
 
@@ -664,7 +678,13 @@ cutlet::variable::operator()(variable::pointer self, interpreter &interp,
 
 cutlet::variable::operator std::string() const { return ""; }
 
-/*****************************************************************************
+/******************************************
+ * cutlet::variable::operator ast::node * *
+ ******************************************/
+
+cutlet::variable::operator cutlet::ast::node *() const { return nullptr; }
+
+/******************************************************************************
  * class _function
  *
  *  A component wrapper around the cutlet::function_t.
@@ -672,8 +692,10 @@ cutlet::variable::operator std::string() const { return ""; }
 
 class _function : public cutlet::component {
 public:
-  _function(const std::string &label, cutlet::function_t func)
-    : _label(label), _function_ptr(func) {}
+  _function(const std::string &label, cutlet::function_t func,
+            const std::string &doc)
+    : _label(label), _doc(doc), _function_ptr(func) {}
+
   virtual ~_function() noexcept {}
 
   virtual cutlet::variable::pointer
@@ -683,12 +705,15 @@ public:
     return interp.frame_pop();
   }
 
+  virtual std::string documentation() const { return _doc; }
+
 private:
   std::string _label;
+  std::string _doc;
   cutlet::function_t _function_ptr;
 };
 
-/*****************************************************************************
+/******************************************************************************
  * class cutlet::exception
  */
 
@@ -696,8 +721,7 @@ private:
  * cutlet::exception::exception *
  ********************************/
 
-cutlet::exception::exception() noexcept : _node(nullptr) {
-}
+cutlet::exception::exception() noexcept : _node(nullptr) {}
 
 cutlet::exception::exception(const std::string &message) noexcept
   : _message(message), _node(nullptr) { }
@@ -718,6 +742,10 @@ cutlet::exception::exception(const cutlet::exception &other) noexcept
 
 cutlet::exception::~exception() noexcept {}
 
+/*********************************
+ * cutlet::exception::operator = *
+ *********************************/
+
 cutlet::exception &
 cutlet::exception::operator=(const exception &other) noexcept {
   if (&other != this) {
@@ -735,7 +763,7 @@ const char *cutlet::exception::what() const noexcept {
   return _message.c_str();
 }
 
-/*****************************************************************************
+/******************************************************************************
  * class cutlet::sandbox
  */
 
@@ -743,8 +771,7 @@ const char *cutlet::exception::what() const noexcept {
  * cutlet::sandbox::sandbox *
  ****************************/
 
-cutlet::sandbox::sandbox() {
-}
+cutlet::sandbox::sandbox() {}
 
 /*****************************
  * cutlet::sandbox::~sandbox *
@@ -762,8 +789,9 @@ cutlet::sandbox::~sandbox() noexcept {
  * cutlet::sandbox::add *
  ************************/
 
-void cutlet::sandbox::add(const std::string &name, function_t func) {
-  _components[name] = new _function(name, func);
+void cutlet::sandbox::add(const std::string &name, function_t func,
+                          const std::string &doc) {
+  _components[name] = new _function(name, func, doc);
 }
 
 void cutlet::sandbox::add(const std::string &name, component::pointer comp) {
@@ -836,9 +864,16 @@ cutlet::sandbox::call(interpreter &interp,
                       const std::string &name,
                       const list &parameters) {
   auto it = _components.find(name);
+
   if (it != _components.end()) {
+    // Execute the found component.
     return (*it->second)(interp, parameters);
+
   } else {
+
+    /* We couldn't find the component, so now look for the component
+     * ¿component? and execute it.
+     */
     it = _components.find("¿component?");
     if (it != _components.end()) {
       cutlet::list params(parameters);
@@ -890,7 +925,7 @@ void cutlet::sandbox::load(interpreter &interp,
   }
 }
 
-/*****************************************************************************
+/******************************************************************************
  * class cutlet::interpreter
  */
 
@@ -898,12 +933,10 @@ void cutlet::sandbox::load(interpreter &interp,
  * cutlet::frame::frame *
  ************************/
 
-cutlet::frame::frame() : _state(FS_RUNNING), _isblock(false) {
-}
+cutlet::frame::frame() : _state(FS_RUNNING), _isblock(false) {}
 
 cutlet::frame::frame(memory::reference<frame> uplevel, bool isblock)
-  : _state(FS_RUNNING), _isblock(isblock), _uplevel(uplevel) {
-}
+  : _state(FS_RUNNING), _isblock(isblock), _uplevel(uplevel) {}
 
 /*************************
  * cutlet::frame::~frame *
@@ -995,11 +1028,15 @@ cutlet::frame::uplevel(unsigned int levels) const {
   return result;
 }
 
+/************************
+ * cutlet::frame::label *
+ ************************/
+
 void cutlet::frame::label(const std::string &value) {
   _label = value;
 }
 
-/*****************************************************************************
+/******************************************************************************
  * class cutlet::block_frame
  */
 
@@ -1009,13 +1046,13 @@ void cutlet::frame::label(const std::string &value) {
 
 cutlet::block_frame::block_frame(cutlet::frame::pointer parent)
   : _parent(parent) {
-  _isblock = true;
+  _isblock = true; // Found in class frame.
 }
 
 cutlet::block_frame::block_frame(const std::string &label,
                                  cutlet::frame::pointer parent)
   : _parent(parent) {
-  _isblock = true;
+  _isblock = true;  // Found in class frame.
   this->label(label);
 }
 
@@ -1058,7 +1095,7 @@ void cutlet::block_frame::state(cutlet::frame::state_t new_state) {
   _parent->state(new_state);
 }
 
-/*****************************************************************************
+/******************************************************************************
  * class cutlet::interpreter
  */
 
@@ -1164,11 +1201,35 @@ void cutlet::interpreter::local(const std::string &name,
  *****************************/
 
 cutlet::variable::pointer cutlet::interpreter::list(const std::string value) {
-  tokens->push(parser::token(cutlet_tokenizer::T_BLOCK, value));
+  tokens->push(parser::token(cutlet::T_BLOCK, value));
 
   cutlet::list *result = new cutlet::list();
   while (*tokens and not tokens->expect(cutlet_tokenizer::T_EOF)) {
-    if (tokens->expect(cutlet_tokenizer::T_BLOCK)) {
+    if (tokens->expect(cutlet::T_BLOCK)) {
+      auto token = tokens->get_token();
+      result->push_back(list((const std::string &)token));
+    } else {
+      auto token = tokens->get_token();
+      result->push_back(new cutlet::string((const std::string &)token));
+    }
+  }
+
+  tokens->pop();
+  return result;
+}
+
+cutlet::variable::pointer
+cutlet::interpreter::list(const variable::pointer value) {
+  ast::node *n = (ast::node *)(*value);
+  if (n) {
+    tokens->push(n->token());
+  } else {
+    return list((std::string)*value);
+  }
+
+  cutlet::list *result = new cutlet::list();
+  while (*tokens and not tokens->expect(cutlet_tokenizer::T_EOF)) {
+    if (tokens->expect(cutlet::T_BLOCK)) {
       auto token = tokens->get_token();
       result->push_back(list((const std::string &)token));
     } else {
@@ -1211,17 +1272,30 @@ cutlet::interpreter::get(const std::string &name) const {
   return _global->get(name);
 }
 
-/*****************************
- * cutlet::interpreter::eval *
- *****************************/
+/********************************
+ * cutlet::interpreter::compile *
+ ********************************/
 
-cutlet::ast::node::pointer cutlet::interpreter::eval(const std::string &code) {
-  parser::grammer::eval(code);
+cutlet::ast::node::pointer cutlet::interpreter::compile(const variable::pointer code) {
+  ast::node *n = (ast::node *)(*code);
+  if (n) {
+    parser::grammer::eval(n->token());
+  } else {
+    parser::grammer::eval(*code);
+  }
+  _frame->_compiled = _compiled;
   return _compiled;
 }
 
-cutlet::ast::node::pointer cutlet::interpreter::eval(std::istream &in) {
+cutlet::ast::node::pointer cutlet::interpreter::compile(const std::string &code) {
+  parser::grammer::eval(code);
+  _frame->_compiled = _compiled;
+  return _compiled;
+}
+
+cutlet::ast::node::pointer cutlet::interpreter::compile(std::istream &in) {
   parser::grammer::eval(in);
+  _frame->_compiled = _compiled;
   return _compiled;
 }
 
@@ -1230,10 +1304,11 @@ cutlet::ast::node::pointer cutlet::interpreter::eval(std::istream &in) {
  *********************************/
 
 cutlet::ast::node::pointer
-cutlet::interpreter::evalfile(const std::string &filename) {
+cutlet::interpreter::compile_file(const std::string &filename) {
   std::ifstream input_file(filename);
   parser::grammer::eval(input_file);
   input_file.close();
+  _frame->_compiled = _compiled;
   return _compiled;
 }
 
@@ -1354,18 +1429,21 @@ void cutlet::interpreter::load(const std::string &library_name) {
 void cutlet::interpreter::entry() {
   ast::block *ast_tree = new ast::block();
 
-  //std::cout << *tokens << std::endl;
+  while (tokens or not tokens->expect(parser::tokenizer::T_EOF)) {
 
-  while (tokens or not tokens->expect(cutlet_tokenizer::T_EOF)) {
-    while (tokens->expect(cutlet_tokenizer::T_EOL)) tokens->next();
+    // Remove empty lines.
+    while (tokens->expect(cutlet::T_EOL)) tokens->next();
 
-    if (tokens->expect(cutlet_tokenizer::T_EOF)) break;
+    // End of the file.
+    if (tokens->expect(parser::tokenizer::T_EOF)) break;
 
-    if (tokens->expect(cutlet_tokenizer::T_COMMENT))
+    // Now we only expect commands and comments.
+    if (tokens->expect(cutlet::T_COMMENT))
       ast_tree->add(comment_());
     else
       ast_tree->add(command_());
   }
+
   (*ast_tree)(*this);
   _compiled = ast_tree;
 }
@@ -1386,17 +1464,17 @@ cutlet::ast::node::pointer cutlet::interpreter::command_() {
   ast::command *cmd_ast;
 
   // Get the command name.
-  if (tokens->expect(cutlet_tokenizer::T_WORD) or
-      tokens->expect(cutlet_tokenizer::T_BLOCK)) {
+  if (tokens->expect(cutlet::T_WORD) or
+      tokens->expect(cutlet::T_BLOCK)) {
     cmd_ast = new ast::command(new ast::value(tokens->get_token()));
 
-  } else if (tokens->expect(cutlet_tokenizer::T_STRING)) {
+  } else if (tokens->expect(cutlet::T_STRING)) {
     cmd_ast = new ast::command(string_());
 
-  } else if (tokens->expect(cutlet_tokenizer::T_VARIABLE)) {
+  } else if (tokens->expect(cutlet::T_VARIABLE)) {
     cmd_ast = new ast::command(variable_());
 
-  } else if (tokens->expect(cutlet_tokenizer::T_SUBCMD)) {
+  } else if (tokens->expect(cutlet::T_SUBCMD)) {
     cmd_ast = new ast::command(subcommand_());
 
   } else {
@@ -1404,17 +1482,17 @@ cutlet::ast::node::pointer cutlet::interpreter::command_() {
   }
 
   // Collect the command arguments.
-  while (not tokens->expect(cutlet_tokenizer::T_EOL) and
-         not tokens->expect(cutlet_tokenizer::T_EOF)) {
+  while (not tokens->expect(cutlet::T_EOL) and
+         not tokens->expect(parser::tokenizer::T_EOF)) {
 
-    if (tokens->expect(cutlet_tokenizer::T_VARIABLE)) {
+    if (tokens->expect(cutlet::T_VARIABLE)) {
       cmd_ast->parameter(variable_());
-    } else if (tokens->expect(cutlet_tokenizer::T_STRING)) {
+    } else if (tokens->expect(cutlet::T_STRING)) {
       cmd_ast->parameter(string_());
-    } else if (tokens->expect(cutlet_tokenizer::T_SUBCMD)) {
+    } else if (tokens->expect(cutlet::T_SUBCMD)) {
       cmd_ast->parameter(subcommand_());
-    } else if (tokens->expect(cutlet_tokenizer::T_WORD) or
-               tokens->expect(cutlet_tokenizer::T_BLOCK)) {
+    } else if (tokens->expect(cutlet::T_WORD) or
+               tokens->expect(cutlet::T_BLOCK)) {
       cmd_ast->parameter(new ast::value(tokens->get_token()));
     } else {
       throw parser::syntax_error("Invalid token", tokens->get_token());
@@ -1469,10 +1547,10 @@ cutlet::ast::node::pointer cutlet::interpreter::string_() {
 
         std::string var_name = utf8::substr(start + 2, index);
 
-        ast_str->add(new ast::variable(parser::token(cutlet_tokenizer::T_VARIABLE,
+        ast_str->add(new ast::variable(parser::token(cutlet::T_VARIABLE,
                                                      var_name,
                                                      (size_t)token.position() +
-                                                     start.position() + 1)));
+                                                     start.position() + 1, 2)));
       } else {
         // Unquoted variable name.
         ++index;
@@ -1482,10 +1560,10 @@ cutlet::ast::node::pointer cutlet::interpreter::string_() {
 
         std::string var_name = utf8::substr(start + 1, index);
 
-        ast_str->add(new ast::variable(parser::token(cutlet_tokenizer::T_VARIABLE,
+        ast_str->add(new ast::variable(parser::token(cutlet::T_VARIABLE,
                                                      var_name,
                                                      (size_t)token.position() +
-                                                     start.position() + 1)));
+                                                     start.position() + 1, 1)));
         --index;
       }
 
@@ -1504,9 +1582,9 @@ cutlet::ast::node::pointer cutlet::interpreter::string_() {
       if (index == index.end())
         throw parser::syntax_error("Unmatched [ in string", token);
 
-      parser::token cmd(cutlet_tokenizer::T_SUBCMD,
+      parser::token cmd(cutlet::T_SUBCMD,
                         utf8::substr(start + 1, index),
-                        (size_t)token.position() + start.position() + 1);
+                        (size_t)token.position() + start.position() + 1, 1);
       tokens->push(cmd);
       ast_str->add(command_());
       tokens->pop();

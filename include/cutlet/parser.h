@@ -40,16 +40,21 @@ std::ostream &operator <<(std::ostream &os,
 /** @ns */
 namespace parser {
 
-	/**
-	 */
+  /**
+   */
   class token {
   public:
     token(unsigned int id, const std::string &value);
     token(unsigned int id, const std::string &value, std::streampos position);
+    token(unsigned int id, const std::string &value, std::streampos position,
+          std::streamoff offset);
     token(const token &other);
 
     virtual ~token() noexcept;
 
+    /** Position in the code stream where the token was found.
+     * @return Stream start position of the token.
+     */
     std::streampos position() const { return _position; }
 
     token &operator =(const token &other);
@@ -63,9 +68,16 @@ namespace parser {
     friend class tokenizer;
 
   private:
+    /** Token type ID. */
     unsigned int _id;
     std::string _value;
     std::streampos _position;
+
+    /** If the content of the token isn't at the stream position we specify the
+     * offset to the content here. This is necessary if the token is to be
+     * parsed further.
+     */
+    std::streamoff _offset;
   };
 
   class syntax_error : public std::exception {
@@ -100,7 +112,11 @@ namespace parser {
     void parse(const std::string &code);
     void parse(std::istream &code);
 
+    /** Pop the token from the front of the list and return it. If there aren't
+     * any tokens available a parser::syntax_error is thrown.
+     */
     token get_token();
+    token front();
 
     bool expect(unsigned int id) noexcept;
     bool expect(unsigned int id, const std::string &value) noexcept;
@@ -115,16 +131,24 @@ namespace parser {
 
     virtual void reset() noexcept;
 
+    /** Removes the token from the from the front of the list and pushes it
+     * into the tokenizer as code to be parsed further.
+     */
     void push();
     void push(token value);
     void push(const std::string &code);
     void push(std::istream &code);
+
+    /** Pop any current code from the tokenizer and restore any code that was
+     * push earlier.
+     */
     void pop();
 
     friend std::ostream &::operator <<(std::ostream &os,
                                        const parser::tokenizer &tokenizer);
 
   protected:
+    /** The list of parsed tokens. */
     std::list<token> tokens;
     std::string code;
     std::istream *stream;
@@ -134,8 +158,8 @@ namespace parser {
     void add_token_pattern(unsigned int token_id, const std::string &pattern);
     void clear_token_patterns();
 
-		/**
-		 */
+    /**
+     */
     virtual void parse_tokens();
 
   private:
@@ -160,6 +184,7 @@ namespace parser {
   public:
     grammer() : tokens(nullptr) {}
 
+    void eval(const token &code);
     void eval(const std::string &code);
     void eval(std::istream &code);
 
