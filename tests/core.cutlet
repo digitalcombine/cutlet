@@ -1,5 +1,13 @@
+# Test the Core Language Features
+#
+#  This is tested without the standard library so there's no exception catching
+# available and everything must just function without an error.
 
-# Test a frame within a frame.
+global result = 0
+
+#=============================================================================#
+# Test 1: Test a frame within a frame.
+
 def hello {from *args} {
   $args foreach person {
     print "Hello $person from $from"
@@ -7,3 +15,46 @@ def hello {from *args} {
 }
 
 hello Ron George Bill Jane
+
+#=============================================================================#
+# Test 2: Test Blocks
+
+global level = "level a"
+
+def block_test {*args} {
+  local level = "level b"
+
+  $args foreach parm {
+    local level = "level c"
+
+    uplevel {
+      # This should be level c
+      print "Block test at $level"
+
+      uplevel {
+        # This should still be level c
+        print "Block test at $level"
+      }
+    }
+
+    uplevel 1 {
+      # This should be level b
+      print "Block test at $level"
+
+      uplevel 1 {
+        # This should be level a
+        print "Block test at $level"
+      }
+    }
+
+    uplevel 2 {
+      # This should be level a
+      print "Block test at $level"
+    }
+  }
+}
+
+block_test 1
+global level
+
+return $result
