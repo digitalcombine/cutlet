@@ -254,10 +254,10 @@ cutlet::variable::pointer cutlet::list::_foreach(interpreter &interp,
   // $list foreach item block
   std::string item_name = convert<std::string>(parameters[1]);
   for (auto &item: *this) {
-    interp.frame_push(new cutlet::block_frame(interp.frame(0)));
+    interp.push(new cutlet::block_frame(interp.frame(0)));
     interp.local(item_name, item);
     interp.compile(parameters[2]);
-    interp.frame_pop();
+    interp.pop();
   }
   return nullptr;
 }

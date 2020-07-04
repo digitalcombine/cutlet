@@ -68,16 +68,16 @@ static cutlet::frame::state_t eval_body(cutlet::interpreter &interp,
   cutlet::frame::state_t result;
   cutlet::ast::node::pointer compiled;
 
-  interp.frame_push(new cutlet::block_frame(label, interp.frame(1)));
+  interp.push(new cutlet::block_frame(label, interp.frame(1)));
   try {
     compiled = interp.compile(body);
   } catch(...) {
-    result = interp.frame_state();
-    interp.frame_pop();
+    result = interp.state();
+    interp.pop();
     throw;
   }
-  result = interp.frame_state();
-  interp.frame_pop();
+  result = interp.state();
+  interp.pop();
 
   return result;
 }
@@ -135,9 +135,9 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
     body = *it;
   }
 
-  interp.frame_push(new cutlet::block_frame(cond, interp.frame(1)));
+  interp.push(new cutlet::block_frame(cond, interp.frame(1)));
   bool cond_res = cutlet::convert<bool>(interp.expr(cond));
-  interp.frame_pop();
+  interp.pop();
 
   // If the condition is true then eval the body and return.
   if (cond_res) {
@@ -159,9 +159,9 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
         body = *it;
       }
 
-      interp.frame_push(new cutlet::block_frame(cond, interp.frame(1)));
+      interp.push(new cutlet::block_frame(cond, interp.frame(1)));
       cond_res = cutlet::convert<bool>(interp.expr(cond));
-      interp.frame_pop();
+      interp.pop();
 
       if (cond_res) {
         eval_body(interp, body, "elif");
@@ -228,7 +228,7 @@ _continue(cutlet::interpreter &interp, const cutlet::list &parameters) {
 static cutlet::variable::pointer
 _raise(cutlet::interpreter &interp, const cutlet::list &parameters) {
   // We remove our frame from the stack.
-  interp.frame_pop();
+  interp.pop();
 
   // Throw the error.
   throw std::runtime_error(parameters.join());
@@ -250,7 +250,7 @@ _try(cutlet::interpreter &interp, const cutlet::list &parameters) {
 
       // Set the local variable with the error in it.
       next(it, parameters);
-      interp.frame_push(new cutlet::block_frame("catch", interp.frame(1)));
+      interp.push(new cutlet::block_frame("catch", interp.frame(1)));
       interp.local(*(*it), new cutlet::string(err.what()));
 
       // Eval the catch block
@@ -258,10 +258,10 @@ _try(cutlet::interpreter &interp, const cutlet::list &parameters) {
       try {
         interp.compile(*it);
       } catch (...) {
-        interp.frame_pop();
+        interp.pop();
         throw;
       }
-      interp.frame_pop();
+      interp.pop();
     }
   }
 

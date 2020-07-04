@@ -133,6 +133,9 @@ namespace cutlet {
      */
     virtual ~variable() noexcept;
 
+    bool operator == (const std::string &value) const;
+    bool operator != (const std::string &value) const;
+
     /** When a variable is called this is used to implement operators for the
      * variable type.
      *
@@ -210,6 +213,9 @@ namespace cutlet {
       virtual const std::string &body() const = 0;
 
       virtual const parser::token &token() const = 0;
+
+      //begin()
+      //end()
 
     protected:
       node();
@@ -304,7 +310,7 @@ namespace cutlet {
    */
   class DECLSPEC component {
   public:
-    /** Smart component reference pointer. */
+    /** Component reference pointer. */
     typedef memory::reference<component> pointer;
 
     /** Component clean up. */
@@ -430,11 +436,10 @@ namespace cutlet {
 
   private:
     memory::reference<frame> _uplevel;
-    //bool _isblock;
     std::string _label;
     ast::node::pointer _compiled;
 
-    // Used to restore the global environment if it was changed.
+    /** Used to restore the global environment if it was changed. */
     memory::reference<sandbox> _sandbox_orig;
     std::map<std::string, variable::pointer> _variables;
 
@@ -509,7 +514,13 @@ namespace cutlet {
 
     variable::pointer list(const variable::pointer code);
 
-    void add(const std::string &name, function_t func);
+    /** Add a function to the interpreters global environment.
+     * @param name The name of the function in the interpreter.
+     * @param func The function pointer.
+     */
+    void add(const std::string &name, function_t func,
+             const std::string &docs = "");
+
     void add(const std::string &name, component::pointer comp);
 
     /** Get the current global enviroment for the interpreter.
@@ -551,37 +562,45 @@ namespace cutlet {
     /** Create a new execution frame and push it on to the top of the stack.
      * @see cutlet::frame
      * @see frame
-     * @see frame_pop
+     * @see pop
      */
-    void frame_push(const std::string &label = "-");
-    void frame_push(frame::pointer frm);
-    void frame_push(frame::pointer frm, sandbox::pointer sb);
+    void push(const std::string &label = "-");
+    void push(frame::pointer frm);
+    void push(frame::pointer frm, sandbox::pointer sb);
 
     /** Creates and new frame on the stack and replaces the global environment
      * with the given sandbox. When the frame is popped off the stack the
      * global frame will be restored as well.
-     * @see frame_pop
+     * @see pop
      */
-    void frame_push(sandbox::pointer sb);
+    void push(sandbox::pointer sb);
 
     /** Pops the current execution frame off the top of the stack.
      * @return If a return value was set in the frame, then that value is
      *         returned, otherwise a null reference is returned.
-     * @see frame_done
+     * @see finish
      */
-    variable::pointer frame_pop();
+    variable::pointer pop();
 
-    variable::pointer frame_pop(variable::pointer result);
+    variable::pointer pop(variable::pointer result);
 
     /** End the execution of the current frame with an optional return value.
      * The return value is returned when the frame is popped off the stack.
      * @param result The return value from the completed frame.
-     * @see frame_pop
+     * @see pop
      */
-    void frame_done(variable::pointer result = nullptr);
+    void finish(variable::pointer result = nullptr);
 
-    frame::state_t frame_state() const;
+    /**
+     * @return The execute state of the current execution frame.
+     * @see frame::state_t
+     * @see frame::state
+     */
+    frame::state_t state() const;
 
+    /** Return if the execution of the current frame is done.
+     * @return Boolean result indicating if the frame execution is done.
+     */
     bool done() const;
 
     /** Load a dynamic shared library into the current global sandbox. Once

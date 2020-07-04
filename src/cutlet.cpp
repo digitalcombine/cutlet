@@ -99,15 +99,6 @@ std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame) {
 
 class cutlet_tokenizer : public parser::tokenizer {
 public:
-  // All of our token types
-  /*static const unsigned int T_WORD     = 1;
-  static const unsigned int T_VARIABLE = 2;
-  static const unsigned int T_STRING   = 3;
-  static const unsigned int T_SUBCMD   = 4;
-  static const unsigned int T_BLOCK    = 5;
-  static const unsigned int T_COMMENT  = 6;
-  static const unsigned int T_EOL      = 7;*/
-
   cutlet_tokenizer() {}
 
   friend std::ostream &operator <<(std::ostream &os,
@@ -659,7 +650,27 @@ std::string cutlet::component::documentation() const {
  * class cutlet::variable
  */
 
+/*******************************
+ * cutlet::variable::~variable *
+ *******************************/
+
 cutlet::variable::~variable() noexcept {}
+
+/*********************************
+ * cutlet::variable::operator == *
+ *********************************/
+
+bool cutlet::variable::operator ==(const std::string &value) const {
+  return ((std::string)*this == value);
+}
+
+/*********************************
+ * cutlet::variable::operator != *
+ *********************************/
+
+bool cutlet::variable::operator !=(const std::string &value) const {
+  return ((std::string)*this != value);
+}
 
 /*********************************
  * cutlet::variable::operator () *
@@ -700,9 +711,9 @@ public:
 
   virtual cutlet::variable::pointer
   operator ()(cutlet::interpreter &interp, const cutlet::list &parameters) {
-    interp.frame_push(_label);
-    interp.frame_done(_function_ptr(interp, parameters));
-    return interp.frame_pop();
+    interp.push(_label);
+    interp.finish(_function_ptr(interp, parameters));
+    return interp.pop();
   }
 
   virtual std::string documentation() const { return _doc; }
@@ -818,7 +829,8 @@ void cutlet::sandbox::clear() {
  * cutlet::sandbox::get *
  ************************/
 
-cutlet::component::pointer cutlet::sandbox::get(const std::string &name) const {
+cutlet::component::pointer
+cutlet::sandbox::get(const std::string &name) const {
   return _components.at(name);
 }
 
@@ -827,7 +839,7 @@ cutlet::component::pointer cutlet::sandbox::get(const std::string &name) const {
  *****************************/
 
 cutlet::variable::pointer cutlet::sandbox::variable(interpreter &interp,
-                                               const std::string &name) {
+                                                    const std::string &name) {
   if (_variables.find(name) != _variables.end())
     return _variables[name];
   else {
@@ -1018,7 +1030,20 @@ cutlet::frame::uplevel(unsigned int levels) const {
 
   result = _uplevel;
   --levels;
+
+  /* We don't allow this to go pass a frame if the global enviroment was
+   * changed. We don't want to break the sandboxing.
+   */
+  if (not result.is_null() and not result->_sandbox_orig.is_null())
+    throw std::runtime_error("");
+
   while (not result.is_null() and levels > 0) {
+    /* We don't allow this to go pass a frame if the global enviroment was
+     * changed. We don't want to break the sandboxing.
+     */
+    if (not result->_sandbox_orig.is_null())
+      throw std::runtime_error("");
+
     result = result->_uplevel;
     --levels;
   }
@@ -1109,7 +1134,9 @@ cutlet::interpreter::interpreter() {
   _global->add("print", ::builtin::print);
   _global->add("global", ::builtin::global);
   _global->add("local", ::builtin::local);
-  _global->add("def", ::builtin::def);
+  _global->add("uplevel", ::builtin::block);
+  _global->add("def", ::builtin::def,
+               "def name ¿parameters? body\n");
   _global->add("return", ::builtin::ret);
   _global->add("list", ::builtin::list);
   _global->add("include", ::builtin::incl);
@@ -1246,8 +1273,9 @@ cutlet::interpreter::list(const variable::pointer value) {
  * cutlet::interpreter::add *
  ****************************/
 
-void cutlet::interpreter::add(const std::string &name, function_t func) {
-  _global->add(name, func);
+void cutlet::interpreter::add(const std::string &name, function_t func,
+                              const std::string &docs) {
+  _global->add(name, func, docs);
 }
 
 void cutlet::interpreter::add(const std::string &name,
@@ -1276,7 +1304,8 @@ cutlet::interpreter::get(const std::string &name) const {
  * cutlet::interpreter::compile *
  ********************************/
 
-cutlet::ast::node::pointer cutlet::interpreter::compile(const variable::pointer code) {
+cutlet::ast::node::pointer
+cutlet::interpreter::compile(const variable::pointer code) {
   ast::node *n = (ast::node *)(*code);
   if (n) {
     parser::grammer::eval(n->token());
@@ -1287,7 +1316,8 @@ cutlet::ast::node::pointer cutlet::interpreter::compile(const variable::pointer 
   return _compiled;
 }
 
-cutlet::ast::node::pointer cutlet::interpreter::compile(const std::string &code) {
+cutlet::ast::node::pointer
+cutlet::interpreter::compile(const std::string &code) {
   parser::grammer::eval(code);
   _frame->_compiled = _compiled;
   return _compiled;
@@ -1299,9 +1329,9 @@ cutlet::ast::node::pointer cutlet::interpreter::compile(std::istream &in) {
   return _compiled;
 }
 
-/*********************************
- * cutlet::interpreter::evalfile *
- *********************************/
+/*************************************
+ * cutlet::interpreter::compile_file *
+ *************************************/
 
 cutlet::ast::node::pointer
 cutlet::interpreter::compile_file(const std::string &filename) {
@@ -1342,33 +1372,40 @@ cutlet::frame::pointer cutlet::interpreter::frame(unsigned int levels) const {
   return _frame->uplevel(levels);
 }
 
-/***********************************
- * cutlet::interpreter::frame_push *
- ***********************************/
+/*****************************
+ * cutlet::interpreter::push *
+ *****************************/
 
-void cutlet::interpreter::frame_push(const std::string &label) {
+void cutlet::interpreter::push(const std::string &label) {
   memory::reference<cutlet::frame> new_frame = new cutlet::frame(_frame);
   new_frame->label(label);
   _frame = new_frame;
 }
 
-void cutlet::interpreter::frame_push(frame::pointer new_frame) {
+void cutlet::interpreter::push(frame::pointer new_frame) {
   new_frame->_uplevel = _frame;
   _frame = new_frame;
 }
 
-void cutlet::interpreter::frame_push(sandbox::pointer sb) {
+void cutlet::interpreter::push(frame::pointer new_frame, sandbox::pointer sb) {
+  new_frame->_uplevel = _frame;
+  _frame = new_frame;
+  new_frame->_sandbox_orig = _global;
+  _global = sb;
+}
+
+void cutlet::interpreter::push(sandbox::pointer sb) {
   memory::reference<cutlet::frame> new_frame = new cutlet::frame(_frame);
   _frame = new_frame;
   new_frame->_sandbox_orig = _global;
   _global = sb;
 }
 
-/**********************************
- * cutlet::interpreter::frame_pop *
- **********************************/
+/****************************
+ * cutlet::interpreter::pop *
+ ****************************/
 
-cutlet::variable::pointer cutlet::interpreter::frame_pop() {
+cutlet::variable::pointer cutlet::interpreter::pop() {
   // Get the previous environment.
   variable::pointer result = _frame->_return;
   memory::reference<sandbox> sb_saved = _frame->_sandbox_orig;
@@ -1385,24 +1422,24 @@ cutlet::variable::pointer cutlet::interpreter::frame_pop() {
 }
 
 cutlet::variable::pointer
-cutlet::interpreter::frame_pop(variable::pointer result) {
-  frame_done(result);
-  return frame_pop();
+cutlet::interpreter::pop(variable::pointer result) {
+  finish(result);
+  return pop();
 }
 
-/***********************************
- * cutlet::interpreter::frame_done *
- ***********************************/
+/*******************************
+ * cutlet::interpreter::finish *
+ *******************************/
 
-void cutlet::interpreter::frame_done(variable::pointer result) {
+void cutlet::interpreter::finish(variable::pointer result) {
   _frame->done(result);
 }
 
-/************************************
- * cutlet::interpreter::frame_state *
- ************************************/
+/******************************
+ * cutlet::interpreter::state *
+ ******************************/
 
-cutlet::frame::state_t cutlet::interpreter::frame_state() const {
+cutlet::frame::state_t cutlet::interpreter::state() const {
   return _frame->state();
 }
 

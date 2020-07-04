@@ -21,6 +21,7 @@
 #include <iostream>
 #include <fstream>
 #include <getopt.h>
+#include <unistd.h>
 
 /********
  * help *
@@ -96,13 +97,25 @@ int main(int argc, char *argv[]) {
 
     } else {
       // Nothing on the command line so read from stdin.
-      compiled = interpreter.compile(std::cin);
+
+      if (isatty(STDIN_FILENO)) {
+        /* This appears to be an interactive shell so read and execute line
+         * by line.
+         */
+        for(std::string line; getline(std::cin, line); ) {
+          compiled = interpreter.compile(line);
+        }
+
+      } else {
+        // This appears to be piped in so do everything at once.
+        compiled = interpreter.compile(std::cin);
+      }
     }
 
     /* If the return function was called by the script then attempt to return
      * it's value.
      */
-    return cutlet::convert<int>(interpreter.frame_pop());
+    return cutlet::convert<int>(interpreter.pop());
 
   } catch (parser::syntax_error &err) {
     // Caught a parsing error.

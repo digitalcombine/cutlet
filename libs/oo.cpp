@@ -320,14 +320,14 @@ _var_object::operator()(cutlet::variable::pointer self,
 
   cutlet::list params(parameters.begin() + 1, parameters.end());
 
-  interp.frame_push(new _obj_frame(*(parameters[0]), self));
+  interp.push(new _obj_frame(*(parameters[0]), self));
   try {
     dynamic_cast<_def_class &>(*(_class))(*(parameters[0]), interp, params);
   } catch (...) {
-    //interp.frame_pop();
+    //interp.pop();
     throw;
   }
-  return interp.frame_pop();
+  return interp.pop();
 }
 
 cutlet::variable::pointer
@@ -341,14 +341,14 @@ _var_object::operator()(cutlet::component &cls,
 
   cutlet::list params(parameters.begin() + 1, parameters.end());
 
-  interp.frame_push(new _obj_frame(*(parameters[0]), self));
+  interp.push(new _obj_frame(*(parameters[0]), self));
   try {
     dynamic_cast<_def_class &>(cls)(*(parameters[0]), interp, params);
   } catch (...) {
-    //interp.frame_pop();
+    //interp.pop();
     throw;
   }
-  return interp.frame_pop();
+  return interp.pop();
 }
 
 /*****************************
@@ -433,9 +433,9 @@ cutlet::variable::pointer _def_class::operator ()(cutlet::interpreter &interp,
     add_properties(*obj);
 
     object = obj;
-    interp.frame_push(new _obj_frame(*(parameters[0]), object));
+    interp.push(new _obj_frame(*(parameters[0]), object));
     (*object)(object, interp, parameters);
-    interp.frame_pop();
+    interp.pop();
     return object;
   } else {
     std::string method = cutlet::convert<std::string>(parameters[0]);
@@ -452,14 +452,14 @@ cutlet::variable::pointer _def_class::operator ()(cutlet::interpreter &interp,
     }
 
     if (m != _class_methods.end()) {
-      interp.frame_push(new _cls_frame(*(parameters[0]), *this));
+      interp.push(new _cls_frame(*(parameters[0]), *this));
       try {
         (*(m->second))(interp, params);
       } catch (...) {
-        interp.frame_pop();
+        interp.pop();
         throw;
       }
-      return interp.frame_pop();
+      return interp.pop();
     } else {
       throw std::runtime_error(std::string("class method ") + method +
                                " not found");
@@ -829,7 +829,7 @@ static cutlet::variable::pointer _class(cutlet::interpreter &interp,
 
   // Evaluation the class body.
   if (not (std::string(*body)).empty()) {
-    interp.frame_push(_oo_sandbox());
+    interp.push(_oo_sandbox());
 
     /* This has to be a weak reference or we get segfaults if an error is
      * generated creating the class.
@@ -839,10 +839,10 @@ static cutlet::variable::pointer _class(cutlet::interpreter &interp,
     try {
       cls->compile(interp, body);
     } catch (std::exception &err) {
-      interp.frame_pop();
+      interp.pop();
       throw;
     }
-    interp.frame_pop();
+    interp.pop();
   }
 
   // If we get here, add the class component to the interpreter.

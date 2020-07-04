@@ -39,7 +39,7 @@ public:
    */
   virtual cutlet::variable::pointer
   operator ()(cutlet::interpreter &interp, const cutlet::list &args) {
-    interp.frame_push(_label); // New frame for the function.
+    interp.push(_label); // New frame for the function.
 
     // Populate the parameters of the function.
     auto p_it = cutlet::cast<cutlet::list>(_parameters).begin();
@@ -88,7 +88,7 @@ public:
       (*_compiled)(interp);
 
     // Clean up the stack and return a value if there was one.
-    return interp.frame_pop();
+    return interp.pop();
   }
 
 private:
@@ -229,6 +229,7 @@ cutlet::variable::pointer
 builtin::block(cutlet::interpreter &interp,
                const cutlet::list &parameters) {
   unsigned int levels = 0, p_count = parameters.size();
+
   cutlet::variable::pointer body;
   if (p_count == 2) {
     levels = cutlet::convert<int>(parameters[0]);
@@ -244,11 +245,11 @@ builtin::block(cutlet::interpreter &interp,
   }
 
   try {
-    interp.frame_push(new cutlet::block_frame(interp.frame(levels)));
+    interp.push(new cutlet::block_frame(interp.frame(levels + 1)));
     interp.compile(body);
-    interp.frame_pop();
+    interp.pop();
   } catch (...) {
-    interp.frame_pop();
+    interp.pop();
     throw;
   }
 

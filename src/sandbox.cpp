@@ -58,7 +58,7 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
       command += cutlet::convert<std::string>(*it);
     }
 
-    interp.frame_push(_sandbox);
+    interp.push(_sandbox);
     try {
       interp.compile(command);
     } catch (...) {
@@ -66,10 +66,10 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
        * stack to restore the previous environment then rethrow the
        * exception.
        */
-      interp.frame_pop();
+      interp.pop();
       throw;
     }
-    interp.frame_pop();
+    interp.pop();
   } else if (cutlet::convert<std::string>(parameters[0]) == "link") {
     // $sandbox link function
     _sandbox->add(cutlet::convert<std::string>(parameters[1]),

@@ -137,7 +137,7 @@ cutlet::ast::block::operator()(cutlet::interpreter &interp) {
     }
 #endif
     (*node)(interp);
-    if (interp.frame_state() != frame::FS_RUNNING) break;
+    if (interp.state() != frame::FS_RUNNING) break;
   }
   return nullptr;
 }
