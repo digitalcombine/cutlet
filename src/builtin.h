@@ -39,8 +39,8 @@ namespace builtin {
   cutlet::variable::pointer global(cutlet::interpreter &interp,
                                    const cutlet::list &parameters);
 
-  cutlet::variable::pointer block(cutlet::interpreter &interp,
-                                  const cutlet::list &parameters);
+  cutlet::variable::pointer uplevel(cutlet::interpreter &interp,
+                                    const cutlet::list &parameters);
 
   cutlet::variable::pointer ret(cutlet::interpreter &interp,
                                 const cutlet::list &parameters);
