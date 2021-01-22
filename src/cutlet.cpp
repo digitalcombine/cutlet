@@ -44,7 +44,7 @@ public:
 #endif
   }
 
-  /** Library closing and cleanup.
+  /** Close and cleanup the native library.
    */
   virtual ~native_lib() noexcept {
 #if defined (__linux__) || defined (__FreeBSD__)
@@ -53,6 +53,10 @@ public:
 #endif
   }
 
+  /** Lookup a symbol within the library.
+   * @return A pointer to the symbol. If the symbol doesn't exist then a null
+   *         pointer is returned.
+   */
   void *symbol(const std::string &name) {
 #if defined (__linux__) || defined (__FreeBSD__)
     if (_handle) return dlsym(_handle, name.c_str());
@@ -73,21 +77,47 @@ private:
 std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame) {
   cutlet::frame::pointer ptr = frame._uplevel;
 
+  // Count the number of frames we have.
   unsigned int level = 1;
   if (not (ptr == nullptr)) {
-
     while (not ptr->_uplevel.is_null()) {
       ptr = ptr->_uplevel;
       level++;
     }
   }
 
-  os << level << (frame._isblock ? "* " : ": ") << frame._label << "\n";
+  // Display the current execution frame.
+  os << level << (frame._isblock ? "* " : ": ") << frame._label;
+  switch (frame.state()) {
+  case cutlet::frame::FS_DONE:
+    os << " (done)";
+    break;
+  case cutlet::frame::FS_BREAK:
+    os << " (break)";
+    break;
+  case cutlet::frame::FS_CONTINUE:
+    os << " (continue)";
+    break;
+  }
+  os << "\n";
 
+  // Now iterate through the other frames and display them.
   ptr = frame._uplevel;
   while (not ptr->_uplevel.is_null()) {
     level--;
-    os << level << (ptr->_isblock ? "* " : ": ") << ptr->_label << "\n";
+    os << level << (ptr->_isblock ? "* " : ": ") << ptr->_label;
+    switch (ptr->state()) {
+    case cutlet::frame::FS_DONE:
+      os << " (done)";
+      break;
+    case cutlet::frame::FS_BREAK:
+      os << " (break)";
+      break;
+    case cutlet::frame::FS_CONTINUE:
+      os << " (continue)";
+      break;
+    }
+    os << "\n";
     ptr = ptr->_uplevel;
   }
 
@@ -113,6 +143,8 @@ protected:
 };
 
 #ifdef DEBUG
+/** Debug stream operator for displaying parsed tokens.
+ */
 std::ostream &operator <<(std::ostream &os, const cutlet_tokenizer &tks) {
   unsigned int size = tks.tokens.size();
   for (auto &token: tks.tokens) {
@@ -418,7 +450,6 @@ void cutlet_tokenizer::parse_tokens() {
       }*/
   }
 #endif /* TESTING */
-
 }
 
 /**************************************
@@ -978,6 +1009,7 @@ cutlet::frame::variable(const std::string &name) const {
 void cutlet::frame::variable(const std::string &name,
                              variable::pointer value) {
   if (value.is_null()) {
+    // If the value in null erase the variable from the frame.
     _variables.erase(name);
   } else {
     _variables[name] = value;
@@ -1135,7 +1167,7 @@ cutlet::interpreter::interpreter() {
   _global->add("print", ::builtin::print);
   _global->add("global", ::builtin::global);
   _global->add("local", ::builtin::local);
-  _global->add("uplevel", ::builtin::block);
+  _global->add("uplevel", ::builtin::uplevel);
   _global->add("def", ::builtin::def,
                "def name ¿parameters? body\n");
   _global->add("return", ::builtin::ret);
@@ -1148,6 +1180,7 @@ cutlet::interpreter::interpreter() {
   cutlet::list *path = new cutlet::list();
   std::string env_path = env("CUTLETPATH");
 
+  // Parse CUTLETPATH
   auto start = 0U;
   auto end = env_path.find(":");
   while (end != std::string::npos) {
@@ -1195,10 +1228,15 @@ cutlet::interpreter::~interpreter() noexcept {
  ****************************/
 
 cutlet::variable::pointer cutlet::interpreter::var(const std::string &name) {
+  // First attempt to resolve a local variable.
   variable::pointer result = _frame->variable(name);
+
+  // If we don't have a local variable attempt to resolved to a global
+  // variable.
   if (result.is_null())
     result = _global->variable(*this, name);
 
+  // We couldn't resolve the variable.
   if (result.is_null())
     throw std::runtime_error(std::string("Unable to resolve variable $") +
                              name);
