@@ -52,30 +52,58 @@ cutlet::string::~string() noexcept {}
 cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
                                                 interpreter &interp,
                                                 const list &parameters) {
-  if (parameters.size() == 2) {
+  /* TODO
+   *  - substr
+   *  - index
+   *  - find/rfind
+   *  - startswith
+   *  - endswith
+   *  - insert
+   */
+  if (parameters.size() == 1) {
     std::string op = *(parameters[0]);
 
-    if (op == "==") {
+    if (op == "type") {
+      return new cutlet::string("string");
+
+    } else if (op == "length") {
+      /* Note this doesn't return the byte size of the string but rather the
+       * number of UTF-8 encoded characters in it.
+       */
+      unsigned long long count = 0;
+      cutlet::utf8::iterator it(*this);
+      while (it != it.end()) {
+        count ++;
+        it++;
+      }
+      return new cutlet::string(count);
+    }
+
+  } else if (parameters.size() == 2) {
+    std::string op = *(parameters[0]);
+
+    if (op == "==" or op == "=") {
       return (*this == cutlet::convert<std::string>(parameters[1])
-              ? new cutlet::string("true") : new cutlet::string("false"));
-    } else if (op == "<>") {
+              ? new cutlet::boolean(true) : new cutlet::boolean(false));
+    } else if (op == "<>" or op == "!=") {
       return (*this != cutlet::convert<std::string>(parameters[1])
-              ? new cutlet::string("true") : new cutlet::string("false"));
+              ? new cutlet::boolean(true) : new cutlet::boolean(false));
     } else if (op == "<") {
       return (*this < cutlet::convert<std::string>(parameters[1])
-              ? new cutlet::string("true") : new cutlet::string("false"));
+              ? new cutlet::boolean(true) : new cutlet::boolean(false));
     } else if (op == "<=") {
       return (*this <= cutlet::convert<std::string>(parameters[1])
-              ? new cutlet::string("true") : new cutlet::string("false"));
+              ? new cutlet::boolean(true) : new cutlet::boolean(false));
     } else if (op == ">") {
       return (*this > cutlet::convert<std::string>(parameters[1])
-              ? new cutlet::string("true") : new cutlet::string("false"));
+              ? new cutlet::boolean(true) : new cutlet::boolean(false));
     } else if (op == ">=") {
       return (*this >= cutlet::convert<std::string>(parameters[1])
-              ? new cutlet::string("true") : new cutlet::string("false"));
-    } /*else if (op == "length") {
-      return ;
-    }*/
+              ? new cutlet::boolean(true) : new cutlet::boolean(false));
+    } else if (op == ".") {
+      return new cutlet::string(*this +
+                                cutlet::convert<std::string>(parameters[1]));
+    }
   }
   return cutlet::variable::operator()(self, interp, parameters);
 }

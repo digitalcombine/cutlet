@@ -17,7 +17,43 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cutlet.h>
+#include <cutlet>
+#include <algorithm>
+
+/***********
+ * _d_less *
+ ***********/
+
+static bool _d_less(cutlet::variable::pointer v1,
+                    cutlet::variable::pointer v2) {
+  return ((std::string)(*v1) < (std::string)(*v2));
+}
+
+class _c_less {
+public:
+  _c_less(cutlet::interpreter &interp, cutlet::variable::pointer function)
+    : _interp(interp), _function(function) {}
+
+  bool operator ()(cutlet::variable::pointer v1,
+                   cutlet::variable::pointer v2) {
+    cutlet::list parms({v1, v2});
+    return cutlet::convert<bool>(_interp.call((std::string)(*_function),
+                                              parms));
+  }
+
+private:
+  cutlet::interpreter &_interp;
+  cutlet::variable::pointer _function;
+};
+
+/************
+ * _d_equal *
+ ************/
+
+static bool _d_equal(cutlet::variable::pointer v1,
+                     cutlet::variable::pointer v2) {
+  return ((std::string)(*v1) == (std::string)(*v2));
+}
 
 /******************************************************************************
  * class cutlet::list
@@ -65,53 +101,96 @@ cutlet::variable::pointer cutlet::list::operator()(variable::pointer self,
                                                    const list &parameters) {
   (void)self;
 
-  variable::pointer result;
-  if (parameters.size() > 0) {
+  std::string op = *(parameters[0]);
+
+  // XXX swap
+  // XXX reverse
+  // XXX unique
+  // XXX shuffle
+
+  if (op == "type") {
+    if (parameters.size() == 1) {
+      return new cutlet::string("list");
+    } else {
+      throw std::runtime_error(std::string("Invalid number of parameters to "
+                                           "list operator type"));
+    }
 
     // $list join ¿delim?
-    if ((std::string)*(parameters[0]) == "join") {
-      return _join(interp, parameters);
+  } else if (op == "join") {
+    return _join(interp, parameters);
 
-      // $list size
-    } else if (convert<std::string>(parameters[0]) == "size") {
+    // $list size
+  } else if (op == "size") {
+    if (parameters.size() == 1) {
       return new cutlet::string(size());
+    } else {
+      throw std::runtime_error(std::string("Invalid number of parameters to "
+                                           "list operator size"));
+    }
 
-      // $list clear
-    } else if (convert<std::string>(parameters[0]) == "clear") {
+    // $list clear
+  } else if (op == "clear") {
+    if (parameters.size() == 1) {
       clear();
       return nullptr;
-
-      // $list append item ¿…?
-    } else if (convert<std::string>(parameters[0]) == "append") {
-      return _append(interp, parameters);
-
-      // $list prepend item ¿…?
-    } else if (convert<std::string>(parameters[0]) == "prepend") {
-      return _prepend(interp, parameters);
-
-      // $list extend list ¿…?
-    } else if (convert<std::string>(parameters[0]) == "extend") {
-      return _extend(interp, parameters);
-
-      // $list index index ¿=? ¿value?
-    } else if (convert<std::string>(parameters[0]) == "index") {
-      return _index(interp, parameters);
-
-      // $list remove index ¿end?
-    } else if (convert<std::string>(parameters[0]) == "remove") {
-      return _remove(interp, parameters);
-
-      // $list foreach item body
-    } else if (convert<std::string>(parameters[0]) == "foreach") {
-      return _foreach(interp, parameters);
-
     } else {
-      throw std::runtime_error(std::string("Unknown command ") +
-                               convert<std::string>(parameters[0]) +
-                               " for list variable.");
+      throw std::runtime_error(std::string("Invalid number of parameters to "
+                                           "list operator clear"));
     }
+
+    // $list append *args
+  } else if (op == "append") {
+    return _append(interp, parameters);
+
+    // $list prepend *args
+  } else if (op == "prepend") {
+    return _prepend(interp, parameters);
+
+    // $list extend *args
+  } else if (op == "extend") {
+    return _extend(interp, parameters);
+
+    // $list index index ¿=? ¿value?
+  } else if (op == "index") {
+    return _index(interp, parameters);
+
+    // $list remove index ¿end?
+  } else if (op == "remove") {
+    return _remove(interp, parameters);
+
+    // $list foreach item body
+  } else if (op == "foreach") {
+    return _foreach(interp, parameters);
+
+    // $list sort ¿less?
+  } else if (op == "sort") {
+    return _sort(interp, parameters);
+
+    // $list unique
+  } else if (op == "unique") {
+    if (parameters.size() == 1) {
+      std::sort(begin(), end(), _d_less);
+      auto it = std::unique(begin(), end(), _d_equal);
+      resize(std::distance(begin(), it));
+      return nullptr;
+    } else {
+      throw std::runtime_error(std::string("Invalid number of parameters to "
+                                           "list operator unique"));
+    }
+
+    // $list == $other
+  } else if (op == "==" or op == "=") {
+    return _equal(interp, parameters);
+
+    // $list <> $other
+  } else if (op == "<>" or op == "!=") {
+    return _nequal(interp, parameters);
+
   }
-  return result;
+
+  throw std::runtime_error(std::string("Unknown operator ") +
+                           op + " for list variable.");
 }
 
 /**************************************
@@ -210,13 +289,37 @@ cutlet::variable::pointer cutlet::list::_index(interpreter &interp,
                                                const list &parameters) {
   (void)interp;
 
+  if (parameters.size() < 2 or parameters.size() > 4) {
+    throw std::runtime_error("Invalid number of parameters to "
+                             "list operator index");
+  }
   int index = convert<int>(parameters[1]);
 
+  if (index == 0) {
+    // Indexing starts at one so an index of zero is always invalid.
+    throw std::runtime_error("List index out of range " +
+                             convert<std::string>(parameters[1]));
+  } else if (index < 0) {
+    // Negative indexes start from the back and index towards the front.
+    index = size() + index;
+  } else {
+    index--;
+  }
+
+  if (abs(index) >= size()) {
+    // XXX Should specify the size of the list in error message.
+    throw std::runtime_error("List index out of range " +
+                             convert<std::string>(parameters[1]));
+  }
+
   if (parameters.size() == 3) {
+    // $list index value
     at(index) = parameters[2];
+
   } else if (parameters.size() == 4) {
-    if (convert<std::string>(parameters[2]) == "=")
-      throw std::runtime_error(std::string("Unexpected character ") +
+    // $list index = value
+    if (convert<std::string>(parameters[2]) != "=")
+      throw std::runtime_error("Unexpected character " +
                                convert<std::string>(parameters[2]) +
                                ", expected =");
     at(index) = parameters[3];
@@ -251,13 +354,88 @@ cutlet::variable::pointer cutlet::list::_remove(interpreter &interp,
 
 cutlet::variable::pointer cutlet::list::_foreach(interpreter &interp,
                                                  const list &parameters) {
+  if (parameters.size() != 3) {
+    throw std::runtime_error("Invalid number of parameters to "
+                             "list operator foreach");
+  }
+
   // $list foreach item block
   std::string item_name = convert<std::string>(parameters[1]);
+  cutlet::ast::node::pointer ast;
+
   for (auto &item: *this) {
+    // Setup the frame.
     interp.push(new cutlet::block_frame(interp.frame(0)));
     interp.local(item_name, item);
-    interp.compile(parameters[2]);
+
+    // On the fly compiling and execution.
+    if (ast.is_null())
+      ast = interp.compile(parameters[2]);
+    else
+      (*ast)(interp);
+
+    // Clean up.
     interp.pop();
   }
+
+  // We never return anything.
   return nullptr;
+}
+
+/************************
+ * cutlet::list::_equal *
+ ************************/
+
+cutlet::variable::pointer cutlet::list::_equal(interpreter &interp,
+                                               const list &parameters) {
+  (void)interp;
+
+  if (parameters.size() == 2) {
+    cutlet::list &other = cast<cutlet::list>(parameters[1]);
+
+    return (std::equal(begin(), end(), other.begin(), _d_equal)
+            ? new cutlet::boolean(true) : new cutlet::boolean(false));
+  }
+
+  throw std::runtime_error(std::string("Invalid number of parameters to "
+                                       "list operator =="));
+}
+
+/************************
+ * cutlet::list::_nequal *
+ ************************/
+
+cutlet::variable::pointer cutlet::list::_nequal(interpreter &interp,
+                                                const list &parameters) {
+  (void)interp;
+
+  if (parameters.size() == 2) {
+    cutlet::list &other = cast<cutlet::list>(parameters[1]);
+
+    return (std::equal(begin(), end(), other.begin(), _d_equal)
+            ? new cutlet::boolean(false) : new cutlet::boolean(true));
+  }
+
+  throw std::runtime_error(std::string("Invalid number of parameters to "
+                                       "list operator <>"));
+}
+
+/************************
+ * cutlet::list::_sort *
+ ************************/
+
+cutlet::variable::pointer cutlet::list::_sort(interpreter &interp,
+                                              const list &parameters) {
+  if (parameters.size() == 1) {
+    std::sort(begin(), end(), _d_less);
+    return nullptr;
+
+  } else if (parameters.size() == 2) {
+    _c_less comp_less(interp, parameters[1]);
+    std::sort(begin(), end(), comp_less);
+    return nullptr;
+  }
+
+  throw std::runtime_error(std::string("Invalid number of parameters to "
+                                       "list sort ¿less?"));
 }
