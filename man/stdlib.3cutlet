@@ -2,31 +2,88 @@
 .SH NAME
 cutlet standard library
 .SH SYNOPSIS
+.SS Boolean values
 .nf
-# Boolean values
-.B def false
-.B def true
+def false
+def true
 .PP
-# Arbitrary execution
-.B def eval *args
-.B def expr *args
+.SS Arbitrary execution
+.nf
+def eval *args
+def expr *args
 .PP
-# Execution flow control.
-.B def if ¿then? body ¿elif condition ¿then? body ...? ¿else body?
-.B def while condition ¿do? body
-.B def break
-.B def continue
+.SS Execution flow control
+.nf
+def if condition ¿then? body ¿elif condition ¿then? body ...? ¿else body?
+def while condition ¿do? body
+def break
+def continue
 .PP
-# Error management.
-.B def raise *args
-.B def try body ¿catch varname body?
+.SS Error management
+.nf
+def raise *args
+def try body ¿catch varname body?
 .SH DESCRIPTION
-The standard library is a set of routines that would be found in most languages
-to make cutlet more of a generic programming language.
+The standard library is a set of routines that makes cutlet more of a generic programming language. To use the library, simply import it as follows:
+.nf
+
+import stdlib
+
 .SS Boolean Values
 Both of the string values
 .BI true
 and
 .BI false
 are considered boolean values. The
-.SS Arbitrary execution
+.SS Arbitrary Execution
+.IP "def eval *args"
+\fBEval\fR takes all of its arguments and interprets them as a script.
+.IP "def expr *args"
+\fBExpr\fR takes all of its arguments and interprets them as a script returning
+any results resulting from the script. It's similar to a sub-command with the
+square brackets [].
+.SS Execution Flow Control
+.IP "def if condition ¿then? body ¿elif condition ¿then? body ...? ¿else body?"
+
+.IP "def while condition ¿do? body"
+Repeatedly execute \fIbody\fR until \fIcondition\fR evaluates as true.
+.nf
+
+Examples:
+
+while {$done != 1} {
+  ...
+}
+
+while {$count < 10} do {
+  ...
+}
+.IP "def break"
+End the execution of the current block and the current looping function as
+well. This is typically used to modify the execution of looping function like
+\fIwhile\fR and the \fIlist\fR type \fIforeach\fR operator.
+.nf
+
+Examples:
+
+while {$done != 1} {
+  # Break from the block here.
+  break
+  # Nothing beyond this point will get executed.
+}
+
+$list foreach item {
+  # Break from the block here.
+  break
+  # Nothing beyond this point will get executed.
+}
+.IP "def continue"
+End the execution of the current block and continue with next iteration.
+.nf
+
+Example:
+
+while {$count < 10} do {
+  # Break from the block here, but continue with the next loop.
+  continue
+}

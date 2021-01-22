@@ -1,4 +1,4 @@
-.TH meat 1 "14 January 2018" "version 0.9.2"
+.TH cutlet 1 "14 January 2018" "Cutlet" "Version 0.9.3"
 .SH NAME
 cutlet - a small utility language
 .SH SYNOPSIS
@@ -10,7 +10,11 @@ cutlet - a small utility language
 .B cutlet
 [-h|-V]
 .SH DESCRIPTION
-Inspired by Tcl, Cutlet is designed to be a small and simple utility language to be used by other programs and projects. Where Tcl started as a basic Tool Command Language and has, over the years, become a general programming language. Cutlet is designed to be that original utility language and only as a utility language.
+Inspired by Tcl, Cutlet is designed to be a small and simple utility language to
+be used by other programs and projects. Where Tcl started as a basic Tool
+Command Language and has, over the years, become a general programming
+language. Cutlet is designed to be that original utility language and only as a
+utility language.
 .SH OPTIONS
 .IP "-i path"
 Adds a directory to the library search path.
@@ -19,109 +23,307 @@ Displays the version of Cutlet and exits.
 .IP "-h"
 Displays a help screen and exits.
 .SH SYNTAX
-1. One line one command.
+The syntax, or grammer, for Cutlet is based on a few very simple rules that
+allow for a great amount of flexablity in the language.
+.SS One line one command.
+.EX
+This is command one
+This is command two
+.EE
+.PP
+.SS Each part of the command is separated by spaces.
+.EX
+This command has 5 words
+command arg1 arg2 arg3
+.EE
+.PP
+.SS A name starting with the `$` character gets replaced with a variable's value.
+.EX
+global customer_name = "John Smith"
+print Hello $customer_name
+  -> Hello John Smith
 
-   This is command one
-   This is command two
+local counter = 10
+print We have $counter items.
+  -> We have 10 items
+.EE
+.PP
+.SS Square brackets, `[]`, gets replaced with the return value from the command in them.
+.EX
+local mylist = [list value1 value2 value3]
+print [$mylist join .]
+  -> value1.value2.value3
+.EE
+.PP
+.SS Strings are denoted with the quoting characters "" and ''. Variable and command substitution can be preformed in strings.
+.EX
+print "Hello $client, your order [get_order $client] is ready\\n"
+print 'Hello $client, your order [get_order $client] is ready\\n'
+.EE
+.in
+.PP
+Strings have the following character substitutions. These substitutions use the
+ASCII/UTF-8 standard characters and not any platform dependant encodings. If you
+are using a system with its own encoding then you'll have to use the \\x##
+escape sequence to implement the special characters.
+.PP
+.EX
+\\$   - Replaced with the '$' character.
+\\"   - Replaced with the '"' character.
+\\'   - Replaced with the ''' character.
+\\[   - Replaced with the '[' character.
+\\]   - Replaced with the ']' character.
+\\\\   - Replaced with the '\\' character.
+\\a   - Bell/Alarm character "\\x07".
+\\b   - Backspace character "\\x08".
+\\e   - Escape character "\\x1b".
+\\f   - Formfeed character "\\x0c".
+\\n   - Newline character "\\x0a".
+\\r   - Carrage return character "\\x0d".
+\\t   - Horizontal tab character "\\x09".
+\\v   - Vertical tab character "\\x0b".
+\\x## - The '#' characters are hexidecimal numbers for the byte encoded
+character to be replaced in the string. For example a space would be "\\x20".
+.EE
+.PP
+.SS Blocks are denoted with curly brackets, {}. They can be used as literal strings and the only part of the language that can span multiple lines.
+.PP
+.EX
+print {Hello World}
 
-2. Each part of the command is separated by spaces.
-
-   This command has 5 words
-   command arg1 arg2 arg3
-
-3. A name starting with the `$` character gets replaced with a variable's value.
-
-   global customer_name = "John Smith"
-   print $customer_name
-
-   local counter = 10
-   print We have $counter items.
-
-4. Square brackets, `[]`, gets replaced with the return value from the command in them.
-
-   local mylist = [list value1 value2 value3]
-   print [$mylist join .]
-     -> value1.value2.value3
-
-5. Strings are denoted with the quoting characters "" and ''. Variable and command substitution can be preformed in strings.
-
-   print "Hello $client, your order [get_order $client] is ready\\n"
-   print 'Hello $client, your order [get_order $client] is ready\\n'
-
-   Strings have the following character substitutions. These substitutions use the ASCII/UTF-8 standard characters and not any platform dependant encodings. If you are using a system with its own encoding then you'll have to use the \\x## escape sequence to implement the special characters.
-
-   \\$   - Replaced with the '$' character.
-   \\"   - Replaced with the '"' character.
-   \\'   - Replaced with the ''' character.
-   \\[   - Replaced with the '[' character.
-   \\]   - Replaced with the ']' character.
-   \\\\   - Replaced with the '\\' character.
-   \\a   - Bell/Alarm character "\\x07".
-   \\b   - Backspace character "\\x08".
-   \\e   - Escape character "\\x1b".
-   \\f   - Formfeed character "\\x0c".
-   \\n   - Newline character "\\x0a".
-   \\r   - Carrage return character "\\x0d".
-   \\t   - Horizontal tab character "\\x09".
-   \\v   - Vertical tab character "\\x0b".
-   \\x## - The '#' characters are hexidecimal numbers for the byte encoded character to be replaced in the string. For example a space would be "\\x20".
-
-6. Blocks are denoted with curly brackets, {}. They can be used as literal strings and the only part of the language that can span multiple lines.
-
-   print {Hello World}
-
-   def my_command {
-     command one
-     command two
-   }
-
-7. Lines starting with the '#' character are comment lines and are ignored by Cutlet.
-
-   # This is a comment.
-   print Hello # This is not a comment
-
+def my_command {
+  command one
+  command two
+}
+.EE
+.PP
+.SS Lines starting with the '#' character are comment lines and are ignored by Cutlet.
+.EX
+# This is a comment.
+print Hello # This is not a comment
+.EE
+.PP
 .SH BUILTIN COMMANDS
+.IP "def import *args"
+Imports the all the libraries listed in \fI*args\fR into the current
+interpreter. The libraries should only be the name of the library, without any
+file extention. The library will be searched for in the paths found in the list
+variable \fI$library.path\fR. The library can be a cultet script or a native
+compiled shared library.
+.IP
+.EX
+import stdlib
+import oo
+
+import stdlib oo
+.EE
+.IP "def include *args"
+This loads all the filenames listed in \fI*args\fR as a cultet script and
+executes it within the current interpreter. Unlike \fBimport\fR, each filename
+needs to be an absolute or relative filename to the script. No searches are
+made.
+.IP
+.EX
+include /etc/myprog/global.cfg
+include /home/user/.app.cfg
+
+include /etc/myprog/global.cfg /home/user/.app.cfg
+.EE
 .IP "def def name ¿parameters? body"
-Defines a new function in the global environment.
+Defines a new function component in the global environment.
+.IP
+.EX
+# A function without parameters.
+def get_number {
+  return 10
+}
 
-  # A function without parameters.
-  def get_number {
-    return 10
+# A function with parameters.
+def max {value1 value2} {
+  if {$value1 > $value2} then {
+    return $value1
   }
+  return $value2
+}
 
-  # A function with parameters.
-  def max {value1 value2} {
-    if {$value1 > $value2} then {
-      return $value1
-    }
-    return $value2
-  }
+# Parameter with a default value.
+def hello {{to_who "me"}} {
+  print "Hello $to_who"
+}
 
-  # Parameter with a default value.
-  def hello {{to_who "me"}} {
-    print "Hello $to_who"
-  }
+# Variadic parameters.
+def to_everybody {*args} {
+  print "Hello to [$args join { and }]"
+}
+.EE
+.IP "return ¿*args?"
+This finishes the current stack frame and optionally sets a return value. It’s
+typically used to return from a function or from the program itself if in the
+top stack frame.
+.IP
+.EX
+def concat {val1 val2} { return "$val1 $val2" }
 
-  # Variadic parameters to a function.
-  def to_everybody {*args} {
-    print "Hello to [$args join]"
-  }
-.IP "return ¿value?"
-This finishes the current stack frame and optionally sets a return value. It’s typically used to return from a function or from the program itself if in the top stack frame.
-
-  def concat {val1 val2} {
-    return "$val1 $val2"
-  }
-
-  # Return from the program with all is fine.
-  return 0
+# Return from the interpreter is fine.  return 0
+.EE
+.PP
 .IP "def global name ¿=? ¿value?"
+Create, assign or remove a variable from the current global sandbox. When value
+is given the variable is created, if needed, and assigned the value. When it's
+not given the variable is completely removed from the sandbox. The '=' sign is
+optional and to improve clarity only.
+.IP "def local name ¿=? ¿value?"
+Create, assign or remove a variable from the current execution frame. When value
+is given the variable is created, if needed, and assigned the value. When it's
+not given the variable is completely removed from the frame. The '=' sign is
+optional and to improve clarity only.
+.IP "def block ¿levels? body"
+Creates and evaluates an execution block frame. All block frames must have an
+execution frame which it has full access to, it actually extends the frame. If
+\fIlevels\fR is not given then the current execution frame is used. Otherwise,
+it uses the frame the number of levels up the execution stack. This is how
+confiditional execution function, like if or while, and iterators, like foreach,
+are created.
+.IP
+.EX
+def on {condition body} {
+  if {$condition} then {
+    block 3 $body
+  }
+}
+
+on {$score == 10} cheer
+.EE
+.IP "def print *args"
+Display all its arguments to standard out.
+.IP "def list *args"
+Creates a new list variable initially populating it with \fI*args\fR.
+.IP
+.EX
+global names = [list John Fred Sam]
+print [$names size] $names
+  -> 3 John Fred Sam
+.EE
+.IP "def sandbox"
+Creates a new sandbox. All global variables and components are always found in a
+sandbox. When a new interpreter is created it has its own default sandbox. By
+creating a new sandbox the interpreter's environment can be temporarily replaced
+with a modified one for a specific purpose.
+.IP
+A good example for this is when Cutlet is used for configurations files. The
+default environment can be used to build a list of all the configuration files
+for an application then each file evaluated within another sanbox only
+supporting the configuation syntax. This way configuration files can't be used
+to access parts of the application it's not supposed to.
+.IP
+.EX
+global clean = [mysb]
+$clean eval {
+  # Execute script in clean bare bone interpreter.
+  include mysript.cutlet
+}
+.EE
+.SH BUILTIN TYPES
+.IP string
+.IP list
+.PP
+.in +4n
+$list append *args
+.in
+.IP
+Adds all the \fI*args\fR individually to the end of the list.
+.IP
+.EX
+global nums = [list 1 2 3]
+$nums append 4 5 6
+print $nums
+  -> 1 2 3 4 5 6
+.EE
+.PP
+.in +4n
+$list clear
+.in
+.IP
+Removes all the items from the list leaving an empty list.
+.PP
+.in +4n
+$list foreach item body
+.in
+.IP
+Evaluates \fIbody\fR for each item in the list. The item is places in a local
+variable of \fIbody\fR with the name specified by \fIitem\fR.
+.IP
+.EX
+local result ""
+$names foreach name {
+  local result "result\\n${name}"
+}
+.EE
+.PP
+.in +4n
+$list index index ¿=? ¿value?
+.in
+.PP
+.in +4n
+$list join ¿delimiter?
+.in
+.IP
+Takes the contents of the list and joins them into a single string using
+\fIdelimiter\fR as a seperator between each entry. If the \fIdelimiter\fR is not
+given then a single empty space is used.
+.PP
+.in +4n
+$list size
+.in
+.IP
+Returns the number of entries within the list.
+.IP
+.EX
+global nums = [list 1 2 3]
+print [$nums size]
+  -> 3
+.EE
+.in +4n
+$list sort ¿less?
+.in
+.PP
+.IP sandbox
+A sandbox contains the global environment for a Cutlet interpreter. A sandbox
+contains all the global variables and components. Typically a component is just
+a function but are flexable enough to represent other objects like object
+oriented programming classes.
+.PP
+.in +4n
+$sandbox eval body
+.in
+.IP
+The current sandbox, global environment, is saved then replaced by the given
+sandbox. Once this is done the \fIbody\fR is evaluated. Afterwards the original
+sandbox is restored.
+
+If an error is thrown during the evaluation of the \fIbody\fR the execution
+stack is cleaned up, the original sandbox is restored then the exception is
+rethrown so it can be caught from the calling context.
+.PP
+.in +4n
+$sandbox link component ¿as? ¿name?
+.in
+.PP
+.in +4n
+$sandbox unlink component
+.in
+.PP
+.in +4n
+$sandbox global ¿=? ¿value?
+.in
 .SH ENVIRONMENT
 .IP CUTLETPATH
-If set, is a colon delimited list of directories added to the library search path.
+If set, is a colon delimited list of directories added to the library search
+path.
 .SH COPYRIGHT
 Copyright (c) 2019 Ron R Wills <ron@digitalcombine.ca>
 
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
 
-This is free software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law."
+This is free software: you are free to change and redistribute it. There is NO
+WARRANTY, to the extent permitted by law."
