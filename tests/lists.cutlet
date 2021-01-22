@@ -1,0 +1,199 @@
+# Test the List Type
+
+# Remove the system library directory path
+$library.path remove 0
+
+import stdlib
+
+global result = 0
+
+#=============================================================================#
+# Test equality operators
+
+print "Test: Equality Operators"
+
+global list = [list Fred John Sam Smith]
+global list1 = [list Fred John Sam Smith]
+global list2 = [list John Smith Sam Fred]
+
+if {$list <> $list1} then {
+  print "$list <> $list1"
+  global result = 1
+}
+
+if {$list == $list2} then {
+  print "$list == $list2"
+  global result = 1
+}
+
+#=============================================================================#
+# Test clear
+
+print "Test: Clear"
+
+global clist = [list John Smith Sam Fred]
+$clist clear
+if {[$clist size] <> 0} then {
+  print "List not empty, [$clist size] entries found"
+  global result = 1
+}
+
+try {
+  $clist clear to many args
+
+  print "Operator clear accept to many arguments"
+  global result = 1
+} catch err {
+}
+
+# Clean up from the previous tests
+global clist
+
+#=============================================================================#
+# Test foreach
+
+print "Test: Foreach"
+
+global names ""
+$list foreach name {
+  global names "$names $name"
+}
+if {$names <> " Fred John Sam Smith"} then {
+  print "Foreach failed $names <> \" Fred John Sam Smith\""
+  global result = 1
+}
+
+#=============================================================================#
+# Test index
+
+print "Test: Index"
+
+global ilist = [list John Smith Sam Fred]
+
+if {[$ilist index 1] <> "John"} then {
+  print "List index 1 [$ilist index 1] <> John"
+  global result = 1
+}
+
+if {[$ilist index 3] <> "Sam"} then {
+  print "List index 3 [$ilist index 3] <> Sam"
+  global result = 1
+}
+
+if {[$ilist index -1] <> "Fred"} then {
+  print "List index -1 [$ilist index -1] <> Fred"
+  global result = 1
+}
+
+if {[$ilist index -2] <> "Sam"} then {
+  print "List index -2 [$ilist index -2] <> Sam"
+  global result = 1
+}
+
+# Setting an index value
+$ilist index 2 = "Betty"
+if {[$ilist index 2] <> "Betty"} then {
+  print "List setting index 2 \"[$ilist index 2]\" <> Betty"
+  global result = 1
+}
+
+# Out of range indices.
+[list 5 -5 0 -10 12] foreach idx {
+  try {
+    $ilist index $idx
+
+    print "Out of range index of $idx didn't raise an error"
+    global result = 1
+    break
+  } catch err {
+    print $err
+  }
+}
+
+# Clean up from the previous tests
+global ilist
+
+#=============================================================================#
+# Test join
+
+print "Test: Join"
+
+global who = "Hello [$list join { and }]"
+if {$who <> "Hello Fred and John and Sam and Smith"} then {
+  print "$who <> Hello Fred and John and Sam and Smith"
+  global result = 1
+}
+
+# Clean up from the previous tests
+global who
+
+#=============================================================================#
+# Test size
+
+print "Test: Size"
+
+if {[$list size] <> 4} then {
+  print "[$list size] <> 4"
+  global result = 1
+}
+
+try {
+  $clist size to many args
+
+  print "Operator size accept to many arguments"
+  global result = 1
+} catch err {
+}
+
+#=============================================================================#
+# Test sorting
+
+print "Test: Sorting"
+
+# Default sorting.
+$list2 sort
+if {$list <> $list2} then {
+  print "$list <> $list2"
+  global result = 1
+}
+
+def rless {v1 v2} {
+  return [$v2 < $v1]
+}
+
+# Reverse sorting using our own comparison function.
+$list2 sort rless
+if {$list2 <> [list Smith Sam John Fred]} then {
+  print "$list2 <> Smith Sam John Fred"
+  global result = 1
+}
+
+#=============================================================================#
+# Test type
+
+print "Test: Type"
+
+if {[$list type] <> "list"} then {
+  print "[$list type] <> list"
+  global result = 1
+}
+
+#=============================================================================#
+# Test unique
+
+print "Test: Unique"
+
+global list2 = [list John Sam John Smith Sam Fred Fred]
+
+$list2 unique
+if {$list <> $list2} then {
+  print "$list <> $list2"
+  global result = 1
+}
+
+# Clean up from the previous tests
+global list1
+global list2
+global list3
+
+return $result

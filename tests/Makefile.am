@@ -1,13 +1,14 @@
 #                                                           -*- Makefile.am -*-
 
-TESTS = memory-tests core.cutlet hello.cutlet strings.cutlet stdlib.cutlet \
-  unknown.cutlet bad_method.cutlet sandbox.cutlet oo.cutlet debugger-tests
+TESTS = memory-tests core.cutlet hello.cutlet strings.cutlet lists.cutlet \
+	stdlib.cutlet unknown.cutlet bad_method.cutlet sandbox.cutlet oo.cutlet \
+	debugger-tests
 XFAIL_TESTS = bad_method.cutlet
 TEST_EXTENSIONS = .cutlet
 CUTLET_LOG_COMPILER = ../bin/cutlet
 AM_CUTLET_LOG_FLAGS = -i ../libs/.libs/
 
-EXTRA_DIST = $(TESTS)
+EXTRA_DIST = $(TESTS) include.cutlet
 
 check_PROGRAMS = memory-tests debugger-tests
 

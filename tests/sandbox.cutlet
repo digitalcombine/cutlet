@@ -10,7 +10,10 @@ global result = 0
 #=============================================================================#
 # Test 1: Attempt to call a core function in an empty sandbox.
 
+print "Test 1: Call function in empty sandbox"
+
 global sandbox1 [sandbox]
+
 try {
   $sandbox1 eval {
     print "Is there anybody out there?"
@@ -26,7 +29,11 @@ try {
 #=============================================================================#
 # Test 2: We link the print function into the new sandbox and attempt to call
 #         it.
+
+print "Test 2: Link function in sandbox"
+
 $sandbox1 link print
+
 try {
   $sandbox1 eval {
     print "Is there anybody out there?"
@@ -34,15 +41,19 @@ try {
   print "Yes, we can hear you."
 
 } catch err {
+  # We shouldn't get here.
   print $err
-  return 1
+  global result = 1
 }
 
 #=============================================================================#
-# Test 3: Attempt to access ourselves to bypass the sandbox
-$sandbox1 link print
+# Test 3: Attempt to access ourselves to bypass the sandbox.
+
+print "Test 3: Attempt to access sandbox within sandbox"
+
 try {
   $sandbox1 eval {
+    # We shouldn't be able to access ourself this way.
     $sandbox1 link print
   }
   global result = 1
@@ -52,16 +63,33 @@ try {
 
 #=============================================================================#
 # Test 4: Importing libraries.
+
+print "Test 4: Import library into sandbox"
+
 $sandbox1 global library.path = $library.path
 $sandbox1 link import
 
 try {
   $sandbox1 eval {
-    import stdlib
+    import oo
+
+    class test_class { }
   }
+
+  # The library oo should only have been imported into the sandbox.
+  try {
+    class test_class { }
+
+    global result = 1
+  } catch err {
+  }
+
 } catch err {
   global result = 1
 }
+
+#=============================================================================#
+# Test 5:
 
 if {$result == 0} then {
   print "All of our sanbox tests passed!"

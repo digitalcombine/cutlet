@@ -6,7 +6,32 @@
 global result = 0
 
 #=============================================================================#
+# Testing the inclusion of another script
+
+print "Test: include"
+
+include include.cutlet
+print $include_var
+global include_var
+
+#=============================================================================#
+# Testing removal of global variable
+
+print "Test: removal of global variables"
+
+global myvar = "whatever"
+print "Setting \$myvar = $myvar"
+
+global myvar =
+#try {
+#  print "\$myvar = $myvar"
+#  global result = 1
+#}
+
+#=============================================================================#
 # Test 1: Test a frame within a frame.
+
+print "Test: Frames within a frame"
 
 def hello {from *args} {
   $args foreach person {

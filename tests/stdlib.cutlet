@@ -8,6 +8,8 @@ import stdlib
 #=============================================================================#
 # Testing try catch throw
 
+print "Test: try catch throw"
+
 try {
   raise "I threw an error"
   return 1
@@ -20,20 +22,26 @@ try {
   }
 }
 
-#=============================================================================#
-# Testing removal of global variable
-
-global myvar = "whatever"
-print "\$myvar = $myvar"
-
-global myvar =
 try {
-  print "\$myvar = $myvar"
+  local myvar = 10
+  try {
+    if {$myvar != 10} then {
+      print "$myvar != 10"
+      return 1
+    }
+  } catch err {
+    print "Try in blocks failed, $err"
+    return 1
+  }
+} catch err {
+  print $err
   return 1
 }
 
 #=============================================================================#
 # Testing while loops
+
+print "Test: while"
 
 global result = ""
 while {$result <> "+++++"} do {

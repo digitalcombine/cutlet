@@ -2,4 +2,6 @@
 
 import shell
 
-ls
+eval ls -1 > filelist.txt
+eval ls -1 | wc -l >> filelist.txt
+eval sort < filelist.txt

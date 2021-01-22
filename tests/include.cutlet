@@ -1,0 +1,7 @@
+# Test the Core Language Features
+#
+#  This script is used by core.cutlet to test include function
+
+print "This the script include.cutlet"
+
+global include_var = "I got included"
