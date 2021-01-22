@@ -1,5 +1,5 @@
 /*                                                                  -*- c++ -*-
- * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
+ * Copyright © 2018-2020 Ron R Wills <ron@digitalcombine.ca>
  *
  * This file is part of Cutlet.
  *
@@ -17,7 +17,12 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cutlet.h>
+/* Automake automatically adds "-I." to the compiling so we have to include
+ * cutlet this way or the generated cutlet from automake gets included instead.
+ * This should be fine since this source shouldn't be distributed beyond the
+ * build.
+ */
+#include "../include/cutlet"
 #include <iostream>
 #include <fstream>
 #include <getopt.h>
@@ -56,6 +61,10 @@ static void version () {
  * add_path *
  ************/
 
+/** Adds a file path to the search paths list for libraries.
+ * @param interp The cutlet interpreter.
+ * @param path The path to add to the search list.
+ */
 static void add_path(cutlet::interpreter &interp, const std::string &path) {
   cutlet::variable::pointer lib_path = interp.var("library.path");
   cutlet::cast<cutlet::list>(lib_path).push_back(new cutlet::string(path));
