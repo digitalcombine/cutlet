@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <regex>
 #include <iostream>
+#include <sstream>
 
 #define DEBUG_SHELL 1
 

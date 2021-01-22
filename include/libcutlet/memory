@@ -212,7 +212,7 @@ namespace memory {
         if (_weak_ref) {
           (*_object).dec_weak_ref();
           if ((*_object).__ref_cnt() == 0 and (*_object).__wref_cnt() == 0) {
-            delete _object;
+            delete _object.load();
             _object.store(nullptr, std::memory_order_relaxed);
           }
         } else {
@@ -221,7 +221,7 @@ namespace memory {
             if ((*_object).__wref_cnt()) {
               (*_object).free();
             } else {
-              delete _object;
+              delete _object.load();
               _object.store(nullptr, std::memory_order_relaxed);
             }
           }
@@ -381,7 +381,7 @@ namespace memory {
         if (_weak_ref) {
           (*_object).dec_weak_ref();
           if ((*_object).__ref_cnt() == 0 and (*_object).__wref_cnt() == 0) {
-            delete _object;
+            delete _object.load();
             _object.store(nullptr, std::memory_order_relaxed);
           }
         } else {
@@ -390,7 +390,7 @@ namespace memory {
             if ((*_object).__wref_cnt())
               (*_object).free();
             else {
-              delete _object;
+              delete _object.load();
               _object.store(nullptr, std::memory_order_relaxed);
             }
           }

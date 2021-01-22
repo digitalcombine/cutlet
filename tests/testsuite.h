@@ -22,7 +22,7 @@
 #include <list>
 #include <string>
 
-#if defined(__FreeBSD__) && defined(assert)
+#if defined(__llvm__) && defined(assert)
 inline void (assert)(bool e) { assert(e); }
 #undef assert
 #endif
