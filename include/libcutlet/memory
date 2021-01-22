@@ -16,12 +16,13 @@
  * You should have received a copy of the GNU General Public License
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  *
- * This does require C++ 11 to compile.
+ * C++ 11 is required to compile this module.
  */
 
 #include <ctime>
 #include <map>
 #include <new>
+#include <atomic>
 
 #ifndef _CUTLET_MEMORY_H
 #define _CUTLET_MEMORY_H
@@ -175,49 +176,53 @@ namespace memory {
       operator Ty &() { return (Ty &)*nobj; }
 
       /** Cast this as a pointer to the object being wrapped. */
-      operator Ty*() { return (Ty *)nobj; }
+      operator Ty *() { return (Ty *)nobj; }
 
     private:
-      unsigned int refs;  // The number of references.
-      unsigned int wrefs; // The number of weak references.
+      std::atomic<unsigned int> refs;  // The number of references.
+      std::atomic<unsigned int> wrefs; // The number of weak references.
       Ty *nobj;           // The actual object.
     };
 
   public:
     /** Create a null reference pointer.
      */
-    reference() : weak_ref(false), obj(nullptr) {
+    reference() : _weak_ref(false), _object(nullptr) {
     }
 
     /** Create a new reference to a newly allocated object.
      */
-    reference(Ty *obj) : weak_ref(false), obj(nullptr) {
-      if (obj != nullptr) this->obj = new __reference(obj, 1);
+    reference(Ty *obj) : _weak_ref(false), _object(nullptr) {
+      if (obj != nullptr)
+        _object.store(new __reference(obj, 1),
+                      std::memory_order_relaxed);
     }
 
     /** Default copy constructor.
      */
-    reference(const reference<Ty> &obj)
-      : weak_ref(obj.weak_ref), obj(obj.obj) {
+    reference(const reference<Ty> &obj) : _weak_ref(obj._weak_ref) {
+      _object.store(obj._object, std::memory_order_relaxed);
       inc_reference();
     }
 
     /** Decreases the reference count and clean up the object if necessary.
      */
     ~reference() noexcept {
-      if (obj) {
-        if (weak_ref) {
-          obj->dec_weak_ref();
-          if (obj->__ref_cnt() == 0 and obj->__wref_cnt() == 0) {
-            delete obj; obj = nullptr;
+      if (_object) {
+        if (_weak_ref) {
+          (*_object).dec_weak_ref();
+          if ((*_object).__ref_cnt() == 0 and (*_object).__wref_cnt() == 0) {
+            delete _object;
+            _object.store(nullptr, std::memory_order_relaxed);
           }
         } else {
-          obj->dec_ref();
-          if (obj->__ref_cnt() == 0) {
-            if (obj->__wref_cnt()) {
-              obj->free();
+          (*_object).dec_ref();
+          if ((*_object).__ref_cnt() == 0) {
+            if ((*_object).__wref_cnt()) {
+              (*_object).free();
             } else {
-              delete obj; obj = nullptr;
+              delete _object;
+              _object.store(nullptr, std::memory_order_relaxed);
             }
           }
         }
@@ -228,18 +233,18 @@ namespace memory {
      * @return The number of references
      */
     unsigned int references() {
-      return (obj != nullptr ? obj->__ref_cnt() : 0);
+      return (_object != nullptr ? (*_object).__ref_cnt() : 0);
     }
 
     unsigned int weak_references() {
-      return (obj != nullptr ? obj->__wref_cnt() : 0);
+      return (_object != nullptr ? (*_object).__wref_cnt() : 0);
     }
 
     /** Test if we reference an object or just a NULL pointer.
      * @return If true if the reference in pointing to null.
      */
     bool is_null() const {
-      return ((obj == nullptr) or obj->is_null());
+      return ((_object == nullptr) or (*_object).is_null());
     }
 
     /** Creates a new weak reference.
@@ -247,8 +252,9 @@ namespace memory {
      */
     reference weak() {
       reference result;
-      result.obj = obj;
-      result.weak_ref = true;
+      result._object.store(_object.load(std::memory_order_relaxed),
+                       std::memory_order_relaxed);
+      result._weak_ref = true;
       result.inc_reference();
       return result;
     }
@@ -258,8 +264,9 @@ namespace memory {
      */
     reference normal() {
       reference result;
-      result.obj = obj;
-      result.weak_ref = false;
+      result._object.store(_object.load(std::memory_order_relaxed),
+                       std::memory_order_relaxed);
+      result._weak_ref = false;
       result.inc_reference();
       return result;
     }
@@ -268,7 +275,7 @@ namespace memory {
      * @return True if the reference is a weak reference otherwise false.
      */
     bool is_weak() {
-      return weak_ref;
+      return _weak_ref;
     }
 
     /** Decrement any current reference and create a new reference for the
@@ -308,9 +315,9 @@ namespace memory {
     reference<Ty> &operator=(Ty *obj) {
       dec_reference();
       if (obj) {
-        this->obj = new __reference(obj, 1);
+        _object.store(new __reference(obj, 1), std::memory_order_relaxed);
       } else
-        this->obj = nullptr;
+        _object = nullptr;
       return *this;
     }
 
@@ -319,8 +326,8 @@ namespace memory {
     reference<Ty> &operator=(const reference<Ty> &obj) {
       if (this != &obj) {
         dec_reference();
-        this->obj = obj.obj;
-        this->weak_ref = obj.weak_ref;
+        _object.store(obj._object);
+        _weak_ref = obj._weak_ref;
         inc_reference();
       }
       return *this;
@@ -329,20 +336,20 @@ namespace memory {
     /** Check if the reference is referencing the same object as @c other.
      */
     bool operator ==(const reference<Ty> &other) const {
-      return (obj == other.obj);
+      return (_object == other._object);
     }
 
     /** Check if the reference is referencing the same object as @c other.
      */
     bool operator ==(const Ty *other) const {
       if (other == nullptr) return is_null();
-      else return ((Ty *)(obj) == other);
+      else return ((Ty *)_object.load(std::memory_order_relaxed) == other);
     }
 
     /** Check if the reference is referencing a different object as @c other.
      */
     bool operator !=(const reference<Ty> &other) const {
-      return (this->obj != other.obj);
+      return (_object != other._object);
     }
 
     /** Manually increase the reference count.
@@ -357,32 +364,34 @@ namespace memory {
 
     /** Dereference the reference.
      */
-    Ty &operator *(void) { return (Ty &)(*obj); }
+    Ty &operator *(void) { return (Ty &)(*_object); }
 
     /** Constant dereference the reference.
      */
-    const Ty &operator *(void) const { return (Ty &)(*obj); }
-    Ty *operator ->() { return (Ty *)(*obj); }
-    const Ty *operator ->(void) const { return (Ty *)(*obj); }
-    operator Ty &(void) { return (Ty &)(*obj); }
-    operator const Ty &(void) const { return (Ty &)(*obj); }
+    const Ty &operator *(void) const { return (Ty &)(*_object); }
+    Ty *operator ->() { return (Ty *)(*_object); }
+    const Ty *operator ->(void) const { return (Ty *)(*_object); }
+    operator Ty &(void) { return (Ty &)(*_object); }
+    operator const Ty &(void) const { return (Ty &)(*_object); }
 
   private:
 
     void dec_reference() throw() {
-      if (obj) {
-        if (weak_ref) {
-          obj->dec_weak_ref();
-          if (obj->__ref_cnt() == 0 and obj->__wref_cnt() == 0) {
-            delete obj; obj = nullptr;
+      if (_object) {
+        if (_weak_ref) {
+          (*_object).dec_weak_ref();
+          if ((*_object).__ref_cnt() == 0 and (*_object).__wref_cnt() == 0) {
+            delete _object;
+            _object.store(nullptr, std::memory_order_relaxed);
           }
         } else {
-          obj->dec_ref();
-          if (obj->__ref_cnt() == 0) {
-            if (obj->__wref_cnt())
-              obj->free();
+          (*_object).dec_ref();
+          if ((*_object).__ref_cnt() == 0) {
+            if ((*_object).__wref_cnt())
+              (*_object).free();
             else {
-              delete obj; obj = nullptr;
+              delete _object;
+              _object.store(nullptr, std::memory_order_relaxed);
             }
           }
         }
@@ -390,16 +399,16 @@ namespace memory {
     }
 
     void inc_reference() {
-      if (obj) {
-        if (weak_ref)
-          obj->inc_weak_ref();
+      if (_object) {
+        if (_weak_ref)
+          (*_object).inc_weak_ref();
         else
-          obj->inc_ref();
+          (*_object).inc_ref();
       }
     }
 
-    bool weak_ref;
-    __reference *obj;
+    bool _weak_ref;
+    std::atomic<__reference *> _object;
 
   };
 }

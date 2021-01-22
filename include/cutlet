@@ -17,8 +17,8 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cutlet/memory.h>
-#include <cutlet/parser.h>
+#include <libcutlet/memory>
+#include <libcutlet/parser>
 
 #if defined (_WIN32) || defined (_WIN64)
 #  ifdef DLL_EXPORT
@@ -113,6 +113,7 @@ namespace cutlet {
   }
 
   /****************************************************************************
+   * Core API types.
    */
 
   class list;
@@ -176,7 +177,7 @@ namespace cutlet {
   template <> bool DECLSPEC convert<bool>(variable::pointer object);
 
   typedef void (*debug_function_t)(cutlet::interpreter &interp,
-                                   const ast::node &);
+                                   const ast::node &n);
 
   /** @ns */
   namespace ast {
@@ -201,6 +202,8 @@ namespace cutlet {
       virtual cutlet::variable::pointer
       operator()(cutlet::interpreter &interp) = 0;
 
+      /** Returns the ID type of the node.
+       */
       virtual unsigned int id() const = 0;
 
       /* Set or clear a break point on the node.
@@ -214,8 +217,8 @@ namespace cutlet {
 
       virtual const parser::token &token() const = 0;
 
-      //begin()
-      //end()
+      //virtual begin()
+      //virtual end()
 
     protected:
       node();
@@ -253,6 +256,7 @@ namespace cutlet {
   };
 
   /****************************************************************************
+   * API Data Types
    */
 
   class DECLSPEC string : public variable, public std::string {
@@ -271,8 +275,24 @@ namespace cutlet {
     friend class interpreter;
   };
 
-  /****************************************************************************
-   */
+  class DECLSPEC boolean : public variable {
+  public:
+    boolean();
+    boolean(const std::string &value);
+    boolean(bool value);
+    virtual ~boolean() noexcept;
+
+    virtual variable::pointer operator()(variable::pointer self,
+                                         interpreter &interp,
+                                         const list &parameters);
+
+    virtual operator std::string() const;
+
+    friend class interpreter;
+
+  private:
+    bool _value;
+  };
 
   class DECLSPEC list : public variable,
                         public std::deque<variable::pointer> {
@@ -301,6 +321,9 @@ namespace cutlet {
     variable::pointer _index(interpreter &interp, const list &parameters);
     variable::pointer _remove(interpreter &interp, const list &parameters);
     variable::pointer _foreach(interpreter &interp, const list &parameters);
+    variable::pointer _equal(interpreter &interp, const list &parameters);
+    variable::pointer _nequal(interpreter &interp, const list &parameters);
+    variable::pointer _sort(interpreter &interp, const list &parameters);
   };
 
   /****************************************************************************
@@ -348,7 +371,11 @@ namespace cutlet {
     typedef memory::reference<sandbox> pointer;
 
     sandbox();
+
+    /** Disable the default copy constructor. */
     sandbox(const sandbox &other) = delete;
+
+    /** Clean up the sandbox. */
     virtual ~sandbox() noexcept;
 
     void add(const std::string &name, function_t func,
@@ -396,9 +423,14 @@ namespace cutlet {
 
     typedef memory::reference<frame> pointer;
 
+    /** Create a new execution frame. */
     frame();
     frame(memory::reference<frame> uplevel, bool isblock = false);
+
+    /** Disable the default copy constructor. */
     frame(const frame &other) = delete;
+
+    /** Clean up the frame. */
     virtual ~frame() noexcept;
 
     /** Retrieve the value of a local variable. If the variable doesn't exist
@@ -406,11 +438,21 @@ namespace cutlet {
      * @param name The name of the local variable.
      */
     virtual cutlet::variable::pointer variable(const std::string &name) const;
+
+    /** Set the value of a local variable on the execute frame.
+     * @param name The name of the local variable.
+     * @param value The value to set the variable to.
+     */
     virtual void variable(const std::string &name, variable::pointer value);
 
-    /** Set the frame state to FS_DONE and
+    /** Set the frame state to FS_DONE and set the return result.
      */
     virtual void done(variable::pointer result);
+
+    /** Test if the execution of the frame is done.
+     * @return Return true if the state of the frame will end its current
+     *         execution.
+     */
     virtual bool done() const;
 
     /** Return the current execution state of the frame.
@@ -423,6 +465,10 @@ namespace cutlet {
      */
     virtual void state(state_t new_state);
 
+    /** Set a label for the execution frame. The label is displayed in
+     * execution stack dumps.
+     * @param value The value for the frame label.
+     */
     void label(const std::string &value);
 
     friend class component;
@@ -465,7 +511,7 @@ namespace cutlet {
     cutlet::frame::pointer _parent;
   };
 
-  /**
+  /** A Cutlet language interpreter.
    */
   class DECLSPEC interpreter : protected parser::grammer {
   public:
@@ -534,7 +580,8 @@ namespace cutlet {
     component::pointer get(const std::string &name) const;
 
     /** Compile and execute the code found in code. The abstract syntax tree
-     * is returned which can be executed again later or used for debugging.
+     * is returned which can be executed again later or used for debugging
+     * purposes.
      * @param code A reference pointer to a cutlet variable containing the
      *             code to be compiled.
      * @return A reference pointer to the compiled abstract syntax tree.
@@ -560,6 +607,7 @@ namespace cutlet {
     cutlet::frame::pointer frame(unsigned int levels = 0) const;
 
     /** Create a new execution frame and push it on to the top of the stack.
+     * @param label The label
      * @see cutlet::frame
      * @see frame
      * @see pop
