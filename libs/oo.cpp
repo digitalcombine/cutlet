@@ -19,7 +19,7 @@
  * An Object Oriented API for Cutlet.
  */
 
-#include <cutlet.h>
+#include <cutlet>
 #include <sstream>
 #include <set>
 

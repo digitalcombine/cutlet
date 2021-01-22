@@ -17,7 +17,7 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cutlet/memory.h>
+#include <libcutlet/memory>
 #include <iostream>
 #include "testsuite.h"
 

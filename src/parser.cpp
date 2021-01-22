@@ -17,7 +17,7 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cutlet/parser.h>
+#include <libcutlet/parser>
 #include <iostream>
 
 //#define DEBUG_PARSER 1

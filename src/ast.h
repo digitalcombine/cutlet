@@ -17,7 +17,7 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cutlet.h>
+#include <cutlet>
 
 #ifndef _CUTLET_AST_H
 #define _CUTLET_AST_H

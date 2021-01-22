@@ -17,19 +17,20 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cutlet.h>
+#include <cutlet>
 #include <iostream>
 #include <fstream>
+
 #include "builtin.h"
 #include "utilities.h"
 #include "ast.h"
 
-/** Wrapper for dynamic library loading.
+/** Wrapper for native dynamic library loading.
  */
 class native_lib {
 public:
 
-  /** Library loading
+  /** Load a native library.
    * @param filename The path to the library to be loaded.
    * @throws runtime_error
    */

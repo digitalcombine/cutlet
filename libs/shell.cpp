@@ -17,7 +17,7 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cutlet.h>
+#include <cutlet>
 #include <vector>
 #include <unistd.h>
 #include <cerrno>

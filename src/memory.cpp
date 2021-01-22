@@ -17,7 +17,7 @@
  * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <cutlet/memory.h>
+#include <libcutlet/memory>
 
 //#define DEBUG_MEM 1
 
