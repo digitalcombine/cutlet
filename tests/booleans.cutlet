@@ -1,0 +1,343 @@
+# Copyright © 2021 Ron R Wills <ron@digitalcombine.ca>
+#
+# This file is part of Cutlet.
+#
+# Cutlet is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Cutlet is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# Test the Boolean Type
+
+# Remove the system library directory path
+$library.path remove 0
+
+import stdlib
+
+global result = 0
+
+print "Testing Boolean Type\n"
+
+# Make some of the code simpler
+global True [true]
+global False [false]
+
+#=============================================================================#
+# Test type
+
+print "Test: Type"
+
+if {[$True type] != "boolean"} then {
+  print "true isn't type boolean, returned [$True type]"
+  global result = 1
+}
+
+if {[$False type] != "boolean"} then {
+  print "false isn't type boolean, returned [$False type]"
+  global result = 1
+}
+
+try {
+  $True type is a boolean
+  print "\[true type is a boolean\] is valid"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test equality
+
+print "Test: Equality"
+
+if {[true] == [true]} then {
+} else {
+  print " error: true == true failed"
+  global result = 1
+}
+
+if {[false] == [false]} then {
+} else {
+  print " error: false == false failed"
+  global result = 1
+}
+
+if {[true] == [false]} then {
+  print " error: true == false failed"
+  global result = 1
+}
+
+try {
+  [true] ==
+  print " error: \[true ==\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  [true] == true values
+  print " error: \[true == true values\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test inequality
+
+print "Test: Inequality"
+
+if {[true] <> [true]} then {
+  print " error: true <> true failed"
+  global result = 1
+}
+
+if {[false] <> [false]} then {
+  print " error: false <> false failed"
+  global result = 1
+}
+
+if {[true] <> [false]} then {
+} else {
+  print " error: true <> false failed"
+  global result = 1
+}
+
+try {
+  [true] <>
+  print " error: \[true <>\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  [true] <> true values
+  print " error: \[true <> true values\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test not
+
+print "Test: Not"
+
+if {[$True not] == $True} then {
+  print " error: \[\[true\] not\] == \[true\] failed"
+  global result = 1
+}
+
+if {[$False not] == $False} then {
+  print " error: \[\[false\] not\] == \[false\] failed"
+  global result = 1
+}
+
+try {
+  $True not is inverted
+  print " error: \[\[true\] not is inverted\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test logical and
+
+print "Test: Logical and"
+
+if {$True and $True} then {
+} else {
+  print " error: true and true failed"
+  global result = 1
+}
+
+if {$False and $False} then {
+  print " error: false and false failed"
+  global result = 1
+}
+
+if {$True and $False} then {
+  print " error: true and false failed"
+  global result = 1
+}
+
+try {
+  $True and
+  print " error: \[true and\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  $True and true values
+  print " error: \[true and true values\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test logical nand
+
+print "Test: Logical nand"
+
+if {$True nand $True} then {
+  print " error: true nand true failed"
+  global result = 1
+}
+
+if {$False nand $False} then {
+} else {
+  print " error: false nand false failed"
+  global result = 1
+}
+
+if {$True nand $False} then {
+} else {
+  print " error: true nand false failed"
+  global result = 1
+}
+
+try {
+  $True nand
+  print " error: \[true nand\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  $True nand true values
+  print " error: \[true nand true values\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test logical or
+
+print "Test: Logical or"
+
+if {$True or $True} then {
+} else {
+  print " error: true or true failed"
+  global result = 1
+}
+
+if {$False or $False} then {
+  print " error: false or false failed"
+  global result = 1
+}
+
+if {$True or $False} then {
+} else {
+  print " error: true or false failed"
+  global result = 1
+}
+
+try {
+  $True or
+  print " error: \[true or\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  $True or true values
+  print " error: \[true or true values\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test logical nor
+
+print "Test: Logical nor"
+
+if {$True nor $True} then {
+  print " error: true nor true failed"
+  global result = 1
+}
+
+if {$False nor $False} then {
+} else {
+  print " error: false or false failed"
+  global result = 1
+}
+
+if {$True nor $False} then {
+  print " error: true or false failed"
+  global result = 1
+}
+
+try {
+  $True nor
+  print " error: \[true nor\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  $True nor true values
+  print " error: \[true nor true values\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test logical xor
+
+print "Test: Logical xor"
+
+if {$True xor $True} then {
+  print " error: true xor true failed"
+  global result = 1
+}
+
+if {$False xor $False} then {
+  print " error: false xor false failed"
+  global result = 1
+}
+
+if {$True xor $False} then {
+} else {
+  print " error: true xor false failed"
+  global result = 1
+}
+
+try {
+  $True xor
+  print " error: \[true xor\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  $True xor true values
+  print " error: \[true xor true values\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+if {$result == 0} then {
+  print "\nAll tests passed"
+} else {
+  print "\nFailed"
+}
+return $result

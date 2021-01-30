@@ -1,5 +1,5 @@
 /*                                                                  -*- c++ -*-
- * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
+ * Copyright © 2018-2021 Ron R Wills <ron@digitalcombine.ca>
  *
  * This file is part of Cutlet.
  *
@@ -51,36 +51,91 @@ cutlet::boolean::~boolean() noexcept {}
 
 cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
                                                       interpreter &interp,
-                                                      const list &parameters) {
+                                                      const list &arguments) {
   (void)self;
   (void)interp;
 
-  std::string op = *(parameters[0]);
+  std::string op = *(arguments[0]);
+  unsigned int args = arguments.size();
 
-  if (parameters.size() == 1) {
-    if (op == "not") {
-      return (not _value
-              ? new cutlet::boolean(true) : new cutlet::boolean(false));
-    } else if (op == "type") {
-      return new cutlet::string("boolean");
-    }
-  } else if (parameters.size() == 2) {
-    if (op == "==" or op == "=") {
-      return (_value == cutlet::convert<bool>(parameters[1])
-              ? new cutlet::boolean(true) : new cutlet::boolean(false));
-    } else if (op == "<>" or op == "!=") {
-      return (_value != cutlet::convert<bool>(parameters[1])
-              ? new cutlet::boolean(true) : new cutlet::boolean(false));
-    } else if (op == "and") {
-      return (_value and cutlet::convert<bool>(parameters[1])
-              ? new cutlet::boolean(true) : new cutlet::boolean(false));
-    } else if (op == "or") {
-      return (_value or cutlet::convert<bool>(parameters[1])
-              ? new cutlet::boolean(true) : new cutlet::boolean(false));
-    } else if (op == "xor") {
-      return (_value xor cutlet::convert<bool>(parameters[1])
-              ? new cutlet::boolean(true) : new cutlet::boolean(false));
-    }
+  if (op == "not") {
+    // $boolean not
+    if (args != 1)
+      throw std::runtime_error("Invalid number of arguments to "
+                               "boolean operator not");
+
+    return (not _value ? new boolean(true) : new boolean(false));
+
+  } else if (op == "type") {
+    // $boolean type
+    if (args != 1)
+      throw std::runtime_error("Invalid number of arguments to "
+                               "boolean operator type");
+
+    return new string("boolean");
+
+  } else if (op == "==" or op == "=") {
+    // $boolean == other
+    if (args != 2)
+      throw std::runtime_error("Invalid number of arguments to "
+                               "boolean operator ==");
+
+    return (_value == convert<bool>(arguments[1])
+            ? new boolean(true) : new boolean(false));
+
+  } else if (op == "<>" or op == "!=") {
+    // $boolean <> other
+    if (args != 2)
+      throw std::runtime_error("Invalid number of arguments to "
+                               "boolean operator <>");
+
+    return (_value != convert<bool>(arguments[1])
+            ? new boolean(true) : new boolean(false));
+
+  } else if (op == "and") {
+    // $boolean and other
+    if (args != 2)
+      throw std::runtime_error("Invalid number of arguments to "
+                               "boolean operator and");
+
+    return (_value and convert<bool>(arguments[1])
+            ? new boolean(true) : new boolean(false));
+
+  } else if (op == "nand") {
+    // $boolean and other
+    if (args != 2)
+      throw std::runtime_error("Invalid number of arguments to "
+                               "boolean operator nand");
+
+    return (not (_value and convert<bool>(arguments[1]))
+            ? new boolean(true) : new boolean(false));
+
+  } else if (op == "or") {
+    // $boolean or other
+    if (args != 2)
+      throw std::runtime_error("Invalid number of arguments to "
+                               "boolean operator or");
+
+    return (_value or convert<bool>(arguments[1])
+            ? new boolean(true) : new boolean(false));
+
+  } else if (op == "nor") {
+    // $boolean or other
+    if (args != 2)
+      throw std::runtime_error("Invalid number of arguments to "
+                               "boolean operator nor");
+
+    return (not (_value or convert<bool>(arguments[1]))
+            ? new boolean(true) : new boolean(false));
+
+  }  else if (op == "xor") {
+    // $boolean xor other
+    if (args != 2)
+      throw std::runtime_error("Invalid number of arguments to "
+                               "boolean operator xor");
+
+    return (_value xor convert<bool>(arguments[1])
+            ? new boolean(true) : new boolean(false));
   }
 
   throw std::runtime_error(std::string("Unknown operator ") +
