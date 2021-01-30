@@ -368,6 +368,12 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
 #endif
       return (*cmd)(cmd, interp, c_params);
 
+    } else if (is_type<ast::string>(_function)) {
+#if DEBUG_AST
+      std::clog << "AST: string " << (std::string)*cmd << std::endl;
+#endif
+      return (*cmd)(cmd, interp, c_params);
+
     } else {
       // Execute the function.
 #if DEBUG_AST
