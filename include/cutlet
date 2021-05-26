@@ -145,7 +145,7 @@ namespace cutlet {
      */
     virtual variable::pointer operator()(pointer self,
                                          interpreter &interp,
-                                         const list &parameters);
+                                         const list &arguments);
 
     /** Cast the variable to a std::string type.
      */
@@ -268,11 +268,19 @@ namespace cutlet {
 
     virtual variable::pointer operator()(variable::pointer self,
                                          interpreter &interp,
-                                         const list &parameters);
+                                         const list &arguments);
 
     virtual operator std::string() const;
 
     friend class interpreter;
+
+  private:
+    variable::pointer _endswith(interpreter &interp, const list &arguments);
+    variable::pointer _find(interpreter &interp, const list &arguments);
+    variable::pointer _index(interpreter &interp, const list &arguments);
+    variable::pointer _insert(interpreter &interp, const list &arguments);
+    variable::pointer _startswith(interpreter &interp, const list &arguments);
+    variable::pointer _substr(interpreter &interp, const list &arguments);
   };
 
   class DECLSPEC boolean : public variable {
@@ -284,9 +292,10 @@ namespace cutlet {
 
     virtual variable::pointer operator()(variable::pointer self,
                                          interpreter &interp,
-                                         const list &parameters);
+                                         const list &arguments);
 
     virtual operator std::string() const;
+    operator bool() const { return _value; }
 
     friend class interpreter;
 
@@ -309,21 +318,21 @@ namespace cutlet {
 
     virtual variable::pointer operator()(variable::pointer self,
                                          interpreter &interp,
-                                         const list &parameters);
+                                         const list &arguments);
 
     virtual operator std::string() const;
 
   private:
-    variable::pointer _join(interpreter &interp, const list &parameters);
-    variable::pointer _append(interpreter &interp, const list &parameters);
-    variable::pointer _prepend(interpreter &interp, const list &parameters);
-    variable::pointer _extend(interpreter &interp, const list &parameters);
-    variable::pointer _index(interpreter &interp, const list &parameters);
-    variable::pointer _remove(interpreter &interp, const list &parameters);
-    variable::pointer _foreach(interpreter &interp, const list &parameters);
-    variable::pointer _equal(interpreter &interp, const list &parameters);
-    variable::pointer _nequal(interpreter &interp, const list &parameters);
-    variable::pointer _sort(interpreter &interp, const list &parameters);
+    variable::pointer _join(interpreter &interp, const list &arguments);
+    variable::pointer _append(interpreter &interp, const list &arguments);
+    variable::pointer _prepend(interpreter &interp, const list &arguments);
+    variable::pointer _extend(interpreter &interp, const list &arguments);
+    variable::pointer _index(interpreter &interp, const list &arguments);
+    variable::pointer _remove(interpreter &interp, const list &arguments);
+    variable::pointer _foreach(interpreter &interp, const list &arguments);
+    variable::pointer _equal(interpreter &interp, const list &arguments);
+    variable::pointer _nequal(interpreter &interp, const list &arguments);
+    variable::pointer _sort(interpreter &interp, const list &arguments);
   };
 
   /****************************************************************************
@@ -341,10 +350,10 @@ namespace cutlet {
 
     /** Call operator for the component.
      * @param interp The Cutlet interpreter.
-     * @param parameters List of the parameters passed in the component call.
+     * @param arguments List of the arguments passed in the component call.
      */
     virtual variable::pointer
-      operator ()(interpreter &interp, const list &parameters) = 0;
+      operator ()(interpreter &interp, const list &arguments) = 0;
 
     virtual std::string documentation() const;
   };
@@ -398,7 +407,7 @@ namespace cutlet {
 
     cutlet::variable::pointer call(interpreter &interp,
                                    const std::string &procedure,
-                                   const list &parameters);
+                                   const list &arguments);
 
     void *symbol(const std::string &name) const;
 
@@ -596,7 +605,7 @@ namespace cutlet {
     variable::pointer expr(const std::string &cmd);
 
     variable::pointer call(const std::string &procedure,
-                           const cutlet::list &parameters);
+                           const cutlet::list &arguments);
 
     /** Get a reference to an excution stack frame.
      * @param levels The number of callers up the stack to go to retrieve the

@@ -710,9 +710,9 @@ bool cutlet::variable::operator !=(const std::string &value) const {
 
 cutlet::variable::pointer
 cutlet::variable::operator()(variable::pointer self, interpreter &interp,
-                             const list &parameters) {
+                             const list &arguments) {
   (void)self;
-  return interp.call((std::string)*this, parameters);
+  return interp.call((std::string)*this, arguments);
 }
 
 /******************************************
@@ -742,9 +742,9 @@ public:
   virtual ~_function() noexcept {}
 
   virtual cutlet::variable::pointer
-  operator ()(cutlet::interpreter &interp, const cutlet::list &parameters) {
+  operator ()(cutlet::interpreter &interp, const cutlet::list &arguments) {
     interp.push(_label);
-    interp.finish(_function_ptr(interp, parameters));
+    interp.finish(_function_ptr(interp, arguments));
     return interp.pop();
   }
 
@@ -906,12 +906,12 @@ bool cutlet::sandbox::has_variable(const std::string &name) {
 cutlet::variable::pointer
 cutlet::sandbox::call(interpreter &interp,
                       const std::string &name,
-                      const list &parameters) {
+                      const list &arguments) {
   auto it = _components.find(name);
 
   if (it != _components.end()) {
     // Execute the found component.
-    return (*it->second)(interp, parameters);
+    return (*it->second)(interp, arguments);
 
   } else {
 
@@ -920,7 +920,7 @@ cutlet::sandbox::call(interpreter &interp,
      */
     it = _components.find("¿component?");
     if (it != _components.end()) {
-      cutlet::list params(parameters);
+      cutlet::list params(arguments);
       params.push_front(new cutlet::string(name));
       return (*it->second)(interp, params);
     } else {
@@ -1169,7 +1169,7 @@ cutlet::interpreter::interpreter() {
   _global->add("local", ::builtin::local);
   _global->add("uplevel", ::builtin::uplevel);
   _global->add("def", ::builtin::def,
-               "def name ¿parameters? body\n");
+               "def name ¿arguments? body\n");
   _global->add("return", ::builtin::ret);
   _global->add("list", ::builtin::list);
   _global->add("include", ::builtin::incl);
@@ -1398,8 +1398,8 @@ cutlet::variable::pointer cutlet::interpreter::expr(const std::string &cmd) {
 
 cutlet::variable::pointer
 cutlet::interpreter::call(const std::string &procedure,
-                          const cutlet::list &parameters) {
-  return _global->call(*this, procedure, parameters);
+                          const cutlet::list &arguments) {
+  return _global->call(*this, procedure, arguments);
 }
 
 /******************************

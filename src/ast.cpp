@@ -359,20 +359,29 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
       std::clog << "AST: operator $" << body() << " -> "
                 << (std::string)*cmd << std::endl;
 #endif
-      return (*cmd)(cmd, interp, c_params);
+      if (c_params.size())
+        return (*cmd)(cmd, interp, c_params);
+      else
+        return cmd;
 
     } else if (is_type<ast::command>(_function)) {
 #if DEBUG_AST
       std::clog << "AST: command [" << (std::string)*cmd << "]"
                 << std::endl;
 #endif
-      return (*cmd)(cmd, interp, c_params);
+      if (c_params.size())
+        return (*cmd)(cmd, interp, c_params);
+      else
+        return cmd;
 
     } else if (is_type<ast::string>(_function)) {
 #if DEBUG_AST
       std::clog << "AST: string " << (std::string)*cmd << std::endl;
 #endif
-      return (*cmd)(cmd, interp, c_params);
+      if (c_params.size())
+        return (*cmd)(cmd, interp, c_params);
+      else
+        return cmd;
 
     } else {
       // Execute the function.
@@ -401,9 +410,9 @@ unsigned int cutlet::ast::command::id() const {
   return cutlet::A_COMMAND;
 }
 
-/********************************
+/**********************************
  * cutlet::ast::command::position *
- ********************************/
+ **********************************/
 
 std::streampos cutlet::ast::command::position() const {
   return _function->position();
@@ -417,9 +426,9 @@ const std::string &cutlet::ast::command::body() const {
   return (const std::string &)token();
 }
 
-/*****************************
+/*******************************
  * cutlet::ast::command::token *
- *****************************/
+ *******************************/
 
 const parser::token &cutlet::ast::command::token() const {
   return _function->token();
@@ -533,9 +542,9 @@ cutlet::ast::comment::comment(const parser::token &token)
 
 cutlet::ast::comment::~comment() noexcept {}
 
-/************************************
+/*************************************
  * cutlet::ast::comment::operator () *
- ************************************/
+ *************************************/
 
 cutlet::variable::pointer
 cutlet::ast::comment::operator()(cutlet::interpreter &interp) {

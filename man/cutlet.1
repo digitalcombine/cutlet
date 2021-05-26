@@ -195,7 +195,7 @@ def on {condition body} {
 on {$score == 10} cheer
 .EE
 .IP "def print *args"
-Display all its arguments to standard out.
+Display all the arguments to standard out.
 .IP "def list *args"
 Creates a new list variable initially populating it with \fI*args\fR.
 .IP
@@ -205,16 +205,16 @@ print [$names size] $names
   -> 3 John Fred Sam
 .EE
 .IP "def sandbox"
-Creates a new sandbox. All global variables and components are always found in a
+Creates a new sandbox. All global variables and components are found in a
 sandbox. When a new interpreter is created it has its own default sandbox. By
 creating a new sandbox the interpreter's environment can be temporarily replaced
 with a modified one for a specific purpose.
 .IP
-A good example for this is when Cutlet is used for configurations files. The
-default environment can be used to build a list of all the configuration files
-for an application then each file evaluated within another sanbox only
-supporting the configuation syntax. This way configuration files can't be used
-to access parts of the application it's not supposed to.
+A good example for using a sandbox is when Cutlet is used for configurations
+files. The default environment can be used to build a list of all the
+configuration files for an application then each file evaluated within another
+sanbox only supporting the configuation syntax. This way configuration files
+can't be used to access parts of the application it's not supposed to.
 .IP
 .EX
 global clean = [mysb]
@@ -225,6 +225,10 @@ $clean eval {
 .EE
 .SH BUILTIN TYPES
 .IP string
+.PP
+.in +4n
+$string == other
+.in
 .IP list
 .PP
 .in +4n
@@ -319,7 +323,7 @@ $sandbox global ¿=? ¿value?
 .SH ENVIRONMENT
 .IP CUTLETPATH
 If set, is a colon delimited list of directories added to the library search
-path.
+list in \fI$library.path\fR.
 .SH COPYRIGHT
 Copyright (c) 2019 Ron R Wills <ron@digitalcombine.ca>
 

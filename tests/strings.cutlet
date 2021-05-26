@@ -1,39 +1,353 @@
-# Testing string substitutions.
+# Copyright © 2021 Ron R Wills <ron@digitalcombine.ca>
+#
+# This file is part of Cutlet.
+#
+# Cutlet is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Cutlet is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# Test the String Type
 
 # Remove the system library directory path
 $library.path remove 0
 
 import stdlib
 
+global result = 0
+
+print "Testing String Type\n"
+
+#=============================================================================#
+# Test type
+
+print "Test: Type"
+
+if {["Hello" type] <> "string"} then {
+  print " error: \"Hello\" isn't type string, returned" ["Hello" type]
+  global result = 1
+}
+
+try {
+  "Hello" type is a string
+  print " error: \[\"Hello\" type is a string\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test equality
+
+print "Test: Equality"
+
+if {"Hello" == "Bye"} then {
+  print " error: \"Hello\" == \"Bye\" failed"
+  global result = 1
+}
+
+if {"Hello" == "Hello"} then {
+} else {
+  print " error: \"Hello\" == \"Hello\" failed"
+  global result = 1
+}
+
+try {
+  "Hello" ==
+  print " error: \[\"Hello\" ==\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  "Hello" == Hello World
+  print " error: \[\"Hello\" == Hello World\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test inequality
+
+print "Test: Inequality"
+
+if {"Hello" <> "Bye"} then {
+} else {
+  print " error: \"Hello\" <> \"Bye\" failed"
+  global result = 1
+}
+
+if {"Hello" <> "Hello"} then {
+  print " error: \"Hello\" <> \"Hello\" failed"
+  global result = 1
+}
+
+try {
+  "Hello" <>
+  print " error: \[\"Hello\" <>\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  "Hello" <> Hello World
+  print " error: \[\"Hello\" <> Hello World\] failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test less than
+
+print "Test: Less than"
+
+if {"Bye" < "Hello"} then {
+} else {
+  print " error: Bye < Hello failed"
+  global result = 1
+}
+
+if {"Hello" < "Bye"} then {
+  print " error: Hello < Bye failed"
+  global result = 1
+}
+
+try {
+  "Bye" <
+  print " error: \"Bye <\" failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  "Bye" < Hello World
+  print " error: \"Bye < Hello World\" failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test less than equal
+
+print "Test: Less than equal"
+
+if {"Bye" <= "Hello"} then {
+} else {
+  print " error: Bye <= Hello failed"
+  global result = 1
+}
+
+if {"Hello" <= "Hello"} then {
+} else {
+  print " error: Hello <= Hello failed"
+  global result = 1
+}
+
+if {"Hello" <= "Bye"} then {
+  print " error: Hello <= Bye failed"
+  global result = 1
+}
+
+try {
+  "Bye" <=
+  print " error: \"Bye <=\" failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  "Bye" <= Hello World
+  print " error: \"Bye <= Hello World\" failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test greater than
+
+print "Test: Greater than"
+
+if {"Bye" > "Hello"} then {
+  print " error: Bye > Hello failed"
+  global result = 1
+}
+
+if {"Hello" > "Bye"} then {
+} else {
+  print " error: Hello > Bye failed"
+  global result = 1
+}
+
+try {
+  "Bye" >
+  print " error: \"Bye >\" failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  "Bye" > Hello World
+  print " error: \"Bye > Hello World\" failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test greater than equal
+
+print "Test: Greater than equal"
+
+if {"Bye" >= "Hello"} then {
+  print " error: Bye >= Hello failed"
+  global result = 1
+}
+
+if {"Hello" >= "Hello"} then {
+} else {
+  print " error: Hello >= Hello failed"
+  global result = 1
+}
+
+if {"Hello" >= "Bye"} then {
+} else {
+  print " error: Hello >= Bye failed"
+  global result = 1
+}
+
+try {
+  "Bye" >=
+  print " error: \"Bye >=\" failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  "Bye" >= Hello World
+  print " error: \"Bye >= Hello World\" failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test endswith
+
+print "Test: Endswith"
+
+if {"Hello World" endswith "rld"} then {
+} else {
+  print " error: \"Hello World\" endswith \"rld\" failed"
+  global result = 1
+}
+
+if {"Hello" > "Bye"} then {
+} else {
+  print " error: Hello > Bye failed"
+  global result = 1
+}
+
+try {
+  "Bye" >
+  print " error: \"Bye >\" failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+try {
+  "Bye" > Hello World
+  print " error: \"Bye > Hello World\" failed"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+#=============================================================================#
+# Test variable resolution
+
+print "Test: Variable resolution"
+
 global var1 = value1
 global var2 = value2
 global var3 = value3
-global list1 = [list John A Smith]
-global list2 = [list Jane A Smith]
 
 global string = "${var1}${var2}${var3}"
 if {$string <> "value1value2value3"} then {
-  print "$string <> value1value2value3"
-  return 1
+  print " error: $string <> value1value2value3"
+  global result = 1
 }
 
 global string = "$var1$var2$var3"
 if {$string <> "value1value2value3"} then {
-  print "$string <> value1value2value3"
-  return 1
+  print " error: $string <> value1value2value3"
+  global result = 1
+}
+
+try {
+  "$does't exist"
+  print " error: resolved noexisting variable"
+  global result = 1
+} catch err {
+  print " info: $err"
+}
+
+# Clean up after ourselves
+global var1
+global var2
+global var3
+
+#=============================================================================#
+# Test command substitution
+
+print "Test: Command substitution"
+
+global var1 = value1
+global list1 = [list John A Smith]
+global list2 = [list Jane A Smith]
+
+def hello {to} {
+  return "Hello $to"
+}
+
+if {"[hello John]" <> "Hello John"} then {
+  print " error: \"[hello John\" failed"
+  print " error: Got" "[hello John]"
+  global result = 1
 }
 
 global string = "Hello [$list1 join][$list2 join]"
 if {$string <> "Hello John A SmithJane A Smith"} then {
   print "$string <> Hello John A SmithJane A Smith"
-  return 1
+  global result = 1
 }
 
 global string = "This is a variable \$name.\n\tAnd a \"backslash\" \\\n\t\$var1 = $var1"
 print $string
 
+global var1
+global list1
+global list2
+
 global string = "\x48\x65\x6c\x6c\x6f!"
 if {$string <> "Hello!"} then {
   print "$string <> Hello!"
-  return 1
+  global result = 1
 }
+
+return $result

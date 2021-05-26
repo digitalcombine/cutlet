@@ -34,9 +34,9 @@
 class _def_function : public cutlet::component {
 public:
   _def_function(const std::string &label,
-                cutlet::variable::pointer parameters,
+                cutlet::variable::pointer arguments,
                 cutlet::variable::pointer body)
-    : _label(label), _parameters(parameters), _body(body) {}
+    : _label(label), _arguments(arguments), _body(body) {}
   virtual ~_def_function() noexcept {}
 
   /** Execute the function.
@@ -45,11 +45,11 @@ public:
   operator ()(cutlet::interpreter &interp, const cutlet::list &args) {
     interp.push(_label); // New frame for the function.
 
-    // Populate the parameters of the function.
-    auto p_it = cutlet::cast<cutlet::list>(_parameters).begin();
+    // Populate the arguments of the function.
+    auto p_it = cutlet::cast<cutlet::list>(_arguments).begin();
     auto a_it = args.begin();
 
-    for (; p_it != cutlet::cast<cutlet::list>(_parameters).end() and
+    for (; p_it != cutlet::cast<cutlet::list>(_arguments).end() and
            a_it != args.end(); ++p_it, ++a_it) {
       cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
       if (l) {
@@ -67,12 +67,12 @@ public:
       }
     }
 
-    /* If there are any remaining parameters that we didn't get a value for
+    /* If there are any remaining arguments that we didn't get a value for
      * the attempt to populate them with default values if any were given.
      */
-    if (cutlet::cast<cutlet::list>(_parameters).size() > args.size()) {
+    if (cutlet::cast<cutlet::list>(_arguments).size() > args.size()) {
       // Set default parameter values if needed.
-      while (p_it != cutlet::cast<cutlet::list>(_parameters).end()) {
+      while (p_it != cutlet::cast<cutlet::list>(_arguments).end()) {
         cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
         if (l) {
           interp.local(*(l->front()), l->back());
@@ -96,7 +96,7 @@ public:
 
 private:
   std::string _label;
-  cutlet::variable::pointer _parameters;
+  cutlet::variable::pointer _arguments;
   cutlet::variable::pointer _body;
 
   cutlet::ast::node::pointer _compiled;
@@ -106,41 +106,41 @@ private:
  * Cutlets Builtin Public API
  */
 
-/**********************************
- * def def name ¿parameters? body *
- **********************************/
+/*********************************
+ * def def name ¿arguments? body *
+ *********************************/
 
 cutlet::variable::pointer
 builtin::def(cutlet::interpreter &interp,
-             const cutlet::list &parameters) {
+             const cutlet::list &arguments) {
 
-  // Make sure we have to right number of parameters.
-  size_t p_count = parameters.size();
+  // Make sure we have to right number of arguments.
+  size_t p_count = arguments.size();
   if (p_count < 2 or p_count > 3) {
    std::stringstream mesg;
-   mesg << "Invalid number of parameters for def "
-        << (p_count >= 1 ? cutlet::convert<std::string>(parameters[0]) : "")
+   mesg << "Invalid number of arguments for def "
+        << (p_count >= 1 ? cutlet::convert<std::string>(arguments[0]) : "")
         << " (2 <= " << p_count
-        << " <= 3).\n def name ¿parameters? body";
+        << " <= 3).\n def name ¿arguments? body";
    throw std::runtime_error(mesg.str());
   }
 
   // Get the function name.
-  std::string name = *(parameters[0]);
+  std::string name = *(arguments[0]);
 
-  // Get the method parameters and body.
+  // Get the method arguments and body.
   cutlet::variable::pointer body;
-  cutlet::variable::pointer def_parameters;
+  cutlet::variable::pointer def_arguments;
   if (p_count == 2) {
-    def_parameters = new cutlet::list();
-    body = parameters[1];
+    def_arguments = new cutlet::list();
+    body = arguments[1];
   } else {
-    def_parameters = interp.list(parameters[1]);
-    body = parameters[2];
+    def_arguments = interp.list(arguments[1]);
+    body = arguments[2];
   }
 
   // Add the function to the interpreter.
-  interp.add(name, new _def_function(name, def_parameters, body));
+  interp.add(name, new _def_function(name, def_arguments, body));
 
   return nullptr;
 }
@@ -151,13 +151,13 @@ builtin::def(cutlet::interpreter &interp,
 
 cutlet::variable::pointer
 builtin::incl(cutlet::interpreter &interp,
-              const cutlet::list &parameters) {
+              const cutlet::list &arguments) {
   // Make sure we have at least one argument
-  if (parameters.size() == 0) {
+  if (arguments.size() == 0) {
     throw std::runtime_error("include called without arguments");
   }
 
-  for (auto &fname: parameters) {
+  for (auto &fname: arguments) {
     if (fexists(*fname)) {
       interp.compile_file(*fname);
       return nullptr;
@@ -175,15 +175,15 @@ builtin::incl(cutlet::interpreter &interp,
 
 cutlet::variable::pointer
 builtin::import(cutlet::interpreter &interp,
-                const cutlet::list &parameters) {
+                const cutlet::list &arguments) {
   // Make sure we have at least one argument
-  if (parameters.size() == 0) {
+  if (arguments.size() == 0) {
     throw std::runtime_error("import called without arguments");
   }
 
   cutlet::variable::pointer paths = interp.var("library.path");
 
-  for (auto &libname: parameters) {
+  for (auto &libname: arguments) {
     for (auto &path: cutlet::cast<cutlet::list>(paths)) {
       std::string dir(*path);
 
@@ -209,32 +209,32 @@ builtin::import(cutlet::interpreter &interp,
 
 cutlet::variable::pointer
 builtin::global(cutlet::interpreter &interp,
-                const cutlet::list &parameters) {
-  switch (parameters.size()) {
+                const cutlet::list &arguments) {
+  switch (arguments.size()) {
   case 0:
     throw std::runtime_error("global called without arguments");
   case 1:
     // global name
-    interp.global(*(parameters[0]), nullptr);
+    interp.global(*(arguments[0]), nullptr);
     break;
   case 2:
-    if (*(parameters[1]) == "=") {
+    if (*(arguments[1]) == "=") {
       // global name =
-      interp.global(*(parameters[0]), nullptr);
+      interp.global(*(arguments[0]), nullptr);
     } else {
       // global name value
-      interp.global(*(parameters[0]), parameters[1]);
+      interp.global(*(arguments[0]), arguments[1]);
     }
     break;
   case 3:
     // global name = value
-    if (*(parameters[1]) != "=") {
+    if (*(arguments[1]) != "=") {
       throw std::runtime_error("global name = value\n"
                                " expected = got " +
-                               (std::string)*(parameters[1]));
+                               (std::string)*(arguments[1]));
     }
 
-    interp.global(*(parameters[0]), parameters[2]);
+    interp.global(*(arguments[0]), arguments[2]);
     break;
   default:
     throw std::runtime_error("global called with too many arguments");
@@ -249,32 +249,32 @@ builtin::global(cutlet::interpreter &interp,
 
 cutlet::variable::pointer
 builtin::local(cutlet::interpreter &interp,
-               const cutlet::list &parameters) {
-  switch (parameters.size()) {
+               const cutlet::list &arguments) {
+  switch (arguments.size()) {
   case 0:
     throw std::runtime_error("local called without arguments");
   case 1:
     // local name
-    interp.frame(1)->variable(*(parameters[0]), nullptr);
+    interp.frame(1)->variable(*(arguments[0]), nullptr);
     break;
   case 2:
-    if (*(parameters[1]) == "=") {
+    if (*(arguments[1]) == "=") {
       // local name =
-      interp.frame(1)->variable(*(parameters[0]), nullptr);
+      interp.frame(1)->variable(*(arguments[0]), nullptr);
     } else {
       // local name value
-      interp.frame(1)->variable(*(parameters[0]), parameters[1]);
+      interp.frame(1)->variable(*(arguments[0]), arguments[1]);
     }
     break;
   case 3:
     // local name = value
-    if (*(parameters[1]) != "=") {
+    if (*(arguments[1]) != "=") {
       throw std::runtime_error("local name = value\n"
                                " expected = got " +
-                               (std::string)*(parameters[1]));
+                               (std::string)*(arguments[1]));
     }
 
-    interp.frame(1)->variable(*(parameters[0]), parameters[2]);
+    interp.frame(1)->variable(*(arguments[0]), arguments[2]);
     break;
   default:
     throw std::runtime_error("local called with too many arguments");
@@ -289,19 +289,19 @@ builtin::local(cutlet::interpreter &interp,
 
 cutlet::variable::pointer
 builtin::uplevel(cutlet::interpreter &interp,
-                 const cutlet::list &parameters) {
-  unsigned int levels = 0, p_count = parameters.size();
+                 const cutlet::list &arguments) {
+  unsigned int levels = 0, p_count = arguments.size();
 
-  // Sort out the parameters.
+  // Sort out the arguments.
   cutlet::variable::pointer body;
   if (p_count == 2) {
-    levels = cutlet::convert<int>(parameters[0]);
-    body = parameters[1];
+    levels = cutlet::convert<int>(arguments[0]);
+    body = arguments[1];
   } else if (p_count == 1) {
-    body = parameters[0];
+    body = arguments[0];
   } else {
     std::stringstream mesg;
-    mesg << "Invalid number of parameters for block "
+    mesg << "Invalid number of arguments for block "
          << " (1 <= " << p_count
          << " <= 2).\n block ¿levels? body";
     throw std::runtime_error(mesg.str());
@@ -326,17 +326,17 @@ builtin::uplevel(cutlet::interpreter &interp,
 
 cutlet::variable::pointer
 builtin::ret(cutlet::interpreter &interp,
-             const cutlet::list &parameters) {
+             const cutlet::list &arguments) {
   cutlet::frame::pointer uplevel = interp.frame(1);
-  switch (parameters.size()) {
+  switch (arguments.size()) {
   case 0:
     uplevel->done();
     break;
   case 1:
-    uplevel->done(parameters[0]);
+    uplevel->done(arguments[0]);
     break;
   default:
-    uplevel->done(new cutlet::list(parameters));
+    uplevel->done(new cutlet::list(arguments));
     break;
   }
   return nullptr;
@@ -348,10 +348,10 @@ builtin::ret(cutlet::interpreter &interp,
 
 cutlet::variable::pointer
 builtin::print(cutlet::interpreter &interp,
-               const cutlet::list &parameters) {
+               const cutlet::list &arguments) {
   (void)interp;
 
-  std::cout << parameters.join() << std::endl;
+  std::cout << arguments.join() << std::endl;
   return nullptr;
 }
 
@@ -361,12 +361,12 @@ builtin::print(cutlet::interpreter &interp,
 
 cutlet::variable::pointer
 builtin::list(cutlet::interpreter &interp,
-              const cutlet::list &parameters) {
+              const cutlet::list &arguments) {
   cutlet::variable::pointer result;
-  if (parameters.size() == 1)
-    result = interp.list(*(parameters[0]));
+  if (arguments.size() == 1)
+    result = interp.list(*(arguments[0]));
   else
-    result = new cutlet::list(parameters);
+    result = new cutlet::list(arguments);
   return result;
 }
 
@@ -376,12 +376,12 @@ builtin::list(cutlet::interpreter &interp,
 
 cutlet::variable::pointer
 builtin::sandbox(cutlet::interpreter &interp,
-                 const cutlet::list &parameters) {
+                 const cutlet::list &arguments) {
   (void)interp;
-  (void)parameters;
+  (void)arguments;
 
-  if (parameters.size() > 0)
-    throw std::runtime_error("Invalid number of parameters for sandbox");
+  if (arguments.size() > 0)
+    throw std::runtime_error("Invalid number of arguments for sandbox");
 
   return new builtin::sandbox_var(new cutlet::sandbox);
 }

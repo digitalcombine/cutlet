@@ -18,6 +18,7 @@
  */
 
 #include "builtin.h"
+#include <iostream>
 
 /*****************************************************************************
  * class cutlet::sandbox_var
@@ -74,6 +75,35 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
     }
     interp.pop();
 
+  } else if (op == "expr") {
+    // $sandbox expr body ...
+    std::string command;
+    variable::pointer result;
+
+    bool first = true;
+    auto it = parameters.begin(); ++it;
+    for (; it != parameters.end(); ++it) {
+      if (not first) command += " ";
+      else first = false;
+
+      command += *(*it);
+    }
+
+    interp.push(_sandbox);
+    try {
+      result = interp.expr(command);
+    } catch (...) {
+      /* If an error was thrown within the sandbox, we pop the context off the
+       * stack to restore the previous environment then rethrow the
+       * exception.
+       */
+      interp.pop();
+      throw;
+    }
+    interp.pop();
+
+    return result;
+
   } else if (op == "link") {
     // $sandbox link component ¿as name?
     // $sandbox link *args
@@ -104,7 +134,7 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
 
     _sandbox->clear();
 
-  } else if (op == "clear") {
+  } else if (op == "type") {
     // $sandbox type
     if (args != 2)
       throw std::runtime_error("To many arguments to sandbox operator type");

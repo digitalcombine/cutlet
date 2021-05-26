@@ -5,6 +5,8 @@ $library.path remove 0
 
 import stdlib
 
+global result = 0
+
 #=============================================================================#
 # Testing try catch throw
 
@@ -17,7 +19,7 @@ try {
   if {$err == "I threw an error"} then {
     print "I caught an error ->" $err
   } else {
-    print "I caught an unexpected error ->" $err
+    print " error: I caught an unexpected error ->" $err
     return 1
   }
 }
@@ -39,31 +41,40 @@ try {
 }
 
 #=============================================================================#
+# Testing if
+
+if {[true]} then {
+} else {
+  print " error: [true] failed"
+  global result = 1
+}
+
+#=============================================================================#
 # Testing while loops
 
 print "Test: while"
 
-global result = ""
-while {$result <> "+++++"} do {
-  global result = "${result}+"
+global res = ""
+while {$res <> "+++++"} do {
+  global res = "${res}+"
 }
 
-if {$result <> "+++++"} then {
-  print "\$result <> \"+++++\" ->  \"${result}\""
-  return 1
+if {$res <> "+++++"} then {
+  print " error: \$res <> \"+++++\" ->  \"${res}\""
+  global result = 1
 }
 
-global result = ""
-while {$result <> "+++++"} {
-  global result = "${result}+"
-  if {$result == "++++"} {
+global res = ""
+while {$res <> "+++++"} {
+  global res = "${res}+"
+  if {$res == "++++"} {
     break
   }
 }
 
-if {$result <> "++++"} then {
-  print "\$result <> \"++++\" ->  \"${result}\""
-  return 1
+if {$res <> "++++"} then {
+  print " error: \$res <> \"++++\" ->  \"${res}\""
+  global result = 1
 }
 
 global result = ""
@@ -79,3 +90,5 @@ if {$result <> "+-+-+-++-"} then {
   print "\$result <> \"+-+-+-++-\" ->  \"${result}\""
   return 1
 }
+
+return $result

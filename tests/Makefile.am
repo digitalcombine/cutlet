@@ -6,7 +6,7 @@ TESTS = memory-tests core.cutlet hello.cutlet booleans.cutlet strings.cutlet \
 XFAIL_TESTS = bad_method.cutlet
 TEST_EXTENSIONS = .cutlet
 CUTLET_LOG_COMPILER = ../bin/cutlet
-AM_CUTLET_LOG_FLAGS = -i ../libs/.libs/
+AM_CUTLET_LOG_FLAGS = -i ../libs/.libs/ -i ../libs/
 
 EXTRA_DIST = $(TESTS) include.cutlet
 

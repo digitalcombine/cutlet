@@ -32,19 +32,19 @@ global False [false]
 
 print "Test: Type"
 
-if {[$True type] != "boolean"} then {
-  print "true isn't type boolean, returned [$True type]"
+if {[$True type] <> "boolean"} then {
+  print " error: true isn't type boolean, returned [$True type]"
   global result = 1
 }
 
-if {[$False type] != "boolean"} then {
-  print "false isn't type boolean, returned [$False type]"
+if {[$False type] <> "boolean"} then {
+  print " error: false isn't type boolean, returned [$False type]"
   global result = 1
 }
 
 try {
   $True type is a boolean
-  print "\[true type is a boolean\] is valid"
+  print " error: \[true type is a boolean\] failed"
   global result = 1
 } catch err {
   print " info: $err"

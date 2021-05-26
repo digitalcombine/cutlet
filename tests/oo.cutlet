@@ -3,85 +3,94 @@
 # Remove the system library directory path
 $library.path remove 0
 
-import stdlib
-import oo
+import testsuite
 
-# Test an empty class.
-class test_empty_class {}
+testsuite "Object Oriented API" {
+  import stdlib oo
 
-# Test empty methods.
-class test_empty_method_class {
-  method empty {}
-
-  class.method empty {}
-}
-
-# Class test
-class test_class {
-
-  class.property catalog = "none"
-
-  property the_name
-
-  class.method set_catalog {value} {
-    local catalog $value
+  test "Empty Class" {
+    class test_empty_class {}
   }
 
-  class.method get_catalog {
-    return $catalog
+  test "Empty Methods" {
+    class test_empty_method_class {
+      method empty {}
+
+      class.method empty {}
+    }
   }
 
-  method new {a_name} {
-    local the_name = $a_name
+  test "New Class" {
+    class test_class {
+
+      class.property catalog = "none"
+
+      property the_name
+
+      class.method set_catalog {value} {
+        local catalog $value
+      }
+
+      class.method get_catalog {
+        return $catalog
+      }
+
+      method new {a_name} {
+        local the_name = $a_name
+      }
+
+      method change_name_to {new_name} {
+        local the_name $new_name
+      }
+
+      method hello {} {
+        local result = "Hello ${the_name}\n"
+        local result = "${result}[$self goodbye]"
+        return $result
+      }
+
+      method goodbye {
+        return "Goodbye $the_name"
+      }
+
+      method whoami {
+        return "test_class"
+      }
+    }
   }
 
-  method change_name_to {new_name} {
-    local the_name $new_name
+  test "Class Inheritance" {
+    class test_class_2 test_class {
+
+      class.property cprop2 = 'x'
+
+      # Set a super class property.
+      class.method set_cat {value} {
+        local catalog $value
+      }
+
+      class.method get_xcat {
+        return "$cprop2 $catalog"
+      }
+
+      method goodbye {
+        return "Goodbye ${the_name}!"
+      }
+
+      method whoami {
+        return "[super test_class whoami]:test_class_2"
+      }
+    }
   }
 
-  method hello {} {
-    local result = "Hello ${the_name}\n"
-    local result = "${result}[$self goodbye]"
-    return $result
+  test "Object Creation" {
+    local myobject = [test_class new "John Smith"]
+
+    if {[$myobject hello] <> "Hello John Smith\nGoodbye John Smith"} then {
+      print "$myobject <> Hello John Smith\nGoodbye John Smith"
+      return 1
+    }
   }
-
-  method goodbye {
-    return "Goodbye $the_name"
-  }
-
-  method whoami {
-    return "test_class"
-  }
-}
-
-# Test inheritance
-class test_class_2 test_class {
-
-  class.property cprop2 = 'x'
-
-  # Set a super class property.
-  class.method set_cat {value} {
-    local catalog $value
-  }
-
-  class.method get_xcat {
-    return "$cprop2 $catalog"
-  }
-
-  method goodbye {
-    return "Goodbye ${the_name}!"
-  }
-
-  method whoami {
-    return "[super test_class whoami]:test_class_2"
-  }
-}
-
-global myobject = [test_class new "John Smith"]
-
-if {[$myobject hello] <> "Hello John Smith\nGoodbye John Smith"} then {
-  print "$myobject <> Hello John Smith\nGoodbye John Smith"
-  return 1
 }
 
 global myobject = [test_class_2 new "Jane Smith"]

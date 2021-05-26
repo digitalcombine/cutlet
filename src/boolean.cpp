@@ -55,8 +55,10 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
   (void)self;
   (void)interp;
 
-  std::string op = *(arguments[0]);
   unsigned int args = arguments.size();
+  //if (args == 0) return new boolean(_value);
+
+  std::string op = *(arguments[0]);
 
   if (op == "not") {
     // $boolean not

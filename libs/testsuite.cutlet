@@ -1,0 +1,75 @@
+# Copyright © 2021 Ron R Wills <ron@digitalcombine.ca>
+#
+# This file is part of Cutlet.
+#
+# Cutlet is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Cutlet is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+import stdlib
+
+def testsuite.test {name body} {
+  print "Test: $name"
+  try {
+    uplevel 2 $body
+  } catch err {
+    $errors append "$err"
+  }
+}
+
+def testsuite.assert {description condition} {
+  if $condition then {
+  } else {
+    $errors append "$description: failed"
+  }
+}
+
+def testsuite.fail {description} {
+  $errors append "$description: failed"
+}
+
+def testsuite {name body} {
+  local test_box = [sandbox]
+
+  print "Testsuite: $name"
+
+  # test_box global passed = 0
+
+  $test_box link print global local uplevel def return list include import
+  $test_box link sandbox
+  $test_box global library.path = $library.path
+  $test_box eval "import stdlib"
+
+  $test_box global errors = [list]
+  $test_box link testsuite.test as test
+  $test_box link testsuite.assert as assert
+  $test_box link testsuite.fail as fail
+
+  print "DEBUG: starting tests"
+  $test_box eval $body
+
+  print "DEBUG: tests complete"
+  local errors = [$test_box expr {$errors}]
+
+  #print "DEBUG: tests complete: $errors"
+  if {[$errors size] > 0} then {
+    $errors foreach err {
+      print " $err"
+    }
+    uplevel 3 {
+      return 1
+    }
+  } else {
+    print "Everything Passed!"
+    uplevel 3 {
+      return 0
+    }
+  }
+}
