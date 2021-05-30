@@ -176,31 +176,43 @@ builtin::incl(cutlet::interpreter &interp,
 cutlet::variable::pointer
 builtin::import(cutlet::interpreter &interp,
                 const cutlet::list &arguments) {
-  // Make sure we have at least one argument
+  // Make sure we have at least one argument.
   if (arguments.size() == 0) {
     throw std::runtime_error("import called without arguments");
   }
 
+  // Get the library search paths.
   cutlet::variable::pointer paths = interp.var("library.path");
 
+  // Iterate through our arguments.
   for (auto &libname: arguments) {
+    bool lib_loaded = false;
+
+    // Iterate through the library paths.
     for (auto &path: cutlet::cast<cutlet::list>(paths)) {
       std::string dir(*path);
 
+      // If the library exists, load it.
       if (fexists(dir + "/" + (std::string)(*libname) + ".cutlet")) {
         interp.compile_file(dir + "/" + (std::string)(*libname) + ".cutlet");
-        return nullptr;
+        lib_loaded = true;
+        break;
       } else if (fexists(dir + "/" + (std::string)(*libname) + SOEXT)) {
         interp.load(dir + "/" + (std::string)(*libname) + SOEXT);
-        return nullptr;
+        lib_loaded = true;
+        break;
       }
     }
 
-    throw std::runtime_error("Library " + (std::string)(*libname) +
-                             " not found.");
+    // If the library wasn't found in any of the search paths raise an error.
+    if (not lib_loaded) {
+      throw std::runtime_error("Library " + (std::string)(*libname) +
+                               " not found.");
+    }
   }
 
-
+  // All done.
+  return nullptr;
 }
 
 /*******************************
