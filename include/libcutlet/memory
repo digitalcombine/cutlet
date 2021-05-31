@@ -139,7 +139,7 @@ namespace memory {
       }
 
       /** Destroy the native object. */
-      virtual ~__reference() throw() {
+      virtual ~__reference() noexcept {
         if (nobj) delete nobj;
       }
 
@@ -173,10 +173,10 @@ namespace memory {
       unsigned int __ref_cnt() const { return refs; }
 
       /** Cast this as a reference to the object being wrapped. */
-      operator Ty &() { return (Ty &)*nobj; }
+      operator Ty &() { return *nobj; }
 
       /** Cast this as a pointer to the object being wrapped. */
-      operator Ty *() { return (Ty *)nobj; }
+      operator Ty *() { return nobj; }
 
     private:
       std::atomic<unsigned int> refs;  // The number of references.
@@ -291,7 +291,7 @@ namespace memory {
      * typedef reference<MyClass> SPMyClass;
      * class MyClass {
      * public:
-     *   virtual ~MyClass(void) throw() {}
+     *   virtual ~MyClass(void) noexcept {}
      *   SPMyClass get_reference() {
      *     return this;
      *   }
@@ -343,7 +343,8 @@ namespace memory {
      */
     bool operator ==(const Ty *other) const {
       if (other == nullptr) return is_null();
-      else return ((Ty *)_object.load(std::memory_order_relaxed) == other);
+      else return (reinterpret_cast<Ty *>(_object.load(std::memory_order_relaxed))
+                   == other);
     }
 
     /** Check if the reference is referencing a different object as @c other.
@@ -364,19 +365,19 @@ namespace memory {
 
     /** Dereference the reference.
      */
-    Ty &operator *(void) { return (Ty &)(*_object); }
+    Ty &operator *(void) { return *_object; }
 
     /** Constant dereference the reference.
      */
-    const Ty &operator *(void) const { return (Ty &)(*_object); }
-    Ty *operator ->() { return (Ty *)(*_object); }
-    const Ty *operator ->(void) const { return (Ty *)(*_object); }
-    operator Ty &(void) { return (Ty &)(*_object); }
-    operator const Ty &(void) const { return (Ty &)(*_object); }
+    const Ty &operator *(void) const { return *_object; }
+    Ty *operator ->() { return *_object; }
+    const Ty *operator ->(void) const { return *_object; }
+    operator Ty &(void) { return *_object; }
+    operator const Ty &(void) const { return *_object; }
 
   private:
 
-    void dec_reference() throw() {
+    void dec_reference() noexcept {
       if (_object) {
         if (_weak_ref) {
           (*_object).dec_weak_ref();
