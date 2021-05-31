@@ -437,6 +437,9 @@ void parser::tokenizer::parse_tokens() {
  * class parser::grammer
  */
 
+parser::grammer::~grammer() noexcept {
+}
+
 /*************************
  * parser::grammer::eval *
  *************************/
