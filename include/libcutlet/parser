@@ -43,13 +43,11 @@ namespace parser {
    */
   class token {
   public:
-    token(unsigned int id, const std::string &value);
-    token(unsigned int id, const std::string &value, std::streampos position);
-    token(unsigned int id, const std::string &value, std::streampos position,
-          std::streamoff offset);
     token(const token &other);
 
     virtual ~token() noexcept;
+
+    std::string file() const { return _file; }
 
     /** Position in the code stream where the token was found.
      * @return Stream start position of the token.
@@ -70,6 +68,7 @@ namespace parser {
     /** Token type ID. */
     unsigned int _id;
     std::string _value;
+    std::string _file;
     std::streampos _position;
 
     /** If the content of the token isn't at the stream position we specify the
@@ -77,6 +76,12 @@ namespace parser {
      * parsed further.
      */
     std::streamoff _offset;
+
+  public:
+    token(unsigned int id, const std::string &value);
+    token(unsigned int id, const std::string &value, std::streampos position);
+    token(unsigned int id, const std::string &value, std::streampos position,
+          std::streamoff offset);
   };
 
   class syntax_error : public std::exception {
@@ -136,7 +141,7 @@ namespace parser {
     void push();
     void push(token value);
     void push(const std::string &code);
-    void push(std::istream &code);
+    void push(std::istream &code, const std::string &source = "");
 
     /** Pop any current code from the tokenizer and restore any code that was
      * push earlier.
@@ -150,12 +155,19 @@ namespace parser {
     /** The list of parsed tokens. */
     std::list<token> tokens;
     std::string code;
+    std::string file;
     std::istream *stream;
 
     std::streampos position;
 
     void add_token_pattern(unsigned int token_id, const std::string &pattern);
     void clear_token_patterns();
+
+    void add_token(unsigned int id, const std::string &value);
+    void add_token(unsigned int id, const std::string &value,
+                   std::streampos position);
+    void add_token(unsigned int id, const std::string &value,
+                   std::streampos position, std::streamoff offset);
 
     /**
      */
@@ -171,6 +183,7 @@ namespace parser {
     struct stack_s {
       std::list<token> tokens;
       std::string code;
+      std::string file;
       std::istream *stream;
       std::streampos position;
     };
@@ -186,7 +199,7 @@ namespace parser {
 
     void eval(const token &code);
     void eval(const std::string &code);
-    void eval(std::istream &code);
+    void eval(std::istream &code, const std::string &source = "");
 
   protected:
     tokenizer *tokens;
