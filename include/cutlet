@@ -43,7 +43,6 @@ namespace cutlet {
  */
 std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame);
 
-/** @ns */
 namespace cutlet {
 
   // Token IDs
@@ -171,7 +170,9 @@ namespace cutlet {
   /** Utility template for creating value converters for variable values.
    */
   template <class Ty>
-  Ty DECLSPEC convert(variable::pointer object) { return (Ty)(*(object)); }
+  Ty DECLSPEC convert(variable::pointer object) {
+    return Ty(*(object));
+  }
 
   template <> int DECLSPEC convert<int>(variable::pointer object);
   template <> bool DECLSPEC convert<bool>(variable::pointer object);
@@ -179,7 +180,6 @@ namespace cutlet {
   typedef void (*debug_function_t)(cutlet::interpreter &interp,
                                    const ast::node &n);
 
-  /** @ns */
   namespace ast {
 
     /** Base abstract syntax tree node.
@@ -210,6 +210,8 @@ namespace cutlet {
        * @param value The value for the break point.
        */
       void set_break(bool value = true);
+
+      virtual std::string file() const = 0;
 
       virtual std::streampos position() const = 0;
 
@@ -262,6 +264,7 @@ namespace cutlet {
   class DECLSPEC string : public variable, public std::string {
   public:
     string();
+    string(const string &value);
     string(const std::string &value);
     string(int value);
     virtual ~string() noexcept;
@@ -492,6 +495,7 @@ namespace cutlet {
   private:
     memory::reference<frame> _uplevel;
     std::string _label;
+    //node *_node;
     ast::node::pointer _compiled;
 
     /** Used to restore the global environment if it was changed. */
@@ -596,12 +600,13 @@ namespace cutlet {
      * @return A reference pointer to the compiled abstract syntax tree.
      * @see cutlet::ast::node
      */
-    ast::node::pointer compile(const variable::pointer code);
+    ast::node::pointer compile(variable::pointer code);
     ast::node::pointer compile(const std::string &code);
     ast::node::pointer compile(std::istream &in);
 
     ast::node::pointer compile_file(const std::string &filename);
 
+    variable::pointer expr(variable::pointer cmd);
     variable::pointer expr(const std::string &cmd);
 
     variable::pointer call(const std::string &procedure,

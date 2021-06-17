@@ -18,7 +18,7 @@
  */
 
 #include "builtin.h"
-#include <iostream>
+#include <sstream>
 
 /*****************************************************************************
  * class cutlet::sandbox_var
@@ -44,75 +44,69 @@ builtin::sandbox_var::~sandbox_var() noexcept {}
 cutlet::variable::pointer
 builtin::sandbox_var::operator()(cutlet::variable::pointer self,
                                  cutlet::interpreter &interp,
-                                 const cutlet::list &parameters) {
+                                 const cutlet::list &arguments) {
   (void)self;
-  std::string op = *(parameters[0]);
-  unsigned int args = parameters.size();
+  std::string op = *(arguments[0]);
+  size_t args = arguments.size();
 
   if (op == "eval") {
     // $sandbox eval body ...
-    std::string command;
-
     bool first = true;
-    auto it = parameters.begin(); ++it;
-    for (; it != parameters.end(); ++it) {
-      if (not first) command += " ";
-      else first = false;
-
-      command += *(*it);
-    }
 
     interp.push(_sandbox);
-    try {
-      interp.compile(command);
-    } catch (...) {
-      /* If an error was thrown within the sandbox, we pop the context off the
-       * stack to restore the previous environment then rethrow the
-       * exception.
-       */
-      interp.pop();
-      throw;
+    for (auto &command: arguments) {
+      if (first) {
+        first = false;
+      } else {
+        try {
+          interp.compile(command);
+        } catch (...) {
+          /* If an error was thrown within the sandbox, we pop the
+           * context off the stack to restore the previous environment
+           * then rethrow the exception.
+           */
+          interp.pop();
+          throw;
+        }
+      }
     }
     interp.pop();
 
   } else if (op == "expr") {
     // $sandbox expr body ...
-    std::string command;
-    variable::pointer result;
+    if (args == 2) {
+      variable::pointer result;
 
-    bool first = true;
-    auto it = parameters.begin(); ++it;
-    for (; it != parameters.end(); ++it) {
-      if (not first) command += " ";
-      else first = false;
-
-      command += *(*it);
-    }
-
-    interp.push(_sandbox);
-    try {
-      result = interp.expr(command);
-    } catch (...) {
-      /* If an error was thrown within the sandbox, we pop the context off the
-       * stack to restore the previous environment then rethrow the
-       * exception.
-       */
+      interp.push(_sandbox);
+      try {
+        result = interp.expr(arguments[1]);
+      } catch (...) {
+        /* If an error was thrown within the sandbox, we pop the context
+         * off the stack to restore the previous environment then
+         * rethrow the exception.
+         */
+        interp.pop();
+        throw;
+      }
       interp.pop();
-      throw;
-    }
-    interp.pop();
 
-    return result;
+      return result;
+    } else {
+      std::stringstream mesg;
+      mesg << "Invalid number of arguments for $sandbox expr "
+         << " (2 = " << args << ").\n $sandbox expr body";
+      throw std::runtime_error(mesg.str());
+    }
 
   } else if (op == "link") {
     // $sandbox link component ¿as name?
     // $sandbox link *args
-    if (args == 4 and *(parameters[2]) == "as") {
-      _sandbox->add(*(parameters[3]),
-                    interp.get(*(parameters[1])));
+    if (args == 4 and *(arguments[2]) == "as") {
+      _sandbox->add(*(arguments[3]),
+                    interp.get(*(arguments[1])));
     } else {
       bool first = true;
-      for (auto &parm: parameters) {
+      for (auto &parm: arguments) {
         if (first) first = false;
         else _sandbox->add(*parm, interp.get(*parm));
       }
@@ -122,7 +116,7 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
     // $sandbox unlink *args
 
     bool first = true;
-    for (auto &parm: parameters) {
+    for (auto &parm: arguments) {
       if (first) first = false;
       else _sandbox->remove(*parm);
     }
@@ -145,21 +139,21 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
     // $sandbox global name ¿=? ¿value?
     switch (args) {
     case 2:
-      _sandbox->variable(*(parameters[1]), nullptr);
+      _sandbox->variable(*(arguments[1]), nullptr);
       break;
     case 3:
-      if (*(parameters[1]) == "=")
-        _sandbox->variable(*(parameters[1]), nullptr);
+      if (*(arguments[1]) == "=")
+        _sandbox->variable(*(arguments[1]), nullptr);
       else
-        _sandbox->variable(*(parameters[1]), parameters[2]);
+        _sandbox->variable(*(arguments[1]), arguments[2]);
       break;
     case 4:
-      if (*(parameters[2]) != "=") {
+      if (*(arguments[2]) != "=") {
         throw std::runtime_error("global name ¿=? value\n"
                                  " Expected = got " +
-                                 (std::string)*(parameters[2]));
+                                 (std::string)*(arguments[2]));
       }
-      _sandbox->variable(*(parameters[1]), parameters[3]);
+      _sandbox->variable(*(arguments[1]), arguments[3]);
       break;
     default:
       throw std::runtime_error("Invalid arguments to sandbox operator clear");
@@ -167,7 +161,7 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
 
   } else {
     throw std::runtime_error("Unknown operator \"" +
-                             (std::string)*(parameters[0]) +
+                             (std::string)*(arguments[0]) +
                              "\" for sandbox type.");
   }
 

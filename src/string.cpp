@@ -92,6 +92,8 @@ static std::string str_utf8(size_t index, const std::string &value) {
 
 cutlet::string::string() : std::string() {}
 
+cutlet::string::string(const string &value) : std::string(value) {}
+
 cutlet::string::string(const std::string &value) : std::string(value) {}
 
 cutlet::string::string(int value) {

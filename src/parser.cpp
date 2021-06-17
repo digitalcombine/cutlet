@@ -22,7 +22,7 @@
 
 //#define DEBUG_PARSER 1
 
-#if DEBUG_PARSER
+#if defined(DEBUG_PARSER)
 #pragma message ("PARSER debugging enabled")
 #endif
 
@@ -53,40 +53,77 @@ std::ostream &operator <<(std::ostream &os,
 
 parser::token::token(unsigned int id, const std::string &value)
   : _id(id), _value(value), _position(0), _offset(0) {
-#if DEBUG_PARSER
-  if (_id != 7)
-    std::clog << "TOKEN:" << _id << ":" << _position << ":" << _offset
+#if defined(DEBUG_PARSER)
+  if (_id != 7) {
+    std::clog << "TOKEN:";
+    switch (_id) {
+    case 0: std::clog << "EOF"; break;
+    case 1: std::clog << "WORD"; break;
+    case 2: std::clog << "VAR"; break;
+    case 3: std::clog << "STRING"; break;
+    case 4: std::clog << "SUBCMD"; break;
+    case 5: std::clog << "BLOCK"; break;
+    case 6: std::clog << "COMMENT"; break;
+    case 7: std::clog << "EOL"; break;
+    }
+    std::clog << ":" << _position << ":" << _offset
               << ": " <<_value << std::endl;
+  }
 #endif
 }
 
 parser::token::token(const token &other)
-  : _id(other._id), _value(other._value), _position(other._position),
-    _offset(other._offset) {
-#if DEBUG_PARSER
-  if (_id != 7)
-    std::clog << "TOKEN:" << _id << ":" << _position << ":" << _offset
+  : _id(other._id), _value(other._value), _file(other._file),
+    _position(other._position), _offset(other._offset) {
+#if defined(DEBUG_PARSER)
+  /*if (_id != 7) {
+    std::clog << "COPY:" << _id << ":" << _position << ":" << _offset
               << ": " << _value << std::endl;
+              }*/
 #endif
 }
 
 parser::token::token(unsigned int id, const std::string &value,
                      std::streampos position)
   : _id(id), _value(value), _position(position), _offset(0) {
-#if DEBUG_PARSER
-  if (_id != 7)
-    std::clog << "TOKEN:" << _id << ":" << _position << ":" << _offset
-              << ": " << _value << std::endl;
+#if defined(DEBUG_PARSER)
+  if (_id != 7) {
+    std::clog << "TOKEN:";
+    switch (_id) {
+    case 0: std::clog << "EOF"; break;
+    case 1: std::clog << "WORD"; break;
+    case 2: std::clog << "VAR"; break;
+    case 3: std::clog << "STRING"; break;
+    case 4: std::clog << "SUBCMD"; break;
+    case 5: std::clog << "BLOCK"; break;
+    case 6: std::clog << "COMMENT"; break;
+    case 7: std::clog << "EOL"; break;
+    }
+    std::clog << ":" << _position << ":" << _offset
+              << ": " <<_value << std::endl;
+  }
 #endif
 }
 
 parser::token::token(unsigned int id, const std::string &value,
                      std::streampos position, std::streamoff offset)
   : _id(id), _value(value), _position(position), _offset(offset) {
-#if DEBUG_PARSER
-  if (_id != 7)
-    std::clog << "TOKEN:" << _id << ":" << _position << ":" << _offset
-              << ": " << _value << std::endl;
+#if defined(DEBUG_PARSER)
+  if (_id != 7) {
+    std::clog << "TOKEN:";
+    switch (_id) {
+    case 0: std::clog << "EOF"; break;
+    case 1: std::clog << "WORD"; break;
+    case 2: std::clog << "VAR"; break;
+    case 3: std::clog << "STRING"; break;
+    case 4: std::clog << "SUBCMD"; break;
+    case 5: std::clog << "BLOCK"; break;
+    case 6: std::clog << "COMMENT"; break;
+    case 7: std::clog << "EOL"; break;
+    }
+    std::clog << ":" << _position << ":" << _offset
+              << ": " <<_value << std::endl;
+  }
 #endif
 }
 
@@ -94,7 +131,7 @@ parser::token::token(unsigned int id, const std::string &value,
  * parser::token::~token *
  *************************/
 
-parser::token::~token() throw() {
+parser::token::~token() noexcept {
 }
 
 /*****************************
@@ -211,12 +248,12 @@ parser::tokenizer::~tokenizer() noexcept {
  * parser::tokenizer::parse *
  ****************************/
 
-void parser::tokenizer::parse(const std::string &code) {
-  push(code);
+void parser::tokenizer::parse(const std::string &source) {
+  push(source);
 }
 
-void parser::tokenizer::parse(std::istream &code) {
-  push(code);
+void parser::tokenizer::parse(std::istream &source) {
+  push(source);
 }
 
 /********************************
@@ -321,8 +358,11 @@ void parser::tokenizer::reset() noexcept {
  ***************************/
 
 void parser::tokenizer::push() {
+#if defined(DEBUG_PARSER)
+  std::clog << "TOKENIZER: pushing empty" << std::endl;
+#endif
   auto token = get_token();
-  _states.push({tokens, code, stream, position});
+  _states.push({tokens, code, file, stream, position});
   reset();
   position = token._position + token._offset;
   code = token._value;
@@ -330,27 +370,40 @@ void parser::tokenizer::push() {
 }
 
 void parser::tokenizer::push(token value) {
-  _states.push({tokens, code, stream, position});
+#if defined(DEBUG_PARSER)
+  std::clog << "TOKENIZER: pushing token" << std::endl;
+#endif
+  _states.push({tokens, code, file, stream, position});
   reset();
   position = value._position + value._offset;
   code = value._value;
+  file = value._file; // XXX
   parse_tokens();
 }
 
 void parser::tokenizer::push(const std::string &value) {
-  _states.push({tokens, code, stream, position});
+#if defined(DEBUG_PARSER)
+  std::clog << "TOKENIZER: pushing string" << std::endl;
+#endif
+  std::clog << "pushing " << value << std::endl;
+  _states.push({tokens, code, file, stream, position});
   reset();
   position = 0;
   code = value;
+  file = "<string>";
   parse_tokens();
 }
 
-void parser::tokenizer::push(std::istream &value) {
-  _states.push({tokens, code, stream, position});
+void parser::tokenizer::push(std::istream &value, const std::string &source) {
+#if defined(DEBUG_PARSER)
+  std::clog << "TOKENIZER: pushing stream" << std::endl;
+#endif
+  _states.push({tokens, code, file, stream, position});
   reset();
   position = value.tellg();
   stream = &value;
   code.clear();
+  file = source;
   parse_tokens();
 }
 
@@ -359,6 +412,9 @@ void parser::tokenizer::push(std::istream &value) {
  **************************/
 
 void parser::tokenizer::pop() {
+#if defined(DEBUG_PARSER)
+  std::clog << "TOKENIZER: popping" << std::endl;
+#endif
   auto &top = _states.top();
   tokens = top.tokens;
   code = top.code;
@@ -382,6 +438,27 @@ void parser::tokenizer::add_token_pattern(unsigned int token_id,
 
 void parser::tokenizer::clear_token_patterns() {
   _patterns.clear();
+}
+
+void parser::tokenizer::add_token(unsigned int id, const std::string &value) {
+  token result(id, value);
+  result._file = file;
+  tokens.push_back(result);
+}
+
+void parser::tokenizer::add_token(unsigned int id, const std::string &value,
+                                  std::streampos spos) {
+  token result(id, value, spos);
+  result._file = file;
+  tokens.push_back(result);
+}
+
+void parser::tokenizer::add_token(unsigned int id, const std::string &value,
+                                  std::streampos spos,
+                                  std::streamoff soff) {
+  token result(id, value, spos, soff);
+  result._file = file;
+  tokens.push_back(result);
 }
 
 /***************************************
@@ -416,7 +493,7 @@ void parser::tokenizer::parse_tokens() {
     if (stream) {
       position = stream->tellg();
       if (not getline(*stream, code, '\0')) {
-        tokens.push_back(token(T_EOF, "", position));
+        add_token(T_EOF, "", position);
         stream = NULL;
         return;
       }
@@ -429,7 +506,7 @@ void parser::tokenizer::parse_tokens() {
     while (not code.empty())
       parse_next_token();
     if (not stream)
-      tokens.push_back(token(T_EOF, "", position));
+      add_token(T_EOF, "", position);
   }
 }
 
@@ -437,8 +514,11 @@ void parser::tokenizer::parse_tokens() {
  * class parser::grammer
  */
 
-parser::grammer::~grammer() noexcept {
-}
+/*****************************
+ * parser::grammer::~grammer *
+ *****************************/
+
+parser::grammer::~grammer() noexcept {}
 
 /*************************
  * parser::grammer::eval *
@@ -462,9 +542,9 @@ void parser::grammer::eval(const std::string &code) {
     throw std::runtime_error("parser::grammer tokenizer not set");
 }
 
-void parser::grammer::eval(std::istream &code) {
+void parser::grammer::eval(std::istream &code, const std::string &source) {
   if (tokens) {
-    tokens->push(code);
+    tokens->push(code, source);
     entry();
     tokens->pop();
   } else

@@ -37,7 +37,7 @@ public:
                 cutlet::variable::pointer arguments,
                 cutlet::variable::pointer body)
     : _label(label), _arguments(arguments), _body(body) {}
-  virtual ~_def_function() noexcept {}
+  virtual ~_def_function() noexcept;
 
   /** Execute the function.
    */
@@ -78,16 +78,18 @@ public:
           interp.local(*(l->front()), l->back());
         } else {
           // Silly programmer.
-          throw std::runtime_error("Missing value for parameter " +
-                                   (std::string)*(*p_it));
+          throw std::runtime_error("Missing value for argument " +
+                                   (std::string)*(*p_it) +
+                                   " for function " + _label);
         }
       }
     }
 
     // We made it, now run the function.
-    if (_compiled.is_null())
+    if (_compiled.is_null()) {
+      (std::string)*_body; // XXX This shouldn't be necessary!!
       _compiled = interp.compile(_body);
-    else
+    } else
       (*_compiled)(interp);
 
     // Clean up the stack and return a value if there was one.
@@ -101,6 +103,8 @@ private:
 
   cutlet::ast::node::pointer _compiled;
 };
+
+_def_function::~_def_function() noexcept {}
 
 /******************************************************************************
  * Cutlets Builtin Public API
@@ -302,20 +306,29 @@ builtin::local(cutlet::interpreter &interp,
 cutlet::variable::pointer
 builtin::uplevel(cutlet::interpreter &interp,
                  const cutlet::list &arguments) {
-  unsigned int levels = 0, p_count = arguments.size();
+  unsigned int levels = 0;
+  size_t p_count = arguments.size();
 
   // Sort out the arguments.
   cutlet::variable::pointer body;
   if (p_count == 2) {
-    levels = cutlet::convert<int>(arguments[0]);
+    int arg = cutlet::convert<int>(arguments[0]);
+    if (arg < 0) {
+      std::stringstream mesg;
+      mesg << "Invalid argument level for uplevel "
+           << " (" << arg
+           << " >= 0).\n uplevel ¿levels? body";
+      throw std::runtime_error(mesg.str());
+    }
+    levels = (unsigned int)arg;
     body = arguments[1];
   } else if (p_count == 1) {
     body = arguments[0];
   } else {
     std::stringstream mesg;
-    mesg << "Invalid number of arguments for block "
+    mesg << "Invalid number of arguments for uplevel "
          << " (1 <= " << p_count
-         << " <= 2).\n block ¿levels? body";
+         << " <= 2).\n uplevel ¿levels? body";
     throw std::runtime_error(mesg.str());
   }
 

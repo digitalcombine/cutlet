@@ -20,6 +20,7 @@
 #include <cutlet>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 #include "builtin.h"
 #include "utilities.h"
@@ -46,12 +47,7 @@ public:
 
   /** Close and cleanup the native library.
    */
-  virtual ~native_lib() noexcept {
-#if defined (__linux__) || defined (__FreeBSD__)
-    if (_handle and dlclose(_handle) != 0)
-      std::cerr << "WARNING: dlclose " << dlerror() << std::endl;
-#endif
-  }
+  virtual ~native_lib() noexcept;
 
   /** Lookup a symbol within the library.
    * @return A pointer to the symbol. If the symbol doesn't exist then a null
@@ -69,6 +65,13 @@ public:
 private:
   nativelib_t _handle;
 };
+
+native_lib::~native_lib() noexcept {
+#if defined (__linux__) || defined (__FreeBSD__)
+  if (_handle and dlclose(_handle) != 0)
+    std::cerr << "WARNING: dlclose " << dlerror() << std::endl;
+#endif
+}
 
 /***************
  * operator << *
@@ -98,6 +101,8 @@ std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame) {
   case cutlet::frame::FS_CONTINUE:
     os << " (continue)";
     break;
+  case cutlet::frame::FS_RUNNING: // Shut up compiler warnings.
+    break;
   }
   os << "\n";
 
@@ -115,6 +120,8 @@ std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame) {
       break;
     case cutlet::frame::FS_CONTINUE:
       os << " (continue)";
+      break;
+    case cutlet::frame::FS_RUNNING: // Shut up compiler warnings.
       break;
     }
     os << "\n";
@@ -237,7 +244,7 @@ cutlet::utf8::iterator cutlet::utf8::iterator::operator ++(int) {
 }
 
 /***************************************
- * cutlet::utf8::Iterator::operator -- *
+ * cutlet::utf8::iterator::operator -- *
  ***************************************/
 
 cutlet::utf8::iterator &cutlet::utf8::iterator::operator --() {
@@ -261,14 +268,14 @@ cutlet::utf8::iterator cutlet::utf8::iterator::operator --(int) {
   iterator tmp(*this);
 
   if (_index > 0) {
-    size_t tmp = _index;
+    size_t tmps = _index;
 
     // Find the first character.
     for (--_index; ((*_value)[_index] & 0xc0) == 0x80 and _index > 0;
          --_index);
 
     // Get the length of the character and copy it.
-    _length = tmp - _index;
+    _length = tmps - _index;
     _current = _value->substr(_index, _length);
   } else {
     _current.clear();
@@ -355,11 +362,17 @@ size_t cutlet::utf8::iterator::length() const {
 
 std::string cutlet::utf8::substr(const iterator &start, const iterator &end) {
   const std::string &value = *start._value;
+
+#ifdef TESTING
+  if (value.substr(start._index, start._length) != *start)
+    throw std::range_error("iter values out of sync");
+#endif
+
   if (start != start.end() and end._index >= start._index) {
     return value.substr(start._index, end._index - start._index);
   }
-  return "";
-  //throw std::range_error("sub string iterators out of range");
+  //return "";
+  throw std::range_error("utf-8 sub-string iterators out of range");
 }
 
 /*************************
@@ -406,17 +419,23 @@ void cutlet_tokenizer::parse_tokens() {
 
   // If we have some code then tokenize it.
   if (not code.empty()) {
-    while (not code.empty())
+    while (not code.empty()) {
       parse_next_token();
+    }
     if (not stream)
       tokens.push_back(parser::token(T_EOF, "", position));
   }
 
+  //std::clog << "TOKENS: " << (parser::tokenizer)*this << std::endl;
+
 #ifdef TESTING
-  /*  I'd like to have this in the test suites, but unfortunately testing
-   * protected and private entities needs protected/private code.
+  /* I'd like to have this in the test suites, but unfortunately
+   * testing protected and private entities needs protected/private
+   * code.
+   *
+   * XXX Currently this messes up the stream.
    */
-  if (stream) {
+  /*if (stream) {
     stream->clear(); // Clear any error states.
 
     for (auto &token: tokens) {
@@ -425,11 +444,11 @@ void cutlet_tokenizer::parse_tokens() {
       std::streampos fpos = token.position();
 
       switch ((unsigned int)token) {
-      case T_COMMENT:
-      case T_VARIABLE:
-      case T_SUBCMD:
-      case T_BLOCK:
-      case T_STRING:
+      case cutlet::T_COMMENT:
+      case cutlet::T_VARIABLE:
+      case cutlet::T_SUBCMD:
+      case cutlet::T_BLOCK:
+      case cutlet::T_STRING:
         fpos += 1;
         break;
       }
@@ -447,8 +466,8 @@ void cutlet_tokenizer::parse_tokens() {
     }
   } else {
     /*for (auto &token: tokens) {
-      }*/
-  }
+      }
+  }*/
 #endif /* TESTING */
 }
 
@@ -461,6 +480,8 @@ void cutlet_tokenizer::parse_next_token() {
     cutlet::utf8::iterator it(code);
     std::streampos start_pos = position;
 
+    //std::clog << "PARSING: " << code << std::endl;
+
     // Skip any white space.
     while (is_space(*it) and it != it.end()) {
       ++it;
@@ -472,6 +493,11 @@ void cutlet_tokenizer::parse_next_token() {
     }
 
     switch ((*it)[0]) {
+
+    // End of File
+    case '\0':
+      it = it.end();
+      break;
 
     // Varible token.
     case '$': {
@@ -486,9 +512,9 @@ void cutlet_tokenizer::parse_next_token() {
         ++it;
 
       // Add the token.
-      tokens.push_back(parser::token(cutlet::T_VARIABLE,
-                                     cutlet::utf8::substr(start, it),
-                                     position, 1));
+      add_token(cutlet::T_VARIABLE,
+                cutlet::utf8::substr(start, it),
+                position, 1);
       break;
     }
 
@@ -516,9 +542,9 @@ void cutlet_tokenizer::parse_next_token() {
       }
 
       // Add the token.
-      tokens.push_back(parser::token(cutlet::T_STRING,
-                                     cutlet::utf8::substr(start, it),
-                                     position, 1));
+      add_token(cutlet::T_STRING,
+                cutlet::utf8::substr(start, it),
+                position, 1);
       ++it; // Remove trailing "
       break;
     }
@@ -547,9 +573,9 @@ void cutlet_tokenizer::parse_next_token() {
       }
 
       // Add the token.
-      tokens.push_back(parser::token(cutlet::T_STRING,
-                                     cutlet::utf8::substr(start, it),
-                                     position, 1));
+      add_token(cutlet::T_STRING,
+                cutlet::utf8::substr(start, it),
+                position, 1);
       ++it; // Remove trailing '
       break;
     }
@@ -582,9 +608,9 @@ void cutlet_tokenizer::parse_next_token() {
       }
 
       // Add the token.
-      tokens.push_back(parser::token(cutlet::T_SUBCMD,
-                                     cutlet::utf8::substr(start, previous),
-                                     position, 1));
+      add_token(cutlet::T_SUBCMD,
+                cutlet::utf8::substr(start, previous),
+                position, 1);
       break;
     }
 
@@ -599,12 +625,15 @@ void cutlet_tokenizer::parse_next_token() {
       while (count) {
 
         // Matching } character not found, throw and error.
-        if (it == it.end())
-          throw parser::syntax_error("Unmatched {",
+        if (it == it.end()) {
+          std::stringstream msg;
+          msg << file << ":" << position << ": Unmatched {";
+          throw parser::syntax_error(msg.str(),
                                      parser::token(cutlet::T_BLOCK,
                                                    cutlet::utf8::substr(start,
                                                                         it),
                                                    position));
+        }
 
         // Keep track of blocks within this block.
         if (*it == "}") {
@@ -616,9 +645,9 @@ void cutlet_tokenizer::parse_next_token() {
       }
 
       // Add the token.
-      tokens.push_back(parser::token(cutlet::T_BLOCK,
-                                     cutlet::utf8::substr(start, previous),
-                                     position, 1));
+      add_token(cutlet::T_BLOCK,
+                cutlet::utf8::substr(start, previous),
+                position, 1);
       break;
     }
 
@@ -627,27 +656,26 @@ void cutlet_tokenizer::parse_next_token() {
 
       if (is_eol(*it) or it == it.end()) {
         // Add an end of line token.
-        tokens.push_back(parser::token(cutlet::T_EOL, *it, position));
+        add_token(cutlet::T_EOL, *it, position);
         ++it;
 
       } else if ((tokens.empty() or
                   (unsigned int)tokens.back() == cutlet::T_EOL) and
                  (*it)[0] == '#') {
         // Add a comment token.
-        cutlet::utf8::iterator start(it);
+        cutlet::utf8::iterator startx(it);
         while (not is_eol(*it)) ++it;
-        tokens.push_back(parser::token(cutlet::T_COMMENT,
-                                       cutlet::utf8::substr(start + 1,
-                                                            it),
-                                       position, 1));
+        add_token(cutlet::T_COMMENT,
+                  cutlet::utf8::substr(startx + 1, it),
+                  position, 1);
 
       } else {
         // Add a word token.
         while (not is_space(*it) and not is_eol(*it) and it != it.end())
           ++it;
-        tokens.push_back(parser::token(cutlet::T_WORD,
-                                       cutlet::utf8::substr(start, it),
-                                       position));
+        add_token(cutlet::T_WORD,
+                  cutlet::utf8::substr(start, it),
+                  position);
       }
       break;
     }
@@ -656,7 +684,10 @@ void cutlet_tokenizer::parse_next_token() {
     position = start_pos + (std::streampos)it.position();
 
     // Update the remaining code.
-    code = cutlet::utf8::substr(it, it.end());
+    if (it != it.end())
+      code = cutlet::utf8::substr(it, it.end());
+    else
+      code.clear();
   }
 }
 
@@ -739,7 +770,7 @@ public:
             const std::string &doc)
     : _label(label), _doc(doc), _function_ptr(func) {}
 
-  virtual ~_function() noexcept {}
+  virtual ~_function() noexcept;
 
   virtual cutlet::variable::pointer
   operator ()(cutlet::interpreter &interp, const cutlet::list &arguments) {
@@ -755,6 +786,8 @@ private:
   std::string _doc;
   cutlet::function_t _function_ptr;
 };
+
+_function::~_function() noexcept {}
 
 /******************************************************************************
  * class cutlet::exception
@@ -899,9 +932,9 @@ bool cutlet::sandbox::has_variable(const std::string &name) {
   return (_variables.find(name) != _variables.end());
 }
 
-/****************************
- * cutlet::sandbox::execute *
- ****************************/
+/*************************
+ * cutlet::sandbox::call *
+ *************************/
 
 cutlet::variable::pointer
 cutlet::sandbox::call(interpreter &interp,
@@ -924,8 +957,7 @@ cutlet::sandbox::call(interpreter &interp,
       params.push_front(new cutlet::string(name));
       return (*it->second)(interp, params);
     } else {
-      throw std::runtime_error(std::string("Unresolved symbol \"") + name +
-                               "\"");
+      throw std::runtime_error("Unresolved symbol \"" + name + "\"");
     }
   }
 }
@@ -939,11 +971,11 @@ void *cutlet::sandbox::symbol(const std::string &name) const {
 
   // Search all the loaded libraries for the symbol.
   for (auto &lib: _native_libs) {
-    result = ((native_lib *)lib)->symbol(name);
+    result = reinterpret_cast<native_lib *>(lib)->symbol(name);
     if (result) return result;
   }
 
-  throw std::runtime_error(std::string("Internal symbol ") + name +
+  throw std::runtime_error("Internal symbol " + name +
                            " not found in loaded native libraries.");
 }
 
@@ -1031,7 +1063,7 @@ bool cutlet::frame::done() const {
   case FS_BREAK:
   case FS_CONTINUE:
     return true;
-  default:
+  case FS_RUNNING:
     return false;
   }
 }
@@ -1344,12 +1376,12 @@ cutlet::interpreter::get(const std::string &name) const {
  ********************************/
 
 cutlet::ast::node::pointer
-cutlet::interpreter::compile(const variable::pointer code) {
+cutlet::interpreter::compile(variable::pointer code) {
   ast::node *n = (ast::node *)(*code);
   if (n) {
     parser::grammer::eval(n->token());
   } else {
-    parser::grammer::eval(*code);
+    parser::grammer::eval((std::string)*code);
   }
   _frame->_compiled = _compiled;
   return _compiled;
@@ -1375,7 +1407,7 @@ cutlet::ast::node::pointer cutlet::interpreter::compile(std::istream &in) {
 cutlet::ast::node::pointer
 cutlet::interpreter::compile_file(const std::string &filename) {
   std::ifstream input_file(filename);
-  parser::grammer::eval(input_file);
+  parser::grammer::eval(input_file, filename);
   input_file.close();
   _frame->_compiled = _compiled;
   return _compiled;
@@ -1384,6 +1416,18 @@ cutlet::interpreter::compile_file(const std::string &filename) {
 /*****************************
  * cutlet::interpreter::expr *
  *****************************/
+
+cutlet::variable::pointer cutlet::interpreter::expr(variable::pointer cmd) {
+  ast::node *n = (ast::node *)(*cmd);
+  if (n) {
+    tokens->push(n->token());
+  } else {
+    tokens->push((std::string)*cmd);
+  }
+  ast::node::pointer result = command_();
+  tokens->pop();
+  return (*result)(*this);
+}
 
 cutlet::variable::pointer cutlet::interpreter::expr(const std::string &cmd) {
   tokens->push(cmd);
@@ -1454,8 +1498,7 @@ cutlet::variable::pointer cutlet::interpreter::pop() {
   _frame = uplevel;
 
   // Restore the global environment if necessary.
-  if (not sb_saved.is_null())
-    _global = sb_saved;
+  if (not sb_saved.is_null()) _global = sb_saved;
 
   return result;
 }
@@ -1717,18 +1760,18 @@ cutlet::ast::node::pointer cutlet::interpreter::string_() {
 
         unsigned char ch_val = 0;
         if (value[0] >= '0' and value[0] <= '9')
-          ch_val = (unsigned int)(value[0] - '0') << 4;
+          ch_val = (unsigned char)(value[0] - '0') << 4;
         else if (value[0] >= 'a' and value[0] <= 'f')
-          ch_val = ((unsigned int)(value[0] - 'a') + 10) << 4;
+          ch_val = ((unsigned char)(value[0] - 'a') + 10) << 4;
         else if (value[0] >= 'A' and value[0] <= 'F')
-          ch_val = ((unsigned int)(value[0] - 'A') + 10) << 4;
+          ch_val = ((unsigned char)(value[0] - 'A') + 10) << 4;
 
         if (value[1] >= '0' and value[1] <= '9')
-          ch_val |= (unsigned int)(value[1] - '0');
+          ch_val |= (unsigned char)(value[1] - '0');
         else if (value[1] >= 'a' and value[1] <= 'f')
-          ch_val |= (unsigned int)(value[1] - 'a') + 10;
+          ch_val |= (unsigned char)(value[1] - 'a') + 10;
         else if (value[1] >= 'A' and value[1] <= 'F')
-          ch_val |= (unsigned int)(value[1] - 'A') + 10;
+          ch_val |= (unsigned char)(value[1] - 'A') + 10;
 
         std::string x;
         x += ch_val;

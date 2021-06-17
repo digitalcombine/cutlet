@@ -39,6 +39,8 @@ namespace cutlet {
 
       virtual unsigned int id() const;
 
+      virtual std::string file() const;
+
       virtual std::streampos position() const;
 
       virtual const std::string &body() const;
@@ -61,6 +63,8 @@ namespace cutlet {
 
       virtual unsigned int id() const;
 
+      virtual std::string file() const;
+
       virtual std::streampos position() const;
 
       virtual const std::string &body() const;
@@ -82,6 +86,8 @@ namespace cutlet {
       operator()(cutlet::interpreter &interp);
 
       virtual unsigned int id() const;
+
+      virtual std::string file() const;
 
       virtual std::streampos position() const;
 
@@ -106,6 +112,8 @@ namespace cutlet {
       operator()(cutlet::interpreter &interp);
 
       virtual unsigned int id() const;
+
+      virtual std::string file() const;
 
       virtual std::streampos position() const;
 
@@ -132,6 +140,8 @@ namespace cutlet {
       operator()(cutlet::interpreter &interp);
 
       virtual unsigned int id() const;
+
+      virtual std::string file() const;
 
       virtual std::streampos position() const;
 
@@ -160,6 +170,8 @@ namespace cutlet {
       operator()(cutlet::interpreter &interp);
 
       virtual unsigned int id() const;
+
+      virtual std::string file() const;
 
       virtual std::streampos position() const;
 
