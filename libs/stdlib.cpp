@@ -137,11 +137,11 @@ _expr(cutlet::interpreter &interp, const cutlet::list &parameters) {
 static cutlet::variable::pointer
 _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
   cutlet::list::const_iterator it = parameters.begin();
-  std::string cond;
+  cutlet::variable::pointer cond;
   cutlet::variable::pointer body;
 
   // Get the initial condition ¿then? body part of the if statement.
-  cond = *(*it);
+  cond = *it;
   next(it, parameters);
   if (expect(it, "then")) {
     next(it, parameters);
@@ -150,7 +150,7 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
     body = *it;
   }
 
-  interp.push(new cutlet::block_frame(cond, interp.frame(1)));
+  interp.push(new cutlet::block_frame(*cond, interp.frame(1)));
   bool cond_res = cutlet::convert<bool>(interp.expr(cond));
   interp.pop();
 
@@ -164,7 +164,7 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
   while (is_more(it, parameters)) {
     if (expect(it, "elif")) {
       next(it, parameters);
-      cond = *(*it);
+      cond = *it;
 
       next(it, parameters);
       if (expect(it, "then")) {
@@ -174,7 +174,7 @@ _if(cutlet::interpreter &interp, const cutlet::list &parameters) {
         body = *it;
       }
 
-      interp.push(new cutlet::block_frame(cond, interp.frame(1)));
+      interp.push(new cutlet::block_frame(*cond, interp.frame(1)));
       cond_res = cutlet::convert<bool>(interp.expr(cond));
       interp.pop();
 

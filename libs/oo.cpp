@@ -30,7 +30,7 @@ class _var_object;
  */
 class _def_method : public cutlet::component {
 public:
-  _def_method(cutlet::variable::pointer parameters,
+  _def_method(cutlet::variable::pointer arguments,
               cutlet::variable::pointer body);
   _def_method(const _def_method &other) = delete;
 
@@ -40,7 +40,7 @@ public:
   operator ()(cutlet::interpreter &interp, const cutlet::list &args);
 
 private:
-  cutlet::variable::pointer _parameters;
+  cutlet::variable::pointer _arguments;
   cutlet::variable::pointer _body;
 
   cutlet::ast::node::pointer _compiled;
@@ -51,18 +51,17 @@ private:
 class _def_method_func : public cutlet::component {
 public:
   _def_method_func(cutlet::function_t func) : _function_ptr(func) {}
-  virtual ~_def_method_func() noexcept {}
+  virtual ~_def_method_func() noexcept;
 
   virtual cutlet::variable::pointer
   operator ()(cutlet::interpreter &interp,
-              const cutlet::list &parameters) {
-    return _function_ptr(interp, parameters);
+              const cutlet::list &arguments) {
+    return _function_ptr(interp, arguments);
   }
 
 private:
   cutlet::function_t _function_ptr;
 };
-
 
 /** An object as a cutlet variable.
  */
@@ -77,12 +76,12 @@ public:
 
   virtual cutlet::variable::pointer
   operator()(cutlet::variable::pointer self, cutlet::interpreter &interp,
-             const cutlet::list &parameters);
+             const cutlet::list &arguments);
 
   virtual cutlet::variable::pointer
   operator()(cutlet::component &cls, cutlet::variable::pointer self,
              cutlet::interpreter &interp,
-             const cutlet::list &parameters);
+             const cutlet::list &arguments);
 
   bool has_property(const std::string &name) const;
   cutlet::variable::pointer property(const std::string &name) const;
@@ -117,14 +116,14 @@ public:
   /** Class methods are called from here.
    */
   virtual cutlet::variable::pointer
-  operator ()(cutlet::interpreter &interp, const cutlet::list &parameters);
+  operator ()(cutlet::interpreter &interp, const cutlet::list &arguments);
 
   /** Method calls from the object. This is called from
    * _var_object::operator ().
    */
   virtual cutlet::variable::pointer
   operator ()(const std::string &method,
-              cutlet::interpreter &interp, const cutlet::list &parameters);
+              cutlet::interpreter &interp, const cutlet::list &arguments);
 
   /** Add a method component to the class.
    * @param name The name of the method.
@@ -214,9 +213,9 @@ static cutlet::sandbox::pointer &_oo_sandbox() {
  * _def_method::_def_method *
  ****************************/
 
-_def_method::_def_method(cutlet::variable::pointer parameters,
+_def_method::_def_method(cutlet::variable::pointer arguments,
                          cutlet::variable::pointer body)
-  : _parameters(parameters), _body(body) {
+  : _arguments(arguments), _body(body) {
 }
 
 /*****************************
@@ -231,11 +230,11 @@ _def_method::~_def_method() noexcept {}
 
 cutlet::variable::pointer _def_method::operator ()(cutlet::interpreter &interp,
                                                    const cutlet::list &args) {
-  auto p_it = cutlet::cast<cutlet::list>(_parameters).begin();
+  auto p_it = cutlet::cast<cutlet::list>(_arguments).begin();
   auto a_it = args.begin();
 
-  // Populate the local frame with the calls parameters.
-  for (; p_it != cutlet::cast<cutlet::list>(_parameters).end() and
+  // Populate the local frame with the calls arguments.
+  for (; p_it != cutlet::cast<cutlet::list>(_arguments).end() and
          a_it != args.end(); ++p_it, ++a_it) {
 
     // Set if the parameter was defined as a list -> {name default_value}.
@@ -243,12 +242,12 @@ cutlet::variable::pointer _def_method::operator ()(cutlet::interpreter &interp,
 
     if (l) {
       // Was a list, so use the first entry as parameter name.
-      interp.local((std::string)*(l->front()), *a_it);
+      interp.local(*(l->front()), *a_it);
     } else {
 
-      std::string name((std::string)*(*p_it));
+      std::string name(*(*p_it));
       if (name == "*args") {
-        // Create a special local args with the remaining parameters as a list.
+        // Create a special local args with the remaining arguments as a list.
         // This is our form of varadic arguments.
         interp.local("args", new cutlet::list(a_it, args.end()));
       } else {
@@ -258,16 +257,16 @@ cutlet::variable::pointer _def_method::operator ()(cutlet::interpreter &interp,
     }
   }
 
-  if (cutlet::cast<cutlet::list>(_parameters).size() > args.size()) {
+  if (cutlet::cast<cutlet::list>(_arguments).size() > args.size()) {
     // Set default parameter values.
-    while (p_it != cutlet::cast<cutlet::list>(_parameters).end()) {
+    while (p_it != cutlet::cast<cutlet::list>(_arguments).end()) {
       cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
       if (l) {
-        interp.local((std::string)*(l->front()), l->back());
+        interp.local(*(l->front()), l->back());
       } else
         throw
           std::runtime_error(std::string("Missing value for parameter ") +
-                             (std::string)*(*p_it));
+                             cutlet::convert<std::string>(*p_it));
     }
   }
 
@@ -281,6 +280,16 @@ cutlet::variable::pointer _def_method::operator ()(cutlet::interpreter &interp,
 
   return nullptr;
 }
+
+/*****************************************************************************
+ * class _def_method_func
+ */
+
+/*********************
+ * ~_def_method_func *
+ *********************/
+
+_def_method_func::~_def_method_func() noexcept {}
 
 /*****************************************************************************
  * class _var_object
@@ -313,16 +322,16 @@ _def_class &_var_object::type() {
 cutlet::variable::pointer
 _var_object::operator()(cutlet::variable::pointer self,
                         cutlet::interpreter &interp,
-                        const cutlet::list &parameters) {
-  if (parameters.size() == 0) {
+                        const cutlet::list &arguments) {
+  if (arguments.size() == 0) {
     throw std::runtime_error("no method given calling object");
   }
 
-  cutlet::list params(parameters.begin() + 1, parameters.end());
+  cutlet::list params(arguments.begin() + 1, arguments.end());
 
-  interp.push(new _obj_frame(*(parameters[0]), self));
+  interp.push(new _obj_frame(*(arguments[0]), self));
   try {
-    dynamic_cast<_def_class &>(*(_class))(*(parameters[0]), interp, params);
+    dynamic_cast<_def_class &>(*(_class))(*(arguments[0]), interp, params);
   } catch (...) {
     //interp.pop();
     throw;
@@ -334,16 +343,16 @@ cutlet::variable::pointer
 _var_object::operator()(cutlet::component &cls,
                         cutlet::variable::pointer self,
                         cutlet::interpreter &interp,
-                        const cutlet::list &parameters) {
-  if (parameters.size() == 0) {
+                        const cutlet::list &arguments) {
+  if (arguments.size() == 0) {
     throw std::runtime_error("no method given calling object");
   }
 
-  cutlet::list params(parameters.begin() + 1, parameters.end());
+  cutlet::list params(arguments.begin() + 1, arguments.end());
 
-  interp.push(new _obj_frame(*(parameters[0]), self));
+  interp.push(new _obj_frame(*(arguments[0]), self));
   try {
-    dynamic_cast<_def_class &>(cls)(*(parameters[0]), interp, params);
+    dynamic_cast<_def_class &>(cls)(*(arguments[0]), interp, params);
   } catch (...) {
     //interp.pop();
     throw;
@@ -389,8 +398,8 @@ _def_class::_def_class(cutlet::interpreter &interp,
   : _name(name), _data(nullptr), _delete_fn(nullptr) {
 
   for (auto &parent_name: cutlet::cast<cutlet::list>(parents)) {
-    std::string name = cutlet::convert<std::string>(parent_name);
-    _parents.push_back(interp.get(name));
+    std::string par_name = cutlet::convert<std::string>(parent_name);
+    _parents.push_back(interp.get(par_name));
   }
 }
 
@@ -421,25 +430,25 @@ void _def_class::compile(cutlet::interpreter &interp,
  ***************************/
 
 cutlet::variable::pointer _def_class::operator ()(cutlet::interpreter &interp,
-                                                  const cutlet::list &parameters) {
+                                                  const cutlet::list &arguments) {
   cutlet::variable::pointer object;
-  if (parameters.size() == 0) {
+  if (arguments.size() == 0) {
     throw std::runtime_error("no method called for class");
   }
 
-  if (cutlet::convert<std::string>(parameters[0]) == "new") {
+  if (cutlet::convert<std::string>(arguments[0]) == "new") {
     // Create our new object
     _var_object *obj = new _var_object(interp.get(_name));
     add_properties(*obj);
 
     object = obj;
-    interp.push(new _obj_frame(*(parameters[0]), object));
-    (*object)(object, interp, parameters);
+    interp.push(new _obj_frame(*(arguments[0]), object));
+    (*object)(object, interp, arguments);
     interp.pop();
     return object;
   } else {
-    std::string method = cutlet::convert<std::string>(parameters[0]);
-    cutlet::list params(parameters.begin() + 1, parameters.end());
+    std::string method = cutlet::convert<std::string>(arguments[0]);
+    cutlet::list params(arguments.begin() + 1, arguments.end());
 
     // Find the class method.
     auto m = _class_methods.find(method);
@@ -452,7 +461,7 @@ cutlet::variable::pointer _def_class::operator ()(cutlet::interpreter &interp,
     }
 
     if (m != _class_methods.end()) {
-      interp.push(new _cls_frame(*(parameters[0]), *this));
+      interp.push(new _cls_frame(*(arguments[0]), *this));
       try {
         (*(m->second))(interp, params);
       } catch (...) {
@@ -472,20 +481,20 @@ cutlet::variable::pointer _def_class::operator ()(cutlet::interpreter &interp,
 cutlet::variable::pointer
 _def_class::operator ()(const std::string &method,
                         cutlet::interpreter &interp,
-                        const cutlet::list &parameters) {
+                        const cutlet::list &arguments) {
   /* This gets called from the object variable.
    */
 
   auto m = _methods.find(method);
   if (m != _methods.end()) {
     // We found the method, now call it.
-    return (*(m->second))(interp, parameters);
+    return (*(m->second))(interp, arguments);
   } else {
     // Now check the parent class for the method.
     for (auto _parent_class: _parents) {
       m = dynamic_cast<_def_class &>(*(_parent_class))._methods.find(method);
       if (m != _methods.end()) {
-        return (*(m->second))(interp, parameters);
+        return (*(m->second))(interp, arguments);
       }
     }
   }
@@ -579,8 +588,6 @@ bool _def_class::has_class_property(const std::string &name) const {
 
 void _def_class::add_properties(_var_object &obj) const {
   for (auto &property: _properties) { // Add the properties
-    /*std::clog << "DEBUG oo: Adding property " << property << " to object."
-      << std::endl;*/
     obj.property(property, new cutlet::string(""));
   }
 
@@ -685,10 +692,10 @@ void _cls_frame::variable(const std::string &name,
 
 // def property name ¿name ...?
 static cutlet::variable::pointer _property(cutlet::interpreter &interp,
-                                           const cutlet::list &parameters) {
+                                           const cutlet::list &arguments) {
   cutlet::component::pointer self = interp.get("self");
 
-  for (auto &item: parameters) {
+  for (auto &item: arguments) {
     dynamic_cast<_def_class &>(*(self)).add_property(*(item));
   }
 
@@ -697,100 +704,100 @@ static cutlet::variable::pointer _property(cutlet::interpreter &interp,
 
 // def class.property name ¿=? value?
 static cutlet::variable::pointer _c_property(cutlet::interpreter &interp,
-                                             const cutlet::list &parameters) {
+                                             const cutlet::list &arguments) {
   cutlet::component::pointer self = interp.get("self");
 
-  size_t p_count = parameters.size();
+  size_t p_count = arguments.size();
   if (p_count < 1 or p_count > 3) {
     std::stringstream mesg;
-    mesg << "Invalid number of parameters for class.property "
-         << (p_count >= 1 ? cutlet::convert<std::string>(parameters[0]) : "")
+    mesg << "Invalid number of arguments for class.property "
+         << (p_count >= 1 ? cutlet::convert<std::string>(arguments[0]) : "")
          << " (1 <= " << p_count
          << " <= 3).\n class.property name ¿¿=? value?";
     throw std::runtime_error(mesg.str());
   }
 
-  dynamic_cast<_def_class &>(*(self)).add_class_property(*parameters[0]);
+  dynamic_cast<_def_class &>(*(self)).add_class_property(*arguments[0]);
   if (p_count > 1) {
-    if (p_count == 3 and (std::string)*parameters[1] != "=") {
+    if (p_count == 3 and *arguments[1] != "=") {
       throw std::runtime_error("class.property expected \"=\".\n"
                                " class.property name ¿¿=? value?");
     }
-    dynamic_cast<_def_class &>(*(self)).class_property(*parameters[0],
-                                                       parameters[p_count - 1]);
+    dynamic_cast<_def_class &>(*(self)).class_property(*arguments[0],
+                                                       arguments[p_count - 1]);
   }
 
   return nullptr;
 }
 
-// def method name ¿parameters? body
+// def method name ¿arguments? body
 static cutlet::variable::pointer _method(cutlet::interpreter &interp,
-                                         const cutlet::list &parameters) {
-  // Make sure we have to right number of parameters.
-  size_t p_count = parameters.size();
+                                         const cutlet::list &arguments) {
+  // Make sure we have to right number of arguments.
+  size_t p_count = arguments.size();
   if (p_count < 2 or p_count > 3) {
     std::stringstream mesg;
-    mesg << "Invalid number of parameters for method "
-         << (p_count >= 2 ? cutlet::convert<std::string>(parameters[0]) : "")
+    mesg << "Invalid number of arguments for method "
+         << (p_count >= 2 ? cutlet::convert<std::string>(arguments[0]) : "")
          << " (2 <= " << p_count
-         << " <= 3).\n method name ¿parameters? body";
+         << " <= 3).\n method name ¿arguments? body";
     throw std::runtime_error(mesg.str());
   }
 
   // Get the class and method name.
   cutlet::component::pointer self = interp.get("self");
-  std::string name = *(parameters[0]);
+  std::string name = *(arguments[0]);
 
-  // Get the method parameters and body.
+  // Get the method arguments and body.
   cutlet::variable::pointer body;
-  cutlet::variable::pointer def_parameters;
+  cutlet::variable::pointer def_arguments;
   if (p_count == 2) {
-    def_parameters = new cutlet::list();
-    body = parameters[1];
+    def_arguments = new cutlet::list();
+    body = arguments[1];
   } else {
-    def_parameters = interp.list(*(parameters[1]));
-    body = parameters[2];
+    def_arguments = interp.list(*(arguments[1]));
+    body = arguments[2];
   }
 
   // Create and add our method to the class.
   dynamic_cast<_def_class &>(*(self)).add(name,
-                                          new _def_method(def_parameters,
+                                          new _def_method(def_arguments,
                                                           body));
 
   // No droids here.
   return nullptr;
 }
 
-// def class.method name ¿parameters? body
+// def class.method name ¿arguments? body
 static cutlet::variable::pointer _c_method(cutlet::interpreter &interp,
-                                           const cutlet::list &parameters) {
-  // Make sure we have to right number of parameters.
-  size_t p_count = parameters.size();
+                                           const cutlet::list &arguments) {
+  // Make sure we have to right number of arguments.
+  size_t p_count = arguments.size();
   if (p_count < 2 or p_count > 3) {
     std::stringstream mesg;
-    mesg << "Invalid number of parameters for method (2 <= " << p_count
-         << " <= 3).\n method name ¿parameters? body";
+    mesg << "Invalid number of arguments for method (2 <= " << p_count
+         << " <= 3).\n method name ¿arguments? body";
     throw std::runtime_error(mesg.str());
   }
 
   // Get the class and method name.
   cutlet::component::pointer self = interp.get("self");
-  std::string name = *(parameters[0]);
+  std::string name = *(arguments[0]);
 
-  // Get the method parameters and body.
+  // Get the method arguments and body.
   cutlet::variable::pointer body;
-  cutlet::variable::pointer def_parameters;
+  cutlet::variable::pointer def_arguments;
   if (p_count == 2) {
-    def_parameters = new cutlet::list();
-    body = parameters[1];
+    def_arguments = new cutlet::list();
+    body = arguments[1];
   } else {
-    def_parameters = interp.list(*(parameters[1]));
-    body = parameters[2];
+    def_arguments = interp.list(*(arguments[1]));
+    body = arguments[2];
   }
 
   // Create and add our method to the class.
   dynamic_cast<_def_class &>(*(self)).add_class(name,
-                                                new _def_method(def_parameters,
+                                                new _def_method(def_arguments,
                                                                 body));
 
   // No droids here.
@@ -799,28 +806,28 @@ static cutlet::variable::pointer _c_method(cutlet::interpreter &interp,
 
 // def class name ¿supers? body
 static cutlet::variable::pointer _class(cutlet::interpreter &interp,
-                                        const cutlet::list &parameters) {
-  // Make sure we have to right number of parameters.
-  size_t p_count = parameters.size();
+                                        const cutlet::list &arguments) {
+  // Make sure we have to right number of arguments.
+  size_t p_count = arguments.size();
   if (p_count < 2 or p_count > 3) {
     std::stringstream mesg;
-    mesg << "Invalid number of parameters for class (2 <= " << p_count
+    mesg << "Invalid number of arguments for class (2 <= " << p_count
          << " <= 3).\n class name ¿supers? body";
     throw std::runtime_error(mesg.str());
   }
 
   // Get the class name.
-  std::string name = cutlet::convert<std::string>(parameters[0]);
+  std::string name = cutlet::convert<std::string>(arguments[0]);
 
   // Get the super class names and class body.
   cutlet::variable::pointer parents;
   cutlet::variable::pointer body;
-  if (parameters.size() == 3) {
-    parents = interp.list(*(parameters[1]));
-    body = parameters[2];
+  if (arguments.size() == 3) {
+    parents = interp.list(*(arguments[1]));
+    body = arguments[2];
   } else {
     parents = new cutlet::list();
-    body = parameters[1];
+    body = arguments[1];
   }
 
   // Create the class component.
@@ -839,6 +846,7 @@ static cutlet::variable::pointer _class(cutlet::interpreter &interp,
     try {
       cls->compile(interp, body);
     } catch (std::exception &err) {
+      (void)err;
       interp.pop();
       throw;
     }
@@ -853,18 +861,18 @@ static cutlet::variable::pointer _class(cutlet::interpreter &interp,
 
 // def super class method *args
 static cutlet::variable::pointer _super(cutlet::interpreter &interp,
-                                        const cutlet::list &parameters) {
+                                        const cutlet::list &arguments) {
 
-  if (parameters.size() < 2) {
+  if (arguments.size() < 2) {
     throw std::runtime_error("super class self method *args");
   }
 
-  cutlet::component &cls = *interp.get(*parameters[0]);
+  cutlet::component &cls = *interp.get(*arguments[0]);
 
   cutlet::variable::pointer self = interp.frame(1)->variable("self");
   _var_object *obj = dynamic_cast<_var_object *>(&(*self));
   if (obj) {
-    cutlet::list parms(parameters.begin() + 1, parameters.end());
+    cutlet::list parms(arguments.begin() + 1, arguments.end());
     return (*obj)(cls, self, interp, parms);
   } else {
     throw std::runtime_error("self isn't an object");
@@ -873,7 +881,9 @@ static cutlet::variable::pointer _super(cutlet::interpreter &interp,
   return nullptr;
 }
 
-// We need to declare init_cutlet as a C function.
+/******************************************************************************
+ * We need to declare init_cutlet as a C function.
+ */
 extern "C" {
   DECLSPEC void init_cutlet(cutlet::interpreter *interp);
 
@@ -897,6 +907,7 @@ extern "C" {
  * init_cutlet *
  ***************/
 
+#include <iostream>
 void init_cutlet(cutlet::interpreter *interp) {
   _oo_sandbox() = new cutlet::sandbox();
   _oo_sandbox()->add("method", _method);

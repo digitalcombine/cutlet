@@ -29,6 +29,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <sys/stat.h>
+
 #define DEBUG_SHELL 1
 
 #if DEBUG_SHELL

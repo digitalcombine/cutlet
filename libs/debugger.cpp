@@ -29,4 +29,5 @@ extern "C" {
  ***************/
 
 void init_cutlet(cutlet::interpreter *interp) {
+  (void)interp;
 }

@@ -17,22 +17,36 @@ import stdlib
 
 def testsuite.test {name body} {
   print "Test: $name"
+  $_tests append $name
+
   try {
     uplevel 2 $body
   } catch err {
-    $errors append "$err"
+    print " $err"
+    $_errors append "$err"
   }
 }
 
-def testsuite.assert {description condition} {
+def testsuite.test_fail {name body} {
+  print "Test: $name"
+  $_tests append $name
+
+  try {
+    uplevel 2 $body
+    $_errors append "$name tested without failure"
+  } catch err {
+  }
+}
+
+def testsuite.assert {condition description} {
   if $condition then {
   } else {
-    $errors append "$description: failed"
+    $_errors append "$description: failed"
   }
 }
 
 def testsuite.fail {description} {
-  $errors append "$description: failed"
+  $_errors append "$description: failed"
 }
 
 def testsuite {name body} {
@@ -47,27 +61,32 @@ def testsuite {name body} {
   $test_box global library.path = $library.path
   $test_box eval "import stdlib"
 
-  $test_box global errors = [list]
+  $test_box global _errors = [list]
+  $test_box global _tests = [list]
   $test_box link testsuite.test as test
+  $test_box link testsuite.test_fail as test_fail
   $test_box link testsuite.assert as assert
   $test_box link testsuite.fail as fail
 
-  print "DEBUG: starting tests"
   $test_box eval $body
 
-  print "DEBUG: tests complete"
-  local errors = [$test_box expr {$errors}]
+  local errors = [$test_box expr {$_errors}]
+  local tests = [$test_box expr {$_tests}]
 
-  #print "DEBUG: tests complete: $errors"
   if {[$errors size] > 0} then {
-    $errors foreach err {
-      print " $err"
+    if {[$errors size] = 1} then {
+      print "[$errors size] error found."
+    } else {
+      print "[$errors size] errors found."
     }
+    #$errors foreach err {
+    #  print " $err"
+    #}
     uplevel 3 {
       return 1
     }
   } else {
-    print "Everything Passed!"
+    print "All [$tests size] tests passed!"
     uplevel 3 {
       return 0
     }
