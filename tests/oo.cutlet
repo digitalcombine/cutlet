@@ -87,17 +87,20 @@ testsuite "Object Oriented API" {
     local myobject = [test_class new "John Smith"]
 
     if {[$myobject hello] <> "Hello John Smith\nGoodbye John Smith"} then {
-      print "$myobject <> Hello John Smith\nGoodbye John Smith"
-      return 1
+      fail "$myobject <> Hello John Smith\nGoodbye John Smith"
     }
   }
-}
 
-global myobject = [test_class_2 new "Jane Smith"]
+  test "Inherited Class Object Creation" {
+    local myobject = [test_class_2 new "Jane Smith"]
 
-if {[$myobject hello] <> "Hello Jane Smith\nGoodbye Jane Smith!"} then {
-  print "$myobject <> Hello Jane Smith\nGoodbye Jane Smith!"
-  return 1
+    if {[$myobject hello] <> "Hello Jane Smith\nGoodbye Jane Smith!"} then {
+      fail "$myobject = Hello Jane Smith\nGoodbye Jane Smith"
+    }
+
+    # XXX This causes a bizarre error.
+    #assert {true} {1 = 1}
+  }
 }
 
 $myobject change_name_to "John Smith"

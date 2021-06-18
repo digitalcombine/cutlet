@@ -30,7 +30,6 @@ inline void (assert)(bool e) { assert(e); }
 #ifndef _TESTSUITE_H
 #define _TESTSUITE_H
 
-/** @ns */
 namespace test {
   class TestSuite;
 }
@@ -43,19 +42,19 @@ namespace test {
  */
 std::ostream &operator <<(std::ostream &os, const test::TestSuite &suite);
 
-/** @ns */
 namespace test {
 
   template <class Ty>
-	class osmanip {
+  class osmanip {
   public:
-		explicit osmanip(Ty arg) : arg(arg) {}
+    explicit osmanip(Ty value) : arg(value) {}
+    virtual ~osmanip() noexcept {}
 
-		virtual std::ostream &operator()(std::ostream &os) const = 0;
+    virtual std::ostream &operator()(std::ostream &os) const = 0;
 
   protected:
-		Ty arg;
-	};
+    Ty arg;
+  };
 
   /** A test::Test object that contains the results of a test. It is a
    * std::ostringstream with the addition of recording the results of a test
@@ -67,6 +66,8 @@ namespace test {
    */
   class Test : public std::ostringstream {
   public:
+    virtual ~Test() noexcept;
+
     /** Overrides the string streams str() method to return a formatted
      * string of the test results.
      * @returns The human readable result of the test.
@@ -80,7 +81,7 @@ namespace test {
      */
     bool passed() const { return _passed; }
 
-    operator bool () const { return _passed; };
+    operator bool () const { return _passed; }
 
     friend class TestSuite;
     friend std::ostream &fail(std::ostream &);
@@ -125,15 +126,16 @@ namespace test {
   class assert : public osmanip<bool> {
   public:
     explicit assert(bool result);
+    virtual ~assert() noexcept;
     virtual std::ostream &operator()(std::ostream &os) const;
   };
 
   /**
    */
-	class TestSuite {
-	public:
+  class TestSuite {
+  public:
     TestSuite(const std::string &title);
-    virtual ~TestSuite() throw();
+    virtual ~TestSuite() noexcept;
 
     /** Creates a new test::Test object, adds it to the test::TestSuite and
      * returns the object.
@@ -151,7 +153,7 @@ namespace test {
                                          const TestSuite &suite);
 
   private:
-    std::string title;
+    std::string _title;
     std::list<Test *> tests;
 	};
 }

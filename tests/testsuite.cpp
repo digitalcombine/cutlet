@@ -23,6 +23,12 @@
   * class test::Test
   */
 
+/*********************
+ * test::Test::~Test *
+ *********************/
+
+test::Test::~Test() noexcept {}
+
 /********************
  * test::Test::Test *
  ********************/
@@ -106,8 +112,13 @@ std::ostream &test::clear(std::ostream &os) {
  * test::assert::assert *
  ************************/
 
-test::assert::assert(bool result) : osmanip<bool>(result) {
-}
+test::assert::assert(bool result) : osmanip<bool>(result) {}
+
+/*************************
+ * test::assert::~assert *
+ *************************/
+
+test::assert::~assert() noexcept {}
 
 /****************************
  * test::assert::operator() *
@@ -130,13 +141,13 @@ std::ostream &test::assert::operator()(std::ostream &os) const {
  * test::TestSuite::TestSuite *
  ******************************/
 
-test::TestSuite::TestSuite(const std::string &title) : title(title) {}
+test::TestSuite::TestSuite(const std::string &title) : _title(title) {}
 
 /*******************************
  * test::TestSuite::~TestSuite *
  *******************************/
 
-test::TestSuite::~TestSuite() throw() {
+test::TestSuite::~TestSuite() noexcept {
   // Clean up all the tests.
   std::list<Test *>::iterator it = tests.begin();
   for (; it != tests.end(); ++it)
@@ -167,7 +178,7 @@ bool test::TestSuite::passed() const {
 std::ostream &operator <<(std::ostream &out, const test::TestSuite &suite) {
   // Write the suite title.
   out << std::string(79, '=') << "\n";
-  out << "TEST SUITE: " << suite.title << "\n";
+  out << "TEST SUITE: " << suite._title << "\n";
 
   unsigned int passed = 0;
   unsigned int failed = 0;

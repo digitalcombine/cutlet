@@ -26,6 +26,19 @@ static int results = EXIT_SUCCESS;
 
 static std::ifstream script;
 
+/************
+ * add_path *
+ ************/
+
+/** Adds a file path to the search paths list for libraries.
+ * @param interp The cutlet interpreter.
+ * @param path The path to add to the search list.
+ */
+static void add_path(cutlet::interpreter &interp, const std::string &path) {
+  cutlet::variable::pointer lib_path = interp.var("library.path");
+  cutlet::cast<cutlet::list>(lib_path).push_back(new cutlet::string(path));
+}
+
 /*************
  * break_int *
  *************/
@@ -79,7 +92,7 @@ static void break_int(cutlet::interpreter &interp,
   }
 
   // Is the node matching with what was read from the script.
-  if (node.body() != script_token) {
+  /*if (node.body() != script_token) {
 
     std::cout << "Node @ " << node.position() << ": "
               << node.body() << std::endl;
@@ -108,7 +121,7 @@ static void break_int(cutlet::interpreter &interp,
     std::cerr << "  " << script_token << " != " << node.body()
               << std::endl;
     results = EXIT_FAILURE;
-  }
+    }*/
 
   // Clean up after ourself.
   if (script_token) delete[] script_token;
@@ -124,14 +137,24 @@ int main(int argc, char *argv[]) {
 
   // Setup the interpreter and load the script.
   cutlet::interpreter interpreter;
-  script.open("hello.cutlet");
+
+  add_path(interpreter, "../libs/.libs");
+  add_path(interpreter, "../libs");
+
+  //script.open("hello.cutlet");
+  script.open("oo.cutlet");
+  if (not script) {
+    std::cerr << "Failed to open script oo.cutlet" << std::endl;
+    return EXIT_FAILURE;
+  }
 
   // Setup the debugger interface.
   cutlet::ast::node::debugger(break_int);
   cutlet::ast::node::break_all = true;
 
   // Lets get to work.
-  interpreter.compile_file("hello.cutlet");
+  //interpreter.compile_file("hello.cutlet");
+  interpreter.compile_file("oo.cutlet");
 
   return results;
 }
