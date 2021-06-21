@@ -36,6 +36,7 @@ Makefile.in
 *.obj
 *.la
 *.a
+*.core
 
 # Compiled Dynamic libraries
 *.so
