@@ -385,7 +385,6 @@ void parser::tokenizer::push(const std::string &value) {
 #if defined(DEBUG_PARSER)
   std::clog << "TOKENIZER: pushing string" << std::endl;
 #endif
-  std::clog << "pushing " << value << std::endl;
   _states.push({tokens, code, file, stream, position});
   reset();
   position = 0;
