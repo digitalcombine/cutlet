@@ -153,7 +153,7 @@ namespace cutlet {
     friend class interpreter;
 
   protected:
-    virtual operator ast::node *() const;
+    virtual ast::node *node() const;
   };
 
   template <class Ty>

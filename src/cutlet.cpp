@@ -752,11 +752,11 @@ cutlet::variable::operator()(variable::pointer self, interpreter &interp,
 
 cutlet::variable::operator std::string() const { return ""; }
 
-/******************************************
- * cutlet::variable::operator ast::node * *
- ******************************************/
+/**************************
+ * cutlet::variable::node *
+ **************************/
 
-cutlet::variable::operator cutlet::ast::node *() const { return nullptr; }
+cutlet::ast::node *cutlet::variable::node() const { return nullptr; }
 
 /******************************************************************************
  * class _function
@@ -1318,7 +1318,7 @@ cutlet::variable::pointer cutlet::interpreter::list(const std::string value) {
 
 cutlet::variable::pointer
 cutlet::interpreter::list(const variable::pointer value) {
-  ast::node *n = (ast::node *)(*value);
+  ast::node *n = value->node();
   if (n) {
     tokens->push(n->token());
   } else {
@@ -1377,8 +1377,9 @@ cutlet::interpreter::get(const std::string &name) const {
 
 cutlet::ast::node::pointer
 cutlet::interpreter::compile(variable::pointer code) {
-  ast::node *n = (ast::node *)(*code);
+  ast::node *n = code->node();
   if (n) {
+    //parser::grammer::eval((std::string)*code);
     parser::grammer::eval(n->token());
   } else {
     parser::grammer::eval((std::string)*code);
@@ -1418,7 +1419,7 @@ cutlet::interpreter::compile_file(const std::string &filename) {
  *****************************/
 
 cutlet::variable::pointer cutlet::interpreter::expr(variable::pointer cmd) {
-  ast::node *n = (ast::node *)(*cmd);
+  ast::node *n = cmd->node();
   if (n) {
     tokens->push(n->token());
   } else {
