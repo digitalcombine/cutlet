@@ -586,12 +586,13 @@ void cutlet_tokenizer::parse_next_token() {
 
       cutlet::utf8::iterator start(it), previous(it);
       unsigned int count = 1;
+      unsigned int blocks = 0;
 
       // Find the matching ] character.
       while (count) {
 
         // Matching ] character not found, throw and error.
-        if (is_eol(*it) or it == it.end())
+        if ((is_eol(*it) and not blocks) or it == it.end())
           throw parser::syntax_error("Unmatched [",
                                      parser::token(cutlet::T_SUBCMD,
                                                    cutlet::utf8::substr(start,
@@ -603,6 +604,10 @@ void cutlet_tokenizer::parse_next_token() {
           count--;
           previous = it;
         } else if (*it == "[") count++;
+
+        // Keep track of blocks within this subcommand.
+        if (*it == "}") blocks--;
+        else if (*it == "{") blocks++;
 
         ++it; // Next character please.
       }
@@ -1002,7 +1007,7 @@ void cutlet::sandbox::load(interpreter &interp,
 }
 
 /******************************************************************************
- * class cutlet::interpreter
+ * class cutlet::frame
  */
 
 /************************
@@ -1354,12 +1359,12 @@ void cutlet::interpreter::add(const std::string &name,
   _global->add(name, comp);
 }
 
-/********************************
- * cutlet::interpreter::sandbox *
- ********************************/
+/************************************
+ * cutlet::interpreter::environment *
+ ************************************/
 
-cutlet::sandbox &cutlet::interpreter::environment() {
-  return *_global;
+cutlet::sandbox::pointer cutlet::interpreter::environment() {
+  return _global;
 }
 
 /****************************
