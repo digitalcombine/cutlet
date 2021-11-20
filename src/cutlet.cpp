@@ -1,20 +1,31 @@
 /*                                                                  -*- c++ -*-
  * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
  *
- * This file is part of Cutlet.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * Cutlet is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
  *
- * Cutlet is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
  *
- * You should have received a copy of the GNU General Public License
- * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <cutlet>
@@ -77,20 +88,20 @@ native_lib::~native_lib() noexcept {
  * operator << *
  ***************/
 
-std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame) {
+std::ostream &operator <<(std::ostream &os,
+                          const cutlet::frame &frame) {
   cutlet::frame::pointer ptr = frame._uplevel;
 
   // Count the number of frames we have.
   unsigned int level = 1;
-  if (not (ptr == nullptr)) {
-    while (not ptr->_uplevel.is_null()) {
-      ptr = ptr->_uplevel;
-      level++;
-    }
+  while (ptr and (not ptr->_sandbox_orig)) {
+    ptr = ptr->_uplevel;
+    level++;
   }
+  if (ptr and ptr->_sandbox_orig) level++;
 
-  // Display the current execution frame.
-  os << level << (frame._isblock ? "* " : ": ") << frame._label;
+  // Display information about the frame.
+  os << level << ": " << frame.label();
   switch (frame.state()) {
   case cutlet::frame::FS_DONE:
     os << " (done)";
@@ -104,30 +115,18 @@ std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame) {
   case cutlet::frame::FS_RUNNING: // Shut up compiler warnings.
     break;
   }
-  os << "\n";
 
-  // Now iterate through the other frames and display them.
-  ptr = frame._uplevel;
-  while (not ptr->_uplevel.is_null()) {
-    level--;
-    os << level << (ptr->_isblock ? "* " : ": ") << ptr->_label;
-    switch (ptr->state()) {
-    case cutlet::frame::FS_DONE:
-      os << " (done)";
-      break;
-    case cutlet::frame::FS_BREAK:
-      os << " (break)";
-      break;
-    case cutlet::frame::FS_CONTINUE:
-      os << " (continue)";
-      break;
-    case cutlet::frame::FS_RUNNING: // Shut up compiler warnings.
-      break;
-    }
-    os << "\n";
-    ptr = ptr->_uplevel;
+  // Display the variables in the frame.
+  for (auto &it: frame._variables) {
+    os << "\n  $" << it.first;
   }
 
+  return os;
+}
+
+std::ostream &operator <<(std::ostream &os,
+                          const cutlet::frame::pointer &frame) {
+  os << *frame;
   return os;
 }
 
@@ -914,8 +913,8 @@ cutlet::variable::pointer cutlet::sandbox::variable(interpreter &interp,
     return _variables[name];
   else {
     try {
-      list params({new cutlet::string(name)});
-      return call(interp, "¿variable?", params);
+      list arguments({new cutlet::string(name)});
+      return call(interp, "¿variable?", arguments);
     } catch (std::runtime_error &err) {}
   }
   return nullptr;
@@ -958,11 +957,11 @@ cutlet::sandbox::call(interpreter &interp,
      */
     it = _components.find("¿component?");
     if (it != _components.end()) {
-      cutlet::list params(arguments);
-      params.push_front(new cutlet::string(name));
-      return (*it->second)(interp, params);
+      cutlet::list args(arguments);
+      args.push_front(new cutlet::string(name));
+      return (*it->second)(interp, args);
     } else {
-      throw std::runtime_error("Unresolved symbol \"" + name + "\"");
+      throw std::runtime_error("Unresolved component \"" + name + "\"");
     }
   }
 }
@@ -1004,190 +1003,6 @@ void cutlet::sandbox::load(interpreter &interp,
 
     _native_libs.push_back(lib);
   }
-}
-
-/******************************************************************************
- * class cutlet::frame
- */
-
-/************************
- * cutlet::frame::frame *
- ************************/
-
-cutlet::frame::frame() : _state(FS_RUNNING), _isblock(false) {}
-
-cutlet::frame::frame(memory::reference<frame> uplevel, bool isblock)
-  : _state(FS_RUNNING), _isblock(isblock), _uplevel(uplevel) {}
-
-/*************************
- * cutlet::frame::~frame *
- *************************/
-
-cutlet::frame::~frame() noexcept {
-  memory::gc::collect();
-}
-
-/***************************
- * cutlet::frame::variable *
- ***************************/
-
-cutlet::variable::pointer
-cutlet::frame::variable(const std::string &name) const {
-  auto item = _variables.find(name);
-  if (item != _variables.end())
-    return item->second;
-
-  if (_isblock)
-    return _uplevel->variable(name);
-
-  return nullptr;
-}
-
-void cutlet::frame::variable(const std::string &name,
-                             variable::pointer value) {
-  if (value.is_null()) {
-    // If the value in null erase the variable from the frame.
-    _variables.erase(name);
-  } else {
-    _variables[name] = value;
-  }
-}
-
-/***********************
- * cutlet::frame::done *
- ***********************/
-
-void cutlet::frame::done(variable::pointer result) {
-  _return = result;
-  _state = FS_DONE;
-}
-
-bool cutlet::frame::done() const {
-  switch (_state) {
-  case FS_DONE:
-  case FS_BREAK:
-  case FS_CONTINUE:
-    return true;
-  case FS_RUNNING:
-    return false;
-  }
-}
-
-/************************
- * cutlet::frame::state *
- ************************/
-
-cutlet::frame::state_t cutlet::frame::state() const {
-  return _state;
-}
-
-void cutlet::frame::state(cutlet::frame::state_t new_state) {
-  if (new_state == FS_DONE or new_state == FS_RUNNING)
-    _state = new_state;
-}
-
-/**************************
- * cutlet::frame::uplevel *
- **************************/
-
-memory::reference<cutlet::frame>
-cutlet::frame::uplevel(unsigned int levels) const {
-  cutlet::frame::pointer result;
-
-  // Returning a reference to ourselves just breaks things.
-  if (levels == 0)
-    throw std::runtime_error("Internal error returning a frame level 0.");
-
-  result = _uplevel;
-  --levels;
-
-  /* We don't allow this to go pass a frame if the global enviroment was
-   * changed. We don't want to break the sandboxing.
-   */
-  if (not result.is_null() and not result->_sandbox_orig.is_null())
-    throw std::runtime_error("");
-
-  while (not result.is_null() and levels > 0) {
-    /* We don't allow this to go pass a frame if the global enviroment was
-     * changed. We don't want to break the sandboxing.
-     */
-    if (not result->_sandbox_orig.is_null())
-      throw std::runtime_error("");
-
-    result = result->_uplevel;
-    --levels;
-  }
-
-  if (result.is_null()) throw std::runtime_error("");
-
-  return result;
-}
-
-/************************
- * cutlet::frame::label *
- ************************/
-
-void cutlet::frame::label(const std::string &value) {
-  _label = value;
-}
-
-/******************************************************************************
- * class cutlet::block_frame
- */
-
-/************************************
- * cutlet::block_frame::block_frame *
- ************************************/
-
-cutlet::block_frame::block_frame(cutlet::frame::pointer parent)
-  : _parent(parent) {
-  _isblock = true; // Found in class frame.
-}
-
-cutlet::block_frame::block_frame(const std::string &label,
-                                 cutlet::frame::pointer parent)
-  : _parent(parent) {
-  _isblock = true;  // Found in class frame.
-  this->label(label);
-}
-
-/*************************************
- * cutlet::block_frame::~block_frame *
- *************************************/
-
-cutlet::block_frame::~block_frame() noexcept {}
-
- /********************************
- * cutlet::block_frame::variable *
- *********************************/
-
-cutlet::variable::pointer
-cutlet::block_frame::variable(const std::string &name) const {
-  cutlet::variable::pointer result = cutlet::frame::variable(name);
-
-  if (result.is_null()) result = _parent->variable(name);
-  return result;
-}
-
-/*****************************
- * cutlet::block_frame::done *
- *****************************/
-
-void cutlet::block_frame::done(variable::pointer result) {
-  _parent->done(result);
-}
-
-bool cutlet::block_frame::done() const {
-  return _parent->done();
-}
-
-/******************************
- * cutlet::block_frame::state *
- ******************************/
-
-void cutlet::block_frame::state(cutlet::frame::state_t new_state) {
-  _state = new_state;
-  _parent->state(new_state);
 }
 
 /******************************************************************************
@@ -1233,6 +1048,7 @@ cutlet::interpreter::interpreter() {
 
   // Create the toplevel frame with the default program return value.
   _frame = new cutlet::frame();
+  _frame->label("_main_");
   _frame->_return = new cutlet::string(0);
 
   _interpreters++;
@@ -1432,6 +1248,11 @@ cutlet::variable::pointer cutlet::interpreter::expr(variable::pointer cmd) {
   }
   ast::node::pointer result = command_();
   tokens->pop();
+
+  if (result.is_null()) {
+    std::clog << "DEBUG: " << (std::string)*cmd << std::endl;
+  }
+
   return (*result)(*this);
 }
 
@@ -1461,33 +1282,47 @@ cutlet::frame::pointer cutlet::interpreter::frame(unsigned int levels) const {
   return _frame->uplevel(levels);
 }
 
+int cutlet::interpreter::frames() const {
+  frame::pointer ptr = _frame;
+  int count = 0;
+  while (ptr and not ptr->_sandbox_orig) {
+    count++;
+    ptr = ptr->_uplevel;
+  }
+
+  if (ptr and ptr->_sandbox_orig)
+    count++;
+
+  return count;
+}
+
 /*****************************
  * cutlet::interpreter::push *
  *****************************/
 
 void cutlet::interpreter::push(const std::string &label) {
-  memory::reference<cutlet::frame> new_frame = new cutlet::frame(_frame);
-  new_frame->label(label);
-  _frame = new_frame;
+  frame::pointer new_frame = new cutlet::frame(label);
+  push(new_frame);
+}
+
+void cutlet::interpreter::push(int level, const std::string &label) {
+  push(new cutlet::block_frame(label, frame(level)));
+}
+
+void cutlet::interpreter::push(sandbox::pointer sb, const std::string &label) {
+  frame::pointer new_frame = new cutlet::frame(label);
+  push(new_frame, sb);
 }
 
 void cutlet::interpreter::push(frame::pointer new_frame) {
-  new_frame->_uplevel = _frame;
+  new_frame->parent(_frame);
   _frame = new_frame;
 }
 
 void cutlet::interpreter::push(frame::pointer new_frame, sandbox::pointer sb) {
-  new_frame->_uplevel = _frame;
-  _frame = new_frame;
   new_frame->_sandbox_orig = _global;
   _global = sb;
-}
-
-void cutlet::interpreter::push(sandbox::pointer sb) {
-  memory::reference<cutlet::frame> new_frame = new cutlet::frame(_frame);
-  _frame = new_frame;
-  new_frame->_sandbox_orig = _global;
-  _global = sb;
+  push(new_frame);
 }
 
 /****************************
@@ -1500,7 +1335,7 @@ cutlet::variable::pointer cutlet::interpreter::pop() {
   memory::reference<sandbox> sb_saved = _frame->_sandbox_orig;
 
   // Retore the frame.
-  memory::reference<cutlet::frame> uplevel = _frame->_uplevel;
+  memory::reference<cutlet::frame> uplevel = _frame->parent();
   _frame = uplevel;
 
   // Restore the global environment if necessary.
@@ -1529,6 +1364,10 @@ void cutlet::interpreter::finish(variable::pointer result) {
 
 cutlet::frame::state_t cutlet::interpreter::state() const {
   return _frame->state();
+}
+
+void cutlet::interpreter::state(frame::state_t new_state) {
+  _frame->state(new_state);
 }
 
 /*****************************

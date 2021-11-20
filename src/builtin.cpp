@@ -1,23 +1,31 @@
 /*                                                                  -*- c++ -*-
  * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
  *
- * This file is part of Cutlet.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * Cutlet is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
  *
- * Cutlet is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
  *
- * You should have received a copy of the GNU General Public License
- * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
  *
- * This is the absolute bare bones API used in all newly created Cutlet
- * interpreters.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "builtin.h"
@@ -87,7 +95,6 @@ public:
 
     // We made it, now run the function.
     if (_compiled.is_null()) {
-      (std::string)*_body; // XXX This shouldn't be necessary!!
       _compiled = interp.compile(_body);
     } else
       (*_compiled)(interp);
@@ -164,13 +171,14 @@ builtin::incl(cutlet::interpreter &interp,
   for (auto &fname: arguments) {
     if (fexists(*fname)) {
       interp.compile_file(*fname);
-      return nullptr;
+    } else {
+      throw std::runtime_error("include file " +
+                               (std::string)*fname +
+                               " not found.");
     }
-
-    throw std::runtime_error("import file " +
-                             (std::string)*fname +
-                             " not found.");
   }
+
+  return nullptr;
 }
 
 /********************
@@ -299,50 +307,69 @@ builtin::local(cutlet::interpreter &interp,
   return nullptr;
 }
 
-/*****************************
- * def uplevel ¿levels? body *
- *****************************/
+/**********************************
+ * def uplevel ¿levels? body      *
+ * def uplevel expr ¿levels? body *
+ **********************************/
 
 cutlet::variable::pointer
 builtin::uplevel(cutlet::interpreter &interp,
                  const cutlet::list &arguments) {
   unsigned int levels = 0;
   size_t p_count = arguments.size();
+  bool expr = false;
 
-  // Sort out the arguments.
-  cutlet::variable::pointer body;
-  if (p_count == 2) {
-    int arg = cutlet::convert<int>(arguments[0]);
-    if (arg < 0) {
-      std::stringstream mesg;
-      mesg << "Invalid argument level for uplevel "
-           << " (" << arg
-           << " >= 0).\n uplevel ¿levels? body";
-      throw std::runtime_error(mesg.str());
-    }
-    levels = (unsigned int)arg;
-    body = arguments[1];
-  } else if (p_count == 1) {
-    body = arguments[0];
-  } else {
+  if (p_count < 1 or p_count > 3) {
     std::stringstream mesg;
     mesg << "Invalid number of arguments for uplevel "
-         << " (1 <= " << p_count
-         << " <= 2).\n uplevel ¿levels? body";
+         << " (1 < " << p_count
+         << " > 3)\n uplevel ¿expr? ¿levels? body";
     throw std::runtime_error(mesg.str());
   }
 
-  // Create the new block frame and execute the body within it.
-  try {
-    interp.push(new cutlet::block_frame(interp.frame(levels + 1)));
-    interp.compile(body);
-    interp.pop();
-  } catch (...) {
-    interp.pop();
-    throw;
+  // Sort out the arguments.
+  cutlet::variable::pointer body(arguments[p_count - 1]);
+  if (p_count >= 2) {
+    int arg = 0;
+    if (*arguments[0] == "expr") {
+      expr = true;
+
+      if (p_count == 3)
+        arg = cutlet::convert<int>(arguments[1]);
+
+      if (arg < 0) {
+        std::stringstream mesg;
+        mesg << "Invalid argument level for uplevel "
+             << " (" << arg
+             << " >= 0).\n uplevel expr ¿levels? body";
+        throw std::runtime_error(mesg.str());
+      }
+    } else {
+      arg = cutlet::convert<int>(arguments[0]);
+      if (arg < 0) {
+        std::stringstream mesg;
+        mesg << "Invalid argument level for uplevel "
+             << " (1 >= " << arg
+             << " >= 2).\n uplevel ¿levels? body";
+        throw std::runtime_error(mesg.str());
+      }
+    }
+
+
+    levels = (unsigned int)arg;
   }
 
-  return nullptr;
+  // Create the new block frame and execute the body within it.
+  cutlet::variable::pointer result;
+
+  interp.push(levels + 1, "uplevel body");
+  if (expr)
+    result = interp.expr(body);
+  else
+    interp.compile(body);
+  interp.pop();
+
+  return result;
 }
 
 /********************
@@ -352,18 +379,19 @@ builtin::uplevel(cutlet::interpreter &interp,
 cutlet::variable::pointer
 builtin::ret(cutlet::interpreter &interp,
              const cutlet::list &arguments) {
-  cutlet::frame::pointer uplevel = interp.frame(1);
+  cutlet::frame::pointer frame = interp.frame(1);
   switch (arguments.size()) {
   case 0:
-    uplevel->done();
+    frame->state(cutlet::frame::FS_DONE);
     break;
   case 1:
-    uplevel->done(arguments[0]);
+    frame->done(arguments[0]);
     break;
   default:
-    uplevel->done(new cutlet::list(arguments));
+    frame->done(new cutlet::list(arguments));
     break;
   }
+
   return nullptr;
 }
 

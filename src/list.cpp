@@ -1,20 +1,31 @@
 /*                                                                  -*- c++ -*-
- * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
+ * Copyright © 2018-2021 Ron R Wills <ron@digitalcombine.ca>
  *
- * This file is part of Cutlet.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * Cutlet is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
  *
- * Cutlet is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
  *
- * You should have received a copy of the GNU General Public License
- * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <cutlet>
@@ -28,6 +39,10 @@ static bool _d_less(cutlet::variable::pointer v1,
                     cutlet::variable::pointer v2) {
   return ((std::string)(*v1) < (std::string)(*v2));
 }
+
+/***********
+ * _c_less *
+ ***********/
 
 class _c_less {
 public:
@@ -63,7 +78,8 @@ static bool _d_equal(cutlet::variable::pointer v1,
  * cutlet::list::list *
  **********************/
 
-cutlet::list::list() : std::deque<variable::pointer>() {}
+cutlet::list::list()
+  : std::deque<variable::pointer>() {}
 
 cutlet::list::list(const_iterator first, const_iterator last)
   : std::deque<variable::pointer>(first, last) {}
@@ -71,7 +87,10 @@ cutlet::list::list(const_iterator first, const_iterator last)
 cutlet::list::list(const std::initializer_list<variable::pointer> &items)
   : std::deque<variable::pointer>(items.begin(), items.end()) {}
 
-cutlet::list::list(const list &other) : std::deque<variable::pointer>(other) {}
+cutlet::list::list(const list &other)
+  : std::deque<variable::pointer>(other) {}
+
+cutlet::list::~list() noexcept {}
 
 /**********************
  * cutlet::list::join *
@@ -85,8 +104,8 @@ std::string cutlet::list::join(const std::string &delim) const {
     if (not first) result += delim;
     else first = false;
 
-    //if (not val.is_null())
-    result += (std::string)(*val);
+    if (not val.is_null())
+      result += (std::string)(*val);
   }
 
   return result;
@@ -179,7 +198,7 @@ cutlet::variable::pointer cutlet::list::operator()(variable::pointer self,
                                            "list operator unique"));
     }
 
-    // $list == $other
+    // $list == $other or $list = $other
   } else if (op == "==" or op == "=") {
     return _equal(interp, arguments);
 

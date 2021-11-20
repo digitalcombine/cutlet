@@ -1,29 +1,47 @@
 /*                                                                 -*- c++ -*-
  * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
  *
- * This file is part of Cutlet.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * Cutlet is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
  *
- * Cutlet is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
  *
- * You should have received a copy of the GNU General Public License
- * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <libcutlet/memory>
 
 //#define DEBUG_MEM 1
+#define MEM_THREAD_SAFE 1
 
 #if DEBUG_MEM
 #pragma message ("MEM debugging enabled")
 #include <iostream>
+#endif
+
+#if MEM_THREAD_SAFE
+#include <mutex>
+
+static std::mutex mtx;
 #endif
 
 /*  The gc_cleaner class is used to ensure that memory::gc::collect_all is
@@ -40,6 +58,7 @@ public:
 
 static gc_cleaner cleaner;
 
+
 /******************************************************************************
  * class memory::recyclable
  */
@@ -48,8 +67,7 @@ static gc_cleaner cleaner;
  * memory::recyclable::operator new *
  ************************************/
 
-void *
-memory::recyclable::operator new(std::size_t size) {
+void *memory::recyclable::operator new(std::size_t size) {
   return gc::alloc(size);
 }
 
@@ -57,8 +75,7 @@ memory::recyclable::operator new(std::size_t size) {
  * memory::recyclable::operator new[] *
  **************************************/
 
-void *
-memory::recyclable::operator new[](std::size_t size) {
+void *memory::recyclable::operator new[](std::size_t size) {
   return gc::alloc(size);
 }
 
@@ -108,6 +125,10 @@ void *memory::gc::alloc(std::size_t size) {
   std::clog << "memory::gc::alloc(" << size << ")" << std::endl;
 #endif
 
+#if MEM_THREAD_SAFE
+  mtx.lock();
+#endif
+
   /* To help further speed up allocation, we don't just try to find the
    * exact size of memory requested. Instead we use lower_bound to find a
    * memory block that would fit the request and make sure it's no bigger
@@ -125,7 +146,16 @@ void *memory::gc::alloc(std::size_t size) {
 #endif
     free_size -= ((memory_t*)res)->size;
 
+#if MEM_THREAD_SAFE
+    mtx.unlock();
+#endif
+
   } else {
+
+#if MEM_THREAD_SAFE
+    mtx.unlock();
+#endif
+
     // An appropriate block couldn't be found so get more from the system.
     res = (unsigned char *)::operator new(size + sizeof(memory_t));
     ((memory_t *)(res))->size = size;
@@ -164,9 +194,19 @@ void memory::gc::recycle(void *ptr) noexcept {
     std::clog << "MEM: composting " << mptr->size << " bytes @ "
               << (void *)mptr << std::endl;
 #endif
+
+#if MEM_THREAD_SAFE
+  mtx.lock();
+#endif
+
     free_memory.insert(std::make_pair(mptr->size, mptr));
     free_size += mptr->size;
     time(&(mptr->collected_time));
+
+#if MEM_THREAD_SAFE
+  mtx.unlock();
+#endif
+
   } else {
 #if DEBUG_MEM
     std::clog << "MEM: deleting " << mptr->size << " bytes" << std::endl;
@@ -191,6 +231,11 @@ void memory::gc::collect(void) {
    * actually give them back to the system.
    */
   memory_t *mptr = NULL;
+
+#if MEM_THREAD_SAFE
+  mtx.lock();
+#endif
+
   auto it = free_memory.begin();
   while (it != free_memory.end()) {
     mptr = (memory_t *)it->second;
@@ -205,6 +250,10 @@ void memory::gc::collect(void) {
       ++it;
     }
   }
+
+#if MEM_THREAD_SAFE
+  mtx.unlock();
+#endif
 }
 
 /***************************
@@ -217,16 +266,22 @@ void memory::gc::collect_all(void) {
   std::clog << "MEM: gc collecting " << free_memory.size()
             << " remaining allocations" << std::endl;
 #endif
-  while (free_memory.size()) {
-    auto block = free_memory.begin();
-    //for (auto &block: free_memory) {
+
+#if MEM_THREAD_SAFE
+  mtx.lock();
+#endif
+
+  for (auto &block: free_memory) {
 #if DEBUG_MEM
     std::clog << "MEM: collocting @ " << (void *)block->second
               << " " << ((memory_t *)block->second)->size
               << " bytes" << std::endl;
 #endif
-    ::operator delete(block->second);
-    free_memory.erase(block);
+    ::operator delete(block.second);
   }
   free_memory.clear();
+
+#if MEM_THREAD_SAFE
+  mtx.unlock();
+#endif
 }

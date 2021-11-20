@@ -1,31 +1,56 @@
 # Copyright © 2021 Ron R Wills <ron@digitalcombine.ca>
 #
-# This file is part of Cutlet.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 #
-# Cutlet is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
 #
-# Cutlet is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
 #
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# This is a very simple and basic unit testing framework.
 
 import stdlib
 
+##################
+# testsuite.test #
+##################
+
 def testsuite.test {name body} {
+  # The test function within the testing sandbox.
+
   print "Test: $name"
   $_tests append $name
 
   try {
-    uplevel 2 $body
+    eval $body
   } catch err {
     print " $err"
     $_errors append "$err"
   }
 }
+
+#######################
+# testsuite.test_fail #
+#######################
 
 def testsuite.test_fail {name body} {
   print "Test: $name"
@@ -38,24 +63,76 @@ def testsuite.test_fail {name body} {
   }
 }
 
-def testsuite.assert {condition description} {
-  if $condition then {
-  } else {
-    $_errors append "$description: failed"
+####################
+# testsuite.assert #
+####################
+
+def testsuite.assert {condition *args} {
+  # Assert that $condition is true.
+
+  try {
+    local result = [uplevel expr 2 $condition]
+
+    if {$result not} then {
+      print " [$args join]: failed"
+      $_errors append "[$args join]: failed"
+    }
+  } catch err {
+    print " $err"
+    print " [$args join]: failed"
+    $_errors append "[$args join]: failed"
+    $_errors append "$err"
   }
 }
 
-def testsuite.fail {description} {
-  $_errors append "$description: failed"
+#########################
+# testsuite.assert_fail #
+#########################
+
+def testsuite.assert_fail {condition *args} {
+  # Assert that $condition is false.
+
+  try {
+    local result = [uplevel expr 2 $condition]
+
+    if {$result not} then {
+      # Condition was false, perfect.
+      return
+    }
+  } catch err {
+    # We caught an exception, perfect.
+    return
+  }
+
+  # Everything passed, that's a problem.
+  print " [$args join]: failed"
+  $_errors append "${args}: failed"
 }
 
-def testsuite {name body} {
-  local test_box = [sandbox]
+##################
+# testsuite.fail #
+##################
 
+def testsuite.fail {*args} {
+  # A test function can test an API in many ways. This function records
+  # failures that are encountered.
+  #
+  # *args - The error message(s) of the errors encountered.
+
+  print " [$args join]: failed"
+  $_errors append "[$args join]: failed"
+}
+
+#############
+# testsuite #
+#############
+
+def testsuite {name body} {
   print "Testsuite: $name"
 
-  # test_box global passed = 0
-
+  # Create a sandbox for the tests to be executed in. This way we isolate the
+  # tests from the rest of the system.
+  local test_box = [sandbox]
   $test_box link print global local uplevel def return list include import
   $test_box link sandbox
   $test_box global library.path = $library.path
@@ -66,29 +143,37 @@ def testsuite {name body} {
   $test_box link testsuite.test as test
   $test_box link testsuite.test_fail as test_fail
   $test_box link testsuite.assert as assert
+  $test_box link testsuite.assert_fail as assert_fail
   $test_box link testsuite.fail as fail
 
-  $test_box eval $body
+  # Run all the tests within the testsuite.
+  try {
+    $test_box eval $body
+  } catch err {
+    print "ERROR: $err"
+    uplevel 2 { return 1 }
+  }
 
+  # Report of the results of the tests.
   local errors = [$test_box expr {$_errors}]
   local tests = [$test_box expr {$_tests}]
 
   if {[$errors size] > 0} then {
+    # Report the errors that were encountered.
     if {[$errors size] = 1} then {
       print "[$errors size] error found."
     } else {
       print "[$errors size] errors found."
     }
-    #$errors foreach err {
-    #  print " $err"
-    #}
-    uplevel 3 {
-      return 1
-    }
+
+    # Exit with the appropriate value.
+    #global test_result = 1
+    uplevel 2 { return 1 }
   } else {
+    # All tests passed! Yay!
     print "All [$tests size] tests passed!"
-    uplevel 3 {
-      return 0
-    }
+
+    # Exit with the appropriate value.
+    uplevel 2 { return 0 }
   }
 }

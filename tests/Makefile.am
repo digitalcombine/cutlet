@@ -2,7 +2,7 @@
 
 TESTS = memory-tests core.cutlet hello.cutlet booleans.cutlet strings.cutlet \
 	lists.cutlet stdlib.cutlet unknown.cutlet bad_method.cutlet sandbox.cutlet \
-	oo.cutlet debugger-tests
+	oo.cutlet threading.cutlet debugger-tests
 XFAIL_TESTS = bad_method.cutlet
 TEST_EXTENSIONS = .cutlet
 CUTLET_LOG_COMPILER = ../bin/cutlet

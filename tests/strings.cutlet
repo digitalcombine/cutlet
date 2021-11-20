@@ -1,353 +1,317 @@
 # Copyright © 2021 Ron R Wills <ron@digitalcombine.ca>
 #
-# This file is part of Cutlet.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 #
-# Cutlet is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
 #
-# Cutlet is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 #
 # Test the String Type
 
 # Remove the system library directory path
 $library.path remove 0
 
-import stdlib
+import testsuite
 
-global result = 0
+testsuite "String Type and Operators" {
+  import stdlib
 
-print "Testing String Type\n"
+  test "Type" {
+    assert {["Hello" type] = "string"} {"Hello" isn't type string, returned} ["Hello" type]
 
-#=============================================================================#
-# Test type
+    try {
+      "Hello" type is a string
+      fail {"Hello" type is a string}
+    }
+  }
 
-print "Test: Type"
+  test "Equality" {
+    assert {"Hello" == "Hello"} {"Hello" == "Hello"}
+    assert_fail {"Hello" == "Bye"} {"Hello" == "Bye"}
 
-if {["Hello" type] <> "string"} then {
-  print " error: \"Hello\" isn't type string, returned" ["Hello" type]
-  global result = 1
+    try {
+      "Hello" ==
+      fail {"Hello" ==}
+    }
+
+    try {
+      "Hello" == Hello World
+      fail {"Hello" == Hello World}
+    }
+  }
+
+  test "Inequality" {
+    assert {"Hello" <> "Bye"} {"Hello" <> "Bye"}
+    assert_fail {"Hello" <> "Hello"} {"Hello" <> "Hello"}
+
+    try {
+      "Hello" <>
+      fail {"Hello" <>}
+    }
+
+    try {
+      "Hello" <> Hello World
+      fail {"Hello" <> Hello World}
+    }
+  }
+
+  test "Less Than" {
+    assert {"Bye" < "Hello"} {"Bye" < "Hello"}
+    assert_fail {"Hello" < "Bye"} {"Hello" < "Bye"}
+
+    try {
+      "Bye" <
+      fail "\"Bye\" <"
+    }
+
+    try {
+      "Bye" < Hello World
+      fail "\"Bye\" < Hello World"
+    }
+  }
+
+  test "Less Than Equal" {
+    assert {"Bye" <= "Hello"} {"Bye" <= "Hello"}
+    assert {"Hello" <= "Hello"} {"Hello" <= "Hello"}
+    assert_fail {"Hello" <= "Bye"} {"Hello" <= "Bye"}
+
+    try {
+      "Bye" <=
+      fail "\"Bye\" <="
+    }
+
+    try {
+      "Bye" <= Hello World
+      fail "\"Bye\" <= Hello World"
+    }
+  }
+
+  test "Greater Than" {
+    if {"Bye" > "Hello"} then {
+      fail "\"Bye\" < \"Hello\""
+    }
+
+    if {"Hello" > "Bye"} then {
+    } else {
+      fail "\"Bye\" < \"Hello\""
+    }
+
+    try {
+      "Bye" >
+      fail "\"Bye\" >"
+    }
+
+    try {
+      "Bye" > Hello World
+      fail "\"Bye\" > Hello World"
+    }
+  }
+
+  test "Greater Than Equal" {
+    if {"Bye" >= "Hello"} then {
+      fail "\"Bye\" <= \"Hello\""
+    }
+
+    if {"Hello" >= "Bye"} then {
+    } else {
+      fail "\"Bye\" <= \"Hello\""
+    }
+
+    if {"Hello" >= "Hello"} then {
+    } else {
+      fail "\"Bye\" <= \"Hello\""
+    }
+
+    try {
+      "Bye" >=
+      fail "\"Bye\" >="
+    }
+
+    try {
+      "Bye" >= Hello World
+      fail "\"Bye\" >= Hello World"
+    }
+  }
+
+  test "Add" {
+    try {
+      "Hello" +
+      fail {"Hello" +}
+    }
+
+    local result = ["Hello" + " World"]
+    if {$result <> "Hello World"} then {
+      fail {["Hello" + " World"] returned} $result
+    }
+
+    local result = ["Hello " + to the World]
+    if {$result <> "Hello to the World"} then {
+      fail {["Hello " + to the World] returned} $result
+    }
+  }
+
+  test "Append" {
+    try {
+      "Hello" append
+      fail {"Hello" append}
+    }
+
+    local hw = "Hello"
+    $hw append " World"
+    assert {$hw == "Hello World"} {"Hello" append " World" returned} $hw
+  }
+
+  test "Index" {
+    local hw = "Hello World"
+
+    if {[$hw index 1] <> "H"} then {
+      fail {["Hello World" index 1] returned} [$hw index 1]
+    }
+
+    if {[$hw index 5] <> "o"} then {
+      fail {["Hello World" index 5] returned} [$hw index 5]
+    }
+
+    if {[$hw index -1] <> "d"} then {
+      fail {["Hello World" index -1] returned} [$hw index -1]
+    }
+
+    if {[$hw index -5] <> "W"} then {
+      fail {["Hello World" index -5] returned} [$hw index -5]
+    }
+
+    try {
+      $hw index 0
+      fail {"Hello World" index 0 returned} [$hw index 0]
+    }
+
+    try {
+      $hw index 30
+      fail {"Hello World" index 30}
+    }
+
+    $hw index 7 = "to all of the "
+    if {$hw <> "Hello to all of the World"} then {
+       fail {"Hello World" index 7 = "to all of the " returned } $hw
+    }
+
+    $hw index 1 = "Narrator: "
+    if {$hw <> "Narrator: Hello to all of the World"} then {
+       fail {"Hello to all of the World" index 7 = "Narrator: " returned } $hw
+    }
+  }
+
+  test "Endswith" {
+    if {"Hello World" endswith "rld"} then {
+    } else {
+      fail "\"Hello World\" endswith \"rld\""
+    }
+
+    if {"Hello World" endswith "llo"} then {
+      fail "\"Hello World\" endswith \"llo\""
+    }
+
+    if {"Hello World" endswith "kitty"} then {
+      fail "\"Hello World\" endswith \"kitty\""
+    }
+
+    try {
+      "Hello World" endswith
+      fail "\"Hello World\" endswith"
+    }
+
+    try {
+      "Hello World" endswith o W
+      fail "\"Hello World\" endswith o W"
+    }
+  }
+
+  test "Length" {
+    if {["Hello World" length] <> 11} then {
+      fail "\[\"Hello World\" length\] returned" ["Hello World" length]
+    }
+
+    if {["¿Dónde está la salida?" length] <> 22} then {
+      fail "\[\"¿Dónde está la salida?\" length\] returned" \
+        ["¿Dónde está la salida?" length]
+    }
+
+    try {
+      "Hello" length to many arguments
+      fail "\"Hello\" length to many arguments"
+    }
+  }
+
+  test "Variable Substitution" {
+    local var1 = value1
+    local var2 = value2
+    local var3 = value3
+
+    local string = "${var1}${var2}${var3}"
+    if {$string <> "value1value2value3"} then {
+      fail "$string <> value1value2value3"
+    }
+
+    local string = "$var1$var2$var3"
+    if {$string <> "value1value2value3"} then {
+      fail "$string <> value1value2value3"
+    }
+
+    try {
+      "$does't exist"
+      fail "resolved noexisting variable"
+    }
+  }
+
+  def hello {to} {
+    return "Hello $to"
+  }
+
+  test "Command Substitution" {
+    local list1 = [list John A Smith]
+    local list2 = [list Jane A Smith]
+
+    if {"[hello John]" <> "Hello John"} then {
+      fail "[hello John] <> \"Hello John\""
+    }
+
+    local string = "Hello [$list1 join][$list2 join]"
+    if {$string <> "Hello John A SmithJane A Smith"} then {
+      fail "$string <> Hello John A SmithJane A Smith"
+    }
+  }
+
+  test "General" {
+    local var1 = value1
+
+    local string = "This is a variable \$name.\n\tAnd a \"backslash\" \\\n\t\$var1 = $var1"
+    print $string
+
+    local string = "\x48\x65\x6c\x6c\x6f!"
+    if {$string <> "Hello!"} then {
+      fail "$string <> Hello!"
+    }
+  }
 }
 
-try {
-  "Hello" type is a string
-  print " error: \[\"Hello\" type is a string\] failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-#=============================================================================#
-# Test equality
-
-print "Test: Equality"
-
-if {"Hello" == "Bye"} then {
-  print " error: \"Hello\" == \"Bye\" failed"
-  global result = 1
-}
-
-if {"Hello" == "Hello"} then {
-} else {
-  print " error: \"Hello\" == \"Hello\" failed"
-  global result = 1
-}
-
-try {
-  "Hello" ==
-  print " error: \[\"Hello\" ==\] failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-try {
-  "Hello" == Hello World
-  print " error: \[\"Hello\" == Hello World\] failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-#=============================================================================#
-# Test inequality
-
-print "Test: Inequality"
-
-if {"Hello" <> "Bye"} then {
-} else {
-  print " error: \"Hello\" <> \"Bye\" failed"
-  global result = 1
-}
-
-if {"Hello" <> "Hello"} then {
-  print " error: \"Hello\" <> \"Hello\" failed"
-  global result = 1
-}
-
-try {
-  "Hello" <>
-  print " error: \[\"Hello\" <>\] failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-try {
-  "Hello" <> Hello World
-  print " error: \[\"Hello\" <> Hello World\] failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-#=============================================================================#
-# Test less than
-
-print "Test: Less than"
-
-if {"Bye" < "Hello"} then {
-} else {
-  print " error: Bye < Hello failed"
-  global result = 1
-}
-
-if {"Hello" < "Bye"} then {
-  print " error: Hello < Bye failed"
-  global result = 1
-}
-
-try {
-  "Bye" <
-  print " error: \"Bye <\" failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-try {
-  "Bye" < Hello World
-  print " error: \"Bye < Hello World\" failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-#=============================================================================#
-# Test less than equal
-
-print "Test: Less than equal"
-
-if {"Bye" <= "Hello"} then {
-} else {
-  print " error: Bye <= Hello failed"
-  global result = 1
-}
-
-if {"Hello" <= "Hello"} then {
-} else {
-  print " error: Hello <= Hello failed"
-  global result = 1
-}
-
-if {"Hello" <= "Bye"} then {
-  print " error: Hello <= Bye failed"
-  global result = 1
-}
-
-try {
-  "Bye" <=
-  print " error: \"Bye <=\" failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-try {
-  "Bye" <= Hello World
-  print " error: \"Bye <= Hello World\" failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-#=============================================================================#
-# Test greater than
-
-print "Test: Greater than"
-
-if {"Bye" > "Hello"} then {
-  print " error: Bye > Hello failed"
-  global result = 1
-}
-
-if {"Hello" > "Bye"} then {
-} else {
-  print " error: Hello > Bye failed"
-  global result = 1
-}
-
-try {
-  "Bye" >
-  print " error: \"Bye >\" failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-try {
-  "Bye" > Hello World
-  print " error: \"Bye > Hello World\" failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-#=============================================================================#
-# Test greater than equal
-
-print "Test: Greater than equal"
-
-if {"Bye" >= "Hello"} then {
-  print " error: Bye >= Hello failed"
-  global result = 1
-}
-
-if {"Hello" >= "Hello"} then {
-} else {
-  print " error: Hello >= Hello failed"
-  global result = 1
-}
-
-if {"Hello" >= "Bye"} then {
-} else {
-  print " error: Hello >= Bye failed"
-  global result = 1
-}
-
-try {
-  "Bye" >=
-  print " error: \"Bye >=\" failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-try {
-  "Bye" >= Hello World
-  print " error: \"Bye >= Hello World\" failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-#=============================================================================#
-# Test endswith
-
-print "Test: Endswith"
-
-if {"Hello World" endswith "rld"} then {
-} else {
-  print " error: \"Hello World\" endswith \"rld\" failed"
-  global result = 1
-}
-
-if {"Hello" > "Bye"} then {
-} else {
-  print " error: Hello > Bye failed"
-  global result = 1
-}
-
-try {
-  "Bye" >
-  print " error: \"Bye >\" failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-try {
-  "Bye" > Hello World
-  print " error: \"Bye > Hello World\" failed"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-#=============================================================================#
-# Test variable resolution
-
-print "Test: Variable resolution"
-
-global var1 = value1
-global var2 = value2
-global var3 = value3
-
-global string = "${var1}${var2}${var3}"
-if {$string <> "value1value2value3"} then {
-  print " error: $string <> value1value2value3"
-  global result = 1
-}
-
-global string = "$var1$var2$var3"
-if {$string <> "value1value2value3"} then {
-  print " error: $string <> value1value2value3"
-  global result = 1
-}
-
-try {
-  "$does't exist"
-  print " error: resolved noexisting variable"
-  global result = 1
-} catch err {
-  print " info: $err"
-}
-
-# Clean up after ourselves
-global var1
-global var2
-global var3
-
-#=============================================================================#
-# Test command substitution
-
-print "Test: Command substitution"
-
-global var1 = value1
-global list1 = [list John A Smith]
-global list2 = [list Jane A Smith]
-
-def hello {to} {
-  return "Hello $to"
-}
-
-if {"[hello John]" <> "Hello John"} then {
-  print " error: \"[hello John\" failed"
-  print " error: Got" "[hello John]"
-  global result = 1
-}
-
-global string = "Hello [$list1 join][$list2 join]"
-if {$string <> "Hello John A SmithJane A Smith"} then {
-  print "$string <> Hello John A SmithJane A Smith"
-  global result = 1
-}
-
-global string = "This is a variable \$name.\n\tAnd a \"backslash\" \\\n\t\$var1 = $var1"
-print $string
-
-global var1
-global list1
-global list2
-
-global string = "\x48\x65\x6c\x6c\x6f!"
-if {$string <> "Hello!"} then {
-  print "$string <> Hello!"
-  global result = 1
-}
-
-return $result
+return $test_result

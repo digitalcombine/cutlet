@@ -1,22 +1,31 @@
 /*                                                                  -*- c++ -*-
  * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
  *
- * This file is part of Cutlet.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * Cutlet is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
  *
- * Cutlet is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
  *
- * You should have received a copy of the GNU General Public License
- * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
  *
- * An Object Oriented API for Cutlet.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <cutlet>
@@ -139,7 +148,8 @@ public:
 
   cutlet::variable::pointer class_property(const std::string &name) const;
 
-  void class_property(const std::string &name, cutlet::variable::pointer value);
+  void class_property(const std::string &name,
+                      cutlet::variable::pointer value);
 
   //bool has_property(const std::string &name) const;
 
@@ -241,7 +251,7 @@ cutlet::variable::pointer _def_method::operator ()(cutlet::interpreter &interp,
     cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
 
     if (l) {
-      // Was a list, so use the first entry as parameter name.
+      // Set the value for the parameter that has a default value.
       interp.local(*(l->front()), *a_it);
     } else {
 
@@ -250,6 +260,7 @@ cutlet::variable::pointer _def_method::operator ()(cutlet::interpreter &interp,
         // Create a special local args with the remaining arguments as a list.
         // This is our form of varadic arguments.
         interp.local("args", new cutlet::list(a_it, args.end()));
+        break;
       } else {
         // Plain old parameter.
         interp.local(name, *a_it);
@@ -264,8 +275,9 @@ cutlet::variable::pointer _def_method::operator ()(cutlet::interpreter &interp,
       if (l) {
         interp.local(*(l->front()), l->back());
       } else
+        // Silly programmer.
         throw
-          std::runtime_error(std::string("Missing value for parameter ") +
+          std::runtime_error(std::string("Missing value for argument ") +
                              cutlet::convert<std::string>(*p_it));
     }
   }
@@ -319,6 +331,8 @@ _def_class &_var_object::type() {
  * _var_object::operator () *
  ****************************/
 
+#include <iostream>
+
 cutlet::variable::pointer
 _var_object::operator()(cutlet::variable::pointer self,
                         cutlet::interpreter &interp,
@@ -327,15 +341,10 @@ _var_object::operator()(cutlet::variable::pointer self,
     throw std::runtime_error("no method given calling object");
   }
 
-  cutlet::list params(arguments.begin() + 1, arguments.end());
+  cutlet::list args(arguments.begin() + 1, arguments.end());
 
   interp.push(new _obj_frame(*(arguments[0]), self));
-  try {
-    dynamic_cast<_def_class &>(*(_class))(*(arguments[0]), interp, params);
-  } catch (...) {
-    //interp.pop();
-    throw;
-  }
+  dynamic_cast<_def_class &>(*(_class))(*(arguments[0]), interp, args);
   return interp.pop();
 }
 
@@ -351,12 +360,7 @@ _var_object::operator()(cutlet::component &cls,
   cutlet::list params(arguments.begin() + 1, arguments.end());
 
   interp.push(new _obj_frame(*(arguments[0]), self));
-  try {
-    dynamic_cast<_def_class &>(cls)(*(arguments[0]), interp, params);
-  } catch (...) {
-    //interp.pop();
-    throw;
-  }
+  dynamic_cast<_def_class &>(cls)(*(arguments[0]), interp, params);
   return interp.pop();
 }
 
@@ -446,6 +450,10 @@ cutlet::variable::pointer _def_class::operator ()(cutlet::interpreter &interp,
     (*object)(object, interp, arguments);
     interp.pop();
     return object;
+
+  } else if (cutlet::convert<std::string>(arguments[0]) == "type") {
+    return new cutlet::string("class");
+
   } else {
     std::string method = cutlet::convert<std::string>(arguments[0]);
     cutlet::list params(arguments.begin() + 1, arguments.end());

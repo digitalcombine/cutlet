@@ -1,4 +1,4 @@
-# Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
+# Copyright © 2021 Ron R Wills <ron@digitalcombine.ca>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -25,26 +25,62 @@
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
+#
+# Test the Object Oriented library.
 
 # Remove the system library directory path
 $library.path remove 0
 
-import oo
+import testsuite
 
-class test_class {
+testsuite "Threading API" {
+  import threading
 
-  property the_name
+  test "New Thread" {
+    print "Hello"
+    local t1 = [thread {
+      print "Hello from thread"
+      print "Good bye from thread"
+    }]
+    print "Good bye"
 
-  method new {a_name} {
-    local the_name = $a_name
+    $t1 join
   }
 
-  method hello {} {
-    print "Hello to $the_name from the oo system"
-    $self goodbye
+  def synced {
+    $mtx {
+      print "In synced area"
+      sleep 0
+      print "  done"
+    }
   }
 
-  method goodbye {} {} {
-    print "See ya later $the_name"
+  test "Mutex" {
+    global mtx = [mutex]
+
+    local t1 = [thread {
+      print "Thread 1 start"
+      sleep 0
+      synced
+      print "Thread 1 end"
+    }]
+    local t2 = [thread {
+      print "Thread 2 start"
+      sleep 0
+      synced
+      print "Thread 2 end"
+    }]
+    local t3 = [thread {
+      print "Thread 3 start"
+      sleep 0
+      synced
+      print "Thread 3 end"
+    }]
+
+    $t1 join
+    $t2 join
+    $t3 join
+
+    global mtx =
   }
 }

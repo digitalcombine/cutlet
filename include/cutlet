@@ -1,20 +1,31 @@
 /*                                                                  -*- c++ -*-
  * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
  *
- * This file is part of Cutlet.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
  *
- * Cutlet is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
  *
- * Cutlet is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
  *
- * You should have received a copy of the GNU General Public License
- * along with Cutlet.  If not, see <http://www.gnu.org/licenses/>.
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <libcutlet/memory>
@@ -41,7 +52,8 @@ namespace cutlet {
 
 /**
  */
-std::ostream &operator <<(std::ostream &os, const cutlet::frame &frame);
+std::ostream &operator <<(std::ostream &os,
+                          const cutlet::frame &frame);
 
 namespace cutlet {
 
@@ -312,10 +324,8 @@ namespace cutlet {
     list();
     list(const_iterator first, const_iterator last);
     list(const std::initializer_list<variable::pointer> &items);
-
-    /** Copy constructor.
-     */
     list(const list &other);
+    virtual ~list() noexcept;
 
     std::string join(const std::string &delim = " ") const;
 
@@ -435,11 +445,8 @@ namespace cutlet {
 
     typedef memory::reference<frame> pointer;
 
-    /** Create a new execution frame. */
-    frame();
-    frame(memory::reference<frame> uplevel, bool isblock = false);
-
-    /** Disable the default copy constructor. */
+    frame(const std::string &label = "-");
+    frame(pointer uplevel, const std::string &label = "-");
     frame(const frame &other) = delete;
 
     /** Clean up the frame. */
@@ -457,24 +464,14 @@ namespace cutlet {
      */
     virtual void variable(const std::string &name, variable::pointer value);
 
+    virtual list variables() const;
+
     /** Set the frame state to FS_DONE and set the return result.
      */
     virtual void done(variable::pointer result);
-
-    /** Test if the execution of the frame is done.
-     * @return Return true if the state of the frame will end its current
-     *         execution.
-     */
     virtual bool done() const;
 
-    /** Return the current execution state of the frame.
-     * @return The currently set execution state of the frame.
-     */
-    state_t state() const;
-
-    /** Set the execution state for the execution frame.
-     * @see state_t
-     */
+    virtual state_t state() const;
     virtual void state(state_t new_state);
 
     /** Set a label for the execution frame. The label is displayed in
@@ -482,20 +479,23 @@ namespace cutlet {
      * @param value The value for the frame label.
      */
     void label(const std::string &value);
+    virtual std::string label() const;
 
     friend class component;
     friend class interpreter;
     friend std::ostream &::operator <<(std::ostream &os,
                                        const cutlet::frame &frame);
+    friend void frame_dump(std::ostream &os, const class frame &f);
 
   protected:
+    pointer _uplevel;
     state_t _state;
-    bool _isblock;
+
+    pointer uplevel(unsigned int levels) const;
+    virtual pointer parent() const;
 
   private:
-    memory::reference<frame> _uplevel;
     std::string _label;
-    //node *_node;
     ast::node::pointer _compiled;
 
     /** Used to restore the global environment if it was changed. */
@@ -504,24 +504,49 @@ namespace cutlet {
 
     variable::pointer _return;
 
-    memory::reference<frame> uplevel(unsigned int levels) const;
+    virtual void parent(pointer frame);
   };
 
   class DECLSPEC block_frame : public cutlet::frame {
   public:
-    block_frame(frame::pointer parent);
-    block_frame(const std::string &label, frame::pointer parent);
+    block_frame(frame::pointer uplevel);
+    block_frame(const std::string &label, frame::pointer uplevel);
     virtual ~block_frame() noexcept;
 
     virtual variable::pointer variable(const std::string &name) const;
+    virtual void variable(const std::string &name, variable::pointer value);
 
     virtual void done(variable::pointer result);
     virtual bool done() const;
 
+    virtual state_t state() const;
     virtual void state(state_t new_state);
+
+    virtual std::string label() const;
+
+    friend class interpreter;
+
+  protected:
+    virtual pointer parent() const;
 
   private:
     cutlet::frame::pointer _parent;
+
+    virtual void parent(pointer frame);
+  };
+
+  class DECLSPEC loop_frame : public cutlet::block_frame {
+  public:
+    loop_frame(frame::pointer uplevel);
+    loop_frame(const std::string &label, frame::pointer level);
+    virtual ~loop_frame() noexcept;
+
+    virtual bool done() const;
+
+    virtual state_t state() const;
+    virtual void state(state_t new_state);
+
+    virtual std::string label() const;
   };
 
   /** A Cutlet language interpreter.
@@ -585,7 +610,7 @@ namespace cutlet {
     /** Get the current global enviroment for the interpreter.
      * @see cutlet::sandbox
      */
-    sandbox &environment();
+    sandbox::pointer environment();
 
     /**
      * @todo Rename to comp.
@@ -619,6 +644,7 @@ namespace cutlet {
      * @see cutlet::frame
      */
     cutlet::frame::pointer frame(unsigned int levels = 0) const;
+    int frames() const;
 
     /** Create a new execution frame and push it on to the top of the stack.
      * @param label The label
@@ -627,15 +653,10 @@ namespace cutlet {
      * @see pop
      */
     void push(const std::string &label = "-");
+    void push(int level, const std::string &label = "-");
+    void push(sandbox::pointer sb, const std::string &label = "-");
     void push(frame::pointer frm);
     void push(frame::pointer frm, sandbox::pointer sb);
-
-    /** Creates and new frame on the stack and replaces the global environment
-     * with the given sandbox. When the frame is popped off the stack the
-     * global frame will be restored as well.
-     * @see pop
-     */
-    void push(sandbox::pointer sb);
 
     /** Pops the current execution frame off the top of the stack.
      * @return If a return value was set in the frame, then that value is
@@ -659,6 +680,7 @@ namespace cutlet {
      * @see frame::state
      */
     frame::state_t state() const;
+    void state(frame::state_t new_state);
 
     /** Return if the execution of the current frame is done.
      * @return Boolean result indicating if the frame execution is done.
@@ -694,5 +716,8 @@ namespace cutlet {
     static unsigned int _interpreters;
   };
 }
+
+std::ostream &operator <<(std::ostream &os,
+                          const cutlet::frame::pointer &frame);
 
 #endif /* _CUTLET_H */
