@@ -994,14 +994,13 @@ void cutlet::sandbox::load(interpreter &interp,
     libinit_t init = (libinit_t)lib->symbol("init_cutlet");
 
     if (init != nullptr) {
+      _native_libs.push_back(lib);
       init(&interp);
     } else {
       delete lib;
       throw std::runtime_error(std::string("init_cutlet missing in library ")
                                + library_name);
     }
-
-    _native_libs.push_back(lib);
   }
 }
 
