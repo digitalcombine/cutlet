@@ -35,6 +35,7 @@
 
 #include <cutlet>
 #include <thread>
+#include <mutex>
 #include <iostream>
 
 typedef struct {
@@ -46,10 +47,15 @@ typedef struct {
  * _thread_entry *
  *****************/
 
-/* XXX Need to catch exceptions here and add them to the _thread_var class.
- * The exception can then be rethrown by the join operator.
- */
-static void _thread_entry(thread_args_t *args) {
+extern "C" {
+  DECLSPEC void _thread_entry(thread_args_t *args);
+}
+
+void _thread_entry(thread_args_t *args) {
+  /* XXX Need to catch exceptions here and add them to the _thread_var class.
+   * The exception can then be rethrown by the join operator.
+   */
+
   try {
     /* Create a new Cutlet interpreter to execute the the new thread
      * in. This gives the thread its own Cutlet frame stack.
@@ -64,6 +70,16 @@ static void _thread_entry(thread_args_t *args) {
   } catch (std::exception &err) {
   }
 }
+
+void (*_entry_ptr)(thread_args_t *) = nullptr;
+
+/******************************************************************************
+ * class prototypes
+ */
+
+/*********************
+ * class _thread_var *
+ *********************/
 
 class _thread_var : public cutlet::variable {
 public:
@@ -81,6 +97,10 @@ private:
   std::thread _thread;
 };
 
+/********************
+ * class _mutex_var *
+ ********************/
+
 class _mutex_var : public cutlet::variable {
 public:
   _mutex_var();
@@ -92,10 +112,9 @@ public:
               const cutlet::list &arguments);
 
 private:
-  std::mutex _mutex;
+  std::recursive_mutex _mutex;
   cutlet::ast::node::pointer _compiled;
 };
-
 
 /******************************************************************************
  * class _thread_var
@@ -107,8 +126,7 @@ private:
 
 _thread_var::_thread_var(cutlet::interpreter &interp,
                            cutlet::variable::pointer body)
-  : _args({&interp, body}), _thread(_thread_entry, &_args) {
-
+  : _args({&interp, body}), _thread(_entry_ptr, &_args) {
 }
 
 /*****************************
@@ -184,6 +202,9 @@ _mutex_var::operator ()(cutlet::variable::pointer self,
     interp.compile(arguments[0]);
     _mutex.unlock();
   } else if (args == 2 and *(arguments[0]) == "try") {
+    _mutex.try_lock();
+    interp.compile(arguments[1]);
+    _mutex.unlock();
   }
 
   throw std::runtime_error("Unknown operator for mutex variable.");
@@ -196,6 +217,8 @@ _mutex_var::operator ()(cutlet::variable::pointer self,
 /*******************
  * def thread body *
  *******************/
+
+#include <type_traits>
 
 static cutlet::variable::pointer
 _thread(cutlet::interpreter &interp, const cutlet::list &arguments) {
@@ -230,6 +253,12 @@ extern "C" {
  ***************/
 
 void init_cutlet(cutlet::interpreter *interp) {
+  // Add the API to the interpreter.
   interp->add("thread", _thread);
   interp->add("mutex", _mutex);
+
+  /* Since the thread entry point is in a relocatable library we must use the
+   * dl api to find where is it.
+   */
+  _entry_ptr = (void (*)(thread_args_t *))interp->environment()->symbol("_thread_entry");
 }
