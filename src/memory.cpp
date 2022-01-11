@@ -41,7 +41,7 @@
 #if MEM_THREAD_SAFE
 #include <mutex>
 
-static std::mutex mtx;
+static std::recursive_mutex mtx;
 #endif
 
 /*  The gc_cleaner class is used to ensure that memory::gc::collect_all is
@@ -189,14 +189,15 @@ void memory::gc::recycle(void *ptr) noexcept {
    * it's timestamp.
    */
   memory_t *mptr = (memory_t *)((unsigned char *)ptr - sizeof(memory_t));
+
+#if MEM_THREAD_SAFE
+  mtx.lock();
+#endif
+
   if (mptr->size + free_size < limit) {
 #if DEBUG_MEM
     std::clog << "MEM: composting " << mptr->size << " bytes @ "
               << (void *)mptr << std::endl;
-#endif
-
-#if MEM_THREAD_SAFE
-  mtx.lock();
 #endif
 
     free_memory.insert(std::make_pair(mptr->size, mptr));
@@ -204,10 +205,14 @@ void memory::gc::recycle(void *ptr) noexcept {
     time(&(mptr->collected_time));
 
 #if MEM_THREAD_SAFE
-  mtx.unlock();
+    mtx.unlock();
 #endif
 
   } else {
+#if MEM_THREAD_SAFE
+    mtx.unlock();
+#endif
+
 #if DEBUG_MEM
     std::clog << "MEM: deleting " << mptr->size << " bytes" << std::endl;
 #endif

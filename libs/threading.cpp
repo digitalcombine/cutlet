@@ -47,11 +47,7 @@ typedef struct {
  * _thread_entry *
  *****************/
 
-extern "C" {
-  DECLSPEC void _thread_entry(thread_args_t *args);
-}
-
-void _thread_entry(thread_args_t *args) {
+static void _thread_entry(thread_args_t *args) {
   /* XXX Need to catch exceptions here and add them to the _thread_var class.
    * The exception can then be rethrown by the join operator.
    */
@@ -126,7 +122,7 @@ private:
 
 _thread_var::_thread_var(cutlet::interpreter &interp,
                            cutlet::variable::pointer body)
-  : _args({&interp, body}), _thread(_entry_ptr, &_args) {
+  : _args({&interp, body}), _thread(_thread_entry, &_args) {
 }
 
 /*****************************
@@ -256,9 +252,4 @@ void init_cutlet(cutlet::interpreter *interp) {
   // Add the API to the interpreter.
   interp->add("thread", _thread);
   interp->add("mutex", _mutex);
-
-  /* Since the thread entry point is in a relocatable library we must use the
-   * dl api to find where is it.
-   */
-  _entry_ptr = (void (*)(thread_args_t *))interp->environment()->symbol("_thread_entry");
 }
