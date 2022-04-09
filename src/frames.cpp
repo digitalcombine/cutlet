@@ -1,5 +1,5 @@
 /*                                                                  -*- c++ -*-
- * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
+ * Copyright © 2018-2022 Ron R Wills <ron@digitalcombine.ca>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -42,7 +42,7 @@ cutlet::frame::frame(const std::string &label)
   : _state(FS_RUNNING), _label(label) {}
 
 cutlet::frame::frame(pointer uplevel, const std::string &label)
-  : _state(FS_RUNNING), _uplevel(uplevel), _label(label) {}
+  : _uplevel(uplevel), _state(FS_RUNNING), _label(label) {}
 
 /*************************
  * cutlet::frame::~frame *
@@ -104,6 +104,7 @@ bool cutlet::frame::done() const {
   case FS_RUNNING:
     return false;
   }
+  return false; // Just to keep the compilers happy.
 }
 
 /************************

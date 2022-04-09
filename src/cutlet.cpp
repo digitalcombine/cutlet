@@ -1,5 +1,5 @@
 /*                                                                  -*- c++ -*-
- * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
+ * Copyright © 2018-2022 Ron R Wills <ron@digitalcombine.ca>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -464,7 +464,8 @@ void cutlet_tokenizer::parse_tokens() {
       delete[] codev;
     }
   } else {
-    /*for (auto &token: tokens) {
+
+    for (auto &token: tokens) {
       }
   }*/
 #endif /* TESTING */
