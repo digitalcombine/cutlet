@@ -32,6 +32,8 @@
 #include <sstream>
 #include "ast.h"
 
+#include <libcutlet/extra>
+
 /***********
  * str_len *
  ***********/
@@ -125,8 +127,8 @@ cutlet::string::~string() noexcept {}
  *******************************/
 
 cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
-                                                interpreter &interp,
-                                                const list &arguments) {
+                                                     interpreter &interp,
+                                                     const list &arguments) {
   std::string op = *(arguments[0]);
   size_t args = arguments.size();
 
@@ -319,14 +321,11 @@ cutlet::variable::pointer cutlet::string::_find(interpreter &interp,
 
   std::string other(*(arguments[1]));
 
-  utf8::iterator it(*this);
-  while (it != it.end()) {
-    if (std::strncmp(c_str(), other.c_str(), other.length()) == 0) {
-      return new boolean(true);
-    }
-  }
+  auto pos = this->find(other);
+  if (pos == std::string::npos)
+    return new boolean(false);
 
-  return new boolean(false);
+  return new cutlet::string(pos);
 }
 
 /**************************
