@@ -892,6 +892,7 @@ void cutlet::sandbox::remove(const std::string &name) {
  **************************/
 
 void cutlet::sandbox::clear() {
+  _variables.clear();
   _components.clear();
 }
 
