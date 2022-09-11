@@ -46,12 +46,12 @@
 #ifndef _CUTLET_H
 #define _CUTLET_H
 
+#ifdef __cplusplus
+
 namespace cutlet {
   class frame;
 }
 
-/**
- */
 std::ostream &operator <<(std::ostream &os,
                           const cutlet::frame &frame);
 
@@ -135,6 +135,7 @@ namespace cutlet {
 
   /** Variable type.
    */
+
   class DECLSPEC variable : public memory::recyclable {
   public:
     /** Automatic managed memory pointer.
@@ -151,7 +152,7 @@ namespace cutlet {
     /** When a variable is called this is used to implement operators for the
      * variable type.
      *
-     * @param self Reference to the variable called.
+'     * @param self Reference to the variable called.
      * @param interp Reference to the Cutlet interpreter.
      */
     virtual variable::pointer operator()(pointer self,
@@ -342,10 +343,13 @@ namespace cutlet {
     variable::pointer _extend(interpreter &interp, const list &arguments);
     variable::pointer _index(interpreter &interp, const list &arguments);
     variable::pointer _remove(interpreter &interp, const list &arguments);
+    variable::pointer _reverse(interpreter &interp, const list &arguments);
     variable::pointer _foreach(interpreter &interp, const list &arguments);
     variable::pointer _equal(interpreter &interp, const list &arguments);
     variable::pointer _nequal(interpreter &interp, const list &arguments);
+    variable::pointer _shuffle(interpreter &interp, const list &arguments);
     variable::pointer _sort(interpreter &interp, const list &arguments);
+    variable::pointer _unique(interpreter &interp, const list &arguments);
   };
 
   /****************************************************************************
@@ -366,7 +370,7 @@ namespace cutlet {
      * @param arguments List of the arguments passed in the component call.
      */
     virtual variable::pointer
-      operator ()(interpreter &interp, const list &arguments) = 0;
+    operator ()(interpreter &interp, const list &arguments) = 0;
 
     virtual std::string documentation() const;
   };
@@ -720,4 +724,5 @@ namespace cutlet {
 std::ostream &operator <<(std::ostream &os,
                           const cutlet::frame::pointer &frame);
 
+#endif /* __cplusplus */
 #endif /* _CUTLET_H */
