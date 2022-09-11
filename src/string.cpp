@@ -32,8 +32,6 @@
 #include <sstream>
 #include "ast.h"
 
-#include <libcutlet/extra>
-
 /***********
  * str_len *
  ***********/
