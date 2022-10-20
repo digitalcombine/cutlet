@@ -95,7 +95,7 @@ public:
 
     // We made it, now run the function.
     if (_compiled.is_null()) {
-      _compiled = interp.compile(_body);
+      _compiled = interp(_body);
     } else
       (*_compiled)(interp);
 
@@ -366,7 +366,7 @@ builtin::uplevel(cutlet::interpreter &interp,
   if (expr)
     result = interp.expr(body);
   else
-    interp.compile(body);
+    interp(body);
   interp.pop();
 
   return result;

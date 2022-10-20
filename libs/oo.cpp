@@ -284,7 +284,7 @@ cutlet::variable::pointer _def_method::operator ()(cutlet::interpreter &interp,
 
   if (_compiled.is_null()) {
     // Source code hasn't been compiled into an AST tree yet, this will do it.
-    _compiled = interp.compile(_body);
+    _compiled = interp(_body);
   } else {
     // We have a compiled AST tree, so run it.
     (*_compiled)(interp);
@@ -426,7 +426,7 @@ void _def_class::compile(cutlet::interpreter &interp,
    * tokens will be needed later when compiling the methods and for the
    * debugging API.
    */
-  _compiled = interp.compile(body);
+  _compiled = interp(body);
 }
 
 /***************************

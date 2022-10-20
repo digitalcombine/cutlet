@@ -629,9 +629,13 @@ namespace cutlet {
      * @return A reference pointer to the compiled abstract syntax tree.
      * @see cutlet::ast::node
      */
-    ast::node::pointer compile(variable::pointer code);
-    ast::node::pointer compile(const std::string &code);
-    ast::node::pointer compile(std::istream &in);
+    ast::node::pointer operator()(variable::pointer code);
+    ast::node::pointer operator()(const std::string &code);
+    ast::node::pointer operator()(std::istream &in);
+
+    //ast::node::pointer compile(variable::pointer code);
+    //ast::node::pointer compile(const std::string &code);
+    //ast::node::pointer compile(std::istream &in);
 
     ast::node::pointer compile_file(const std::string &filename);
 

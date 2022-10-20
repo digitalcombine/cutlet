@@ -85,7 +85,7 @@ static cutlet::frame::state_t eval_body(cutlet::interpreter &interp,
 
   interp.push(1, label);
   try {
-    compiled = interp.compile(body);
+    compiled = interp(body);
   } catch(...) {
     result = interp.state();
     interp.pop();
@@ -106,7 +106,7 @@ cutlet::ast::node::pointer loop_body(cutlet::interpreter &interp,
   interp.push(new cutlet::loop_frame(label, interp.frame(1)));
   try {
     if (not compiled)
-      compiled = interp.compile(body);
+      compiled = interp(body);
     else
       (*compiled)(interp);
   } catch(...) {
@@ -160,7 +160,7 @@ _true(cutlet::interpreter &interp, const cutlet::list &arguments) {
 static cutlet::variable::pointer
 _eval(cutlet::interpreter &interp, const cutlet::list &arguments) {
   interp.push(1, "eval");
-  interp.compile(arguments.join());
+  interp(arguments.join());
   interp.pop();
 
   return nullptr;
@@ -322,7 +322,7 @@ _try(cutlet::interpreter &interp, const cutlet::list &arguments) {
   interp.push(1, "try body");
   try {
     // Eval the body.
-    interp.compile(*it);
+    interp(*it);
 
   } catch (std::exception &err) {
     // An exception was caught, so eval the err_body.
@@ -337,7 +337,7 @@ _try(cutlet::interpreter &interp, const cutlet::list &arguments) {
 
       // Eval the catch block
       next(it, arguments);
-      interp.compile(*it);
+      interp(*it);
 
       interp.pop();
     }

@@ -436,7 +436,7 @@ cutlet::variable::pointer cutlet::list::_foreach(interpreter &interp,
 
     // On the fly compiling and execution.
     if (ast.is_null())
-      ast = interp.compile(arguments[2]);
+      ast = interp(arguments[2]);
     else
       (*ast)(interp);
 

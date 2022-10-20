@@ -123,12 +123,12 @@ int main(int argc, char *argv[]) {
          * by line.
          */
         for(std::string line; getline(std::cin, line); ) {
-          compiled = interpreter.compile(line);
+          compiled = interpreter(line);
         }
 
       } else {
         // This appears to be piped in so do everything at once.
-        compiled = interpreter.compile(std::cin);
+        compiled = interpreter(std::cin);
       }
     }
 

@@ -62,7 +62,7 @@ static void _thread_entry(thread_args_t *args) {
     tinterp.push(args->interp->environment());
 
     // Execute the body.
-    tinterp.compile(args->body);
+    tinterp(args->body);
   } catch (std::exception &err) {
   }
 }
@@ -195,11 +195,11 @@ _mutex_var::operator ()(cutlet::variable::pointer self,
 
   if (args == 1) {
     _mutex.lock();
-    interp.compile(arguments[0]);
+    interp(arguments[0]);
     _mutex.unlock();
   } else if (args == 2 and *(arguments[0]) == "try") {
     _mutex.try_lock();
-    interp.compile(arguments[1]);
+    interp(arguments[1]);
     _mutex.unlock();
   }
 

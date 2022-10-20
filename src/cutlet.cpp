@@ -1193,12 +1193,12 @@ cutlet::interpreter::get(const std::string &name) const {
   return _global->get(name);
 }
 
-/********************************
- * cutlet::interpreter::compile *
- ********************************/
+/************************************
+ * cutlet::interpreter::operator () *
+ ************************************/
 
 cutlet::ast::node::pointer
-cutlet::interpreter::compile(variable::pointer code) {
+cutlet::interpreter::operator()(variable::pointer code) {
   ast::node *n = code->node();
   if (n) {
     //parser::grammer::eval((std::string)*code);
@@ -1211,13 +1211,14 @@ cutlet::interpreter::compile(variable::pointer code) {
 }
 
 cutlet::ast::node::pointer
-cutlet::interpreter::compile(const std::string &code) {
+cutlet::interpreter::operator()(const std::string &code) {
   parser::grammer::eval(code);
   _frame->_compiled = _compiled;
   return _compiled;
 }
 
-cutlet::ast::node::pointer cutlet::interpreter::compile(std::istream &in) {
+cutlet::ast::node::pointer
+cutlet::interpreter::operator()(std::istream &in) {
   parser::grammer::eval(in);
   _frame->_compiled = _compiled;
   return _compiled;
