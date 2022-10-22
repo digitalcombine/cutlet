@@ -37,7 +37,8 @@ testsuite "String Type and Operators" {
   import stdlib
 
   test "Type" {
-    assert {["Hello" type] = "string"} {"Hello" isn't type string, returned} ["Hello" type]
+    assert {["Hello" type] = "string"} {"Hello" isn't type string, returned} \
+           ["Hello" type]
 
     try {
       "Hello" type is a string
@@ -221,19 +222,15 @@ testsuite "String Type and Operators" {
     }
   }
 
+  test "Find" {
+
+  }
+
   test "Endswith" {
-    if {"Hello World" endswith "rld"} then {
-    } else {
-      fail "\"Hello World\" endswith \"rld\""
-    }
+    assert {"Hello World" endswith "rld"} {"\"Hello World\" endswith \"rld\"}
 
-    if {"Hello World" endswith "llo"} then {
-      fail "\"Hello World\" endswith \"llo\""
-    }
-
-    if {"Hello World" endswith "kitty"} then {
-      fail "\"Hello World\" endswith \"kitty\""
-    }
+    assert_fail {"Hello World" endswith "llo"} {"\"Hello World\" endswith \"llo\"}
+    assert_fail {"Hello World" endswith "kitty"} {"\"Hello World\" endswith \"kitty\"}
 
     try {
       "Hello World" endswith

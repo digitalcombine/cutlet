@@ -350,8 +350,11 @@ cutlet::variable::pointer cutlet::list::_index(interpreter &interp,
   // Negative indexes start from the back and index towards the front.
   if (index < 0) {
     index = size() + index;
-  } else {
+  } else if (index > 0) {
     index--;
+  } else {
+    throw std::runtime_error("List index out of range " +
+                             (std::string)*(arguments[1]));
   }
 
   // Make sure the index is in range.

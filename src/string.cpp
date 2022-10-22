@@ -63,8 +63,14 @@ static size_t str_index(int index, size_t len) {
   int idx = index;
   if (index < 0) {
     idx = len + index;
-  } else {
+  } else if (index > 0) {
+    // The first character is at index 1.
     idx--;
+  } else {
+    std::stringstream mesg;
+    mesg << "String index " << index << " out of range (1 - "
+         << len << ")";
+    throw std::runtime_error(mesg.str());
   }
 
   // Make sure the index is in range.
