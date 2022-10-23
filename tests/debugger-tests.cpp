@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
   add_path(interpreter, "../libs");
 
   //script.open("hello.cutlet");
-  script.open("oo.cutlet");
+  script.open(std::string(getenv("srcdir")) + "/oo.cutlet");
   if (not script) {
     std::cerr << "Failed to open script oo.cutlet" << std::endl;
     return EXIT_FAILURE;

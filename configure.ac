@@ -74,5 +74,6 @@ AC_CONFIG_FILES([Makefile
                  bin/Makefile
                  libs/Makefile
                  man/Makefile
-                 tests/Makefile])
+                 tests/Makefile
+                 tests/core.cutlet])
 AC_OUTPUT

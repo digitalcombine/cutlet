@@ -43,7 +43,7 @@ testsuite "Language Core" {
   }
 
   test "Include" {
-    include "../tests/include.cutlet"
+    include "@top_srcdir@/tests/include.cutlet"
     assert {$include_var == "I got included"} {$include_var == "I got included"}
     global include_var
   }
