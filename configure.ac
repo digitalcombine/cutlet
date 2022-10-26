@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([cutlet], [0.9.3], [ron@digitalcombine.ca])
+AC_INIT([cutlet], [0.9.0], [ron@digitalcombine.ca])
 AM_INIT_AUTOMAKE
 AM_SILENT_RULES
 AC_CONFIG_SRCDIR([src/cutlet.cpp])
