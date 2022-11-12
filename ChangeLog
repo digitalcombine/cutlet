@@ -1,0 +1,7 @@
+Version 0.9.0
+2022-10-25 Ron Wills <ron@digitalcombine.ca>
+
+* Changed from GPL to BSD license.
+* Rewrite of the stack frames.
+* Thread safety added to memory management.
+* More work to testing framework.

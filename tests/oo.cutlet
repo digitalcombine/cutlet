@@ -1,0 +1,172 @@
+# Copyright © 2021 Ron R Wills <ron@digitalcombine.ca>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# Test the Object Oriented library.
+
+# Remove the system library directory path
+$library.path remove 0
+
+import testsuite
+
+testsuite "Object Oriented API" {
+  import stdlib oo
+
+  test "New Empty Class" {
+    class test_empty_class {}
+
+    assert {[test_empty_class type] == "class"} {Empty class is not type class}
+  }
+
+  test "New Class with Empty Methods" {
+    class test_empty_method_class {
+      method empty {}
+
+      class.method empty {}
+    }
+
+    assert {[test_empty_method_class type] == "class"} {Empty class is not type class}
+  }
+
+  test "New Class" {
+    class test_class {
+
+      class.property catalog = "none"
+
+      property the_name
+
+      class.method set_catalog {value} {
+        local catalog $value
+      }
+
+      class.method get_catalog {
+        return $catalog
+      }
+
+      method new {a_name} {
+        local the_name = $a_name
+      }
+
+      method change_name_to {new_name} {
+        local the_name $new_name
+      }
+
+      method hello {} {
+        local result = "Hello ${the_name}\n"
+        local result = "${result}[$self goodbye]"
+        return $result
+      }
+
+      method goodbye {
+        return "Goodbye $the_name"
+      }
+
+      method whoami {
+        return "test_class"
+      }
+    }
+  }
+
+  test "Class Inheritance" {
+    class test_class_2 test_class {
+
+      class.property cprop2 = 'x'
+
+      # Set a super class property.
+      class.method set_cat {value} {
+        local catalog $value
+      }
+
+      class.method get_xcat {
+        return "$cprop2 $catalog"
+      }
+
+      method goodbye {
+        return "Goodbye ${the_name}!"
+      }
+
+      method whoami {
+        return "[super test_class whoami]:test_class_2"
+      }
+    }
+  }
+
+  test "Object Creation" {
+    local myobject = [test_class new "John Smith"]
+
+    print [$myobject hello]
+    #if {[$myobject hello] <> "Hello John Smith\nGoodbye John Smith"} then {
+    #  fail "$myobject <> Hello John Smith\nGoodbye John Smith"
+    #}
+
+    $myobject change_name_to "Jane Smith"
+
+    print [$myobject hello]
+    #if {[$myobject hello] <> "Hello John Smith\nGoodbye John Smith"} then {
+    #  fail "$myobject <> Hello John Smith\nGoodbye John Smith"
+    #}
+  }
+
+  test "Inherited Class Object Creation" {
+    local myobject = [test_class_2 new "Jane Smith"]
+
+    if {[$myobject hello] <> "Hello Jane Smith\nGoodbye Jane Smith!"} then {
+      fail "$myobject = Hello Jane Smith\nGoodbye Jane Smith"
+    }
+  }
+}
+
+return $test_result
+
+#$myobject change_name_to "John Smith"
+
+#if {[test_class get_catalog] <> "none"} then {
+#  print "[test_class get_catalog] <> none"
+#  return 1
+#}
+
+#test_class set_catalog people
+#if {[test_class get_catalog] <> "people"} then {
+#  print "[test_class get_catalog] <> people"
+#  return 1
+#}
+
+#if {[test_class_2 get_xcat] <> "x people"} then {
+#  print "[test_class_2 get_xcat] <> x people"
+#  return 1
+#}
+
+#test_class_2 set_cat animals
+#if {[test_class get_catalog] <> "animals"} then {
+#  print "[test_class get_catalog] <> animals"
+#  return 1
+#}
+
+#if {[$myobject whoami] <> "test_class:test_class_2"} then {
+#  print "[$myobject whoami] <> test_class:test_class_2"
+#  return 1
+#}

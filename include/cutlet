@@ -1,0 +1,732 @@
+/*                                                                  -*- c++ -*-
+ * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <libcutlet/memory>
+#include <libcutlet/parser>
+
+#if defined (_WIN32) || defined (_WIN64)
+#  ifdef DLL_EXPORT
+#    define DECLSPEC __declspec(dllexport)
+#  else
+#    define DECLSPEC __declspec(dllimport)
+#  endif
+#elif defined(__linux__) || defined(__FreeBSD__)
+#   define DECLSPEC __attribute__((visibility("default")))
+#else
+#   error("Don't know how to export shared object libraries")
+#endif
+
+#ifndef _CUTLET_H
+#define _CUTLET_H
+
+#ifdef __cplusplus
+
+namespace cutlet {
+  class frame;
+}
+
+std::ostream &operator <<(std::ostream &os,
+                          const cutlet::frame &frame);
+
+namespace cutlet {
+
+  // Token IDs
+  const unsigned int T_WORD     = 1;
+  const unsigned int T_VARIABLE = 2;
+  const unsigned int T_STRING   = 3;
+  const unsigned int T_SUBCMD   = 4;
+  const unsigned int T_BLOCK    = 5;
+  const unsigned int T_COMMENT  = 6;
+  const unsigned int T_EOL      = 7;
+
+  // AST node IDs
+  const unsigned int A_BLOCK    = 1;
+  const unsigned int A_VALUE    = 2;
+  const unsigned int A_VARIABLE = 3;
+  const unsigned int A_COMMAND  = 4;
+  const unsigned int A_STRING   = 5;
+  const unsigned int A_COMMENT  = 6;
+
+  namespace utf8 {
+
+    /** String iterator for UTF-8 encoded strings.
+     */
+    class iterator : public std::iterator<std::bidirectional_iterator_tag,
+                                          std::string> {
+    public:
+      iterator(const std::string &value);
+      iterator(const std::string &value, size_t offset);
+      iterator(const iterator &other);
+
+      iterator &operator =(const iterator &other);
+
+      iterator &operator ++();
+      iterator operator ++(int);
+      iterator &operator --();
+      iterator operator --(int);
+
+      bool operator ==(const iterator &other) const;
+      bool operator !=(const iterator &other) const;
+
+      iterator operator +(int value) const;
+      iterator operator -(int value) const;
+
+      const std::string &operator *() const;
+
+      iterator end() const;
+      size_t position() const;
+      size_t length() const;
+
+      friend std::string substr(const iterator &start,
+                                const iterator &end);
+
+      friend std::string replace(const iterator &start,
+                                 const iterator &end,
+                                 const std::string &value);
+    private:
+      const std::string *_value;
+
+      size_t _index, _length;
+      std::string _current;
+    };
+
+    std::string substr(const iterator &start, const iterator &end);
+
+    std::string replace(const iterator &start, const iterator &end,
+                        const std::string &value);
+  }
+
+  /****************************************************************************
+   * Core API types.
+   */
+
+  class list;
+  class interpreter;
+  namespace ast {
+    class node;
+  }
+
+  /** Variable type.
+   */
+
+  class DECLSPEC variable : public memory::recyclable {
+  public:
+    /** Automatic managed memory pointer.
+     */
+    typedef memory::reference<variable> pointer;
+
+    /** Cleans up the variable.
+     */
+    virtual ~variable() noexcept;
+
+    bool operator == (const std::string &value) const;
+    bool operator != (const std::string &value) const;
+
+    /** When a variable is called this is used to implement operators for the
+     * variable type.
+     *
+'     * @param self Reference to the variable called.
+     * @param interp Reference to the Cutlet interpreter.
+     */
+    virtual variable::pointer operator()(pointer self,
+                                         interpreter &interp,
+                                         const list &arguments);
+
+    /** Cast the variable to a std::string type.
+     */
+    virtual operator std::string() const;
+
+    friend class interpreter;
+
+  protected:
+    virtual ast::node *node() const;
+  };
+
+  template <class Ty>
+  Ty &cast(variable::pointer object) {
+    try {
+      if (object.is_null())
+        throw std::runtime_error("Unable to cast a null reference");
+      return dynamic_cast<Ty &>(*(object));
+    } catch (std::bad_cast &) {
+      throw std::runtime_error("Unable to cast variable to Ty");
+    }
+  }
+
+  /** Utility template for creating value converters for variable values.
+   */
+  template <class Ty>
+  Ty DECLSPEC convert(variable::pointer object) {
+    return Ty(*(object));
+  }
+
+  template <> int DECLSPEC convert<int>(variable::pointer object);
+  template <> bool DECLSPEC convert<bool>(variable::pointer object);
+
+  typedef void (*debug_function_t)(cutlet::interpreter &interp,
+                                   const ast::node &n);
+
+  namespace ast {
+
+    /** Base abstract syntax tree node.
+     * Code is compiled into an abstract syntax tree and all execution is
+     * done from it.
+     */
+    class DECLSPEC node : public memory::recyclable {
+    public:
+      typedef memory::reference<node> pointer;
+
+      static bool break_all;
+      static void debugger(debug_function_t dfunc);
+
+      virtual ~node() noexcept;
+
+      /** Execute the node.
+       * @param interp The cutlet interpreter for the execution context.
+       * @return Reference pointer to the result of the execution of the node.
+       */
+      virtual cutlet::variable::pointer
+      operator()(cutlet::interpreter &interp) = 0;
+
+      /** Returns the ID type of the node.
+       */
+      virtual unsigned int id() const = 0;
+
+      /* Set or clear a break point on the node.
+       * @param value The value for the break point.
+       */
+      void set_break(bool value = true);
+
+      virtual std::string file() const = 0;
+
+      virtual std::streampos position() const = 0;
+
+      virtual const std::string &body() const = 0;
+
+      virtual const parser::token &token() const = 0;
+
+      //virtual begin()
+      //virtual end()
+
+    protected:
+      node();
+
+      /** To be used by the operator() method to implement break points.
+       */
+      void break_point(cutlet::interpreter &interp);
+
+    private:
+      static debug_function_t _debug_function;
+
+      bool _break;
+    };
+  }
+
+  /**
+   */
+  class DECLSPEC exception : public std::exception {
+  public:
+    exception() noexcept;
+    exception(const std::string &message) noexcept;
+    exception(const std::string &message, ast::node &node) noexcept;
+    exception(const std::exception &other) noexcept;
+    exception(const cutlet::exception &other) noexcept;
+    virtual ~exception() noexcept;
+
+    exception& operator=(const exception &other) noexcept;
+
+    virtual const char *what() const noexcept;
+    const ast::node *node() const noexcept { return _node; }
+
+  protected:
+    std::string _message;
+    ast::node *_node;
+  };
+
+  /****************************************************************************
+   * API Data Types
+   */
+
+  class DECLSPEC string : public variable, public std::string {
+  public:
+    string();
+    string(const string &value);
+    string(const std::string &value);
+    string(int value);
+    virtual ~string() noexcept;
+
+    virtual variable::pointer operator()(variable::pointer self,
+                                         interpreter &interp,
+                                         const list &arguments);
+
+    virtual operator std::string() const;
+
+    friend class interpreter;
+
+  private:
+    variable::pointer _endswith(interpreter &interp, const list &arguments);
+    variable::pointer _find(interpreter &interp, const list &arguments);
+    variable::pointer _index(interpreter &interp, const list &arguments);
+    variable::pointer _insert(interpreter &interp, const list &arguments);
+    variable::pointer _startswith(interpreter &interp, const list &arguments);
+    variable::pointer _substr(interpreter &interp, const list &arguments);
+  };
+
+  class DECLSPEC boolean : public variable {
+  public:
+    boolean();
+    boolean(const std::string &value);
+    boolean(bool value);
+    virtual ~boolean() noexcept;
+
+    virtual variable::pointer operator()(variable::pointer self,
+                                         interpreter &interp,
+                                         const list &arguments);
+
+    virtual operator std::string() const;
+    operator bool() const { return _value; }
+
+    friend class interpreter;
+
+  private:
+    bool _value;
+  };
+
+  class DECLSPEC list : public variable,
+                        public std::deque<variable::pointer> {
+  public:
+    list();
+    list(const_iterator first, const_iterator last);
+    list(const std::initializer_list<variable::pointer> &items);
+    list(const list &other);
+    virtual ~list() noexcept;
+
+    std::string join(const std::string &delim = " ") const;
+
+    virtual variable::pointer operator()(variable::pointer self,
+                                         interpreter &interp,
+                                         const list &arguments);
+
+    virtual operator std::string() const;
+
+  private:
+    variable::pointer _join(interpreter &interp, const list &arguments);
+    variable::pointer _append(interpreter &interp, const list &arguments);
+    variable::pointer _prepend(interpreter &interp, const list &arguments);
+    variable::pointer _extend(interpreter &interp, const list &arguments);
+    variable::pointer _index(interpreter &interp, const list &arguments);
+    variable::pointer _remove(interpreter &interp, const list &arguments);
+    variable::pointer _reverse(interpreter &interp, const list &arguments);
+    variable::pointer _foreach(interpreter &interp, const list &arguments);
+    variable::pointer _equal(interpreter &interp, const list &arguments);
+    variable::pointer _nequal(interpreter &interp, const list &arguments);
+    variable::pointer _shuffle(interpreter &interp, const list &arguments);
+    variable::pointer _sort(interpreter &interp, const list &arguments);
+    variable::pointer _unique(interpreter &interp, const list &arguments);
+  };
+
+  /****************************************************************************
+   */
+
+  /** Executable component for the Cutlet interpreter.
+   */
+  class DECLSPEC component {
+  public:
+    /** Component reference pointer. */
+    typedef memory::reference<component> pointer;
+
+    /** Component clean up. */
+    virtual ~component() noexcept;
+
+    /** Call operator for the component.
+     * @param interp The Cutlet interpreter.
+     * @param arguments List of the arguments passed in the component call.
+     */
+    virtual variable::pointer
+    operator ()(interpreter &interp, const list &arguments) = 0;
+
+    virtual std::string documentation() const;
+  };
+
+  /****************************************************************************
+   */
+
+  /** Simplified function pointer type used by sandboxes. The sandbox will
+   * automatically wrap the function pointer with a component, so a component
+   * object doesn't have to developed for every function component.
+   * @see cutlet::sandbox
+   */
+  typedef variable::pointer (*function_t)(interpreter &, const list &);
+
+  extern "C" {
+    typedef void (*libinit_t)(interpreter *);
+  }
+
+  /** A sandbox contains the global environment for a Cutlet interpreter.
+   */
+  class DECLSPEC sandbox {
+  public:
+    /** Smart sandbox reference pointer. */
+    typedef memory::reference<sandbox> pointer;
+
+    sandbox();
+
+    /** Disable the default copy constructor. */
+    sandbox(const sandbox &other) = delete;
+
+    /** Clean up the sandbox. */
+    virtual ~sandbox() noexcept;
+
+    void add(const std::string &name, function_t func,
+             const std::string &doc = "");
+    void add(const std::string &name, component::pointer comp);
+    void remove(const std::string &name);
+
+    /** Removes all components from the sandbox.
+     * @note All variables are left alone. Not sure if that is the right thing
+     *       to do.
+     */
+    void clear();
+
+    component::pointer get(const std::string &name) const;
+
+    cutlet::variable::pointer variable(interpreter &interp,
+                                       const std::string &name);
+    void variable(const std::string &name, variable::pointer value);
+    bool has_variable(const std::string &name);
+
+    cutlet::variable::pointer call(interpreter &interp,
+                                   const std::string &procedure,
+                                   const list &arguments);
+
+    void *symbol(const std::string &name) const;
+
+    friend class interpreter;
+
+  private:
+    std::map<std::string, variable::pointer> _variables;
+    std::map<std::string, component::pointer> _components;
+    std::list<void *> _native_libs;
+
+    void load(interpreter &interp, const std::string &library_name);
+  };
+
+  /** Execution frame.
+   */
+  class DECLSPEC frame : public memory::recyclable {
+  public:
+    /** The possible executions states for the execution frame.
+     */
+    typedef enum {FS_DONE = 0, FS_RUNNING = 1, FS_BREAK = 2, FS_CONTINUE = 3}
+    state_t;
+
+    typedef memory::reference<frame> pointer;
+
+    frame(const std::string &label = "-");
+    frame(pointer uplevel, const std::string &label = "-");
+    frame(const frame &other) = delete;
+
+    /** Clean up the frame. */
+    virtual ~frame() noexcept;
+
+    /** Retrieve the value of a local variable. If the variable doesn't exist
+     * then a null pointer is returned.
+     * @param name The name of the local variable.
+     */
+    virtual cutlet::variable::pointer variable(const std::string &name) const;
+
+    /** Set the value of a local variable on the execute frame.
+     * @param name The name of the local variable.
+     * @param value The value to set the variable to.
+     */
+    virtual void variable(const std::string &name, variable::pointer value);
+
+    virtual list variables() const;
+
+    /** Set the frame state to FS_DONE and set the return result.
+     */
+    virtual void done(variable::pointer result);
+    virtual bool done() const;
+
+    virtual state_t state() const;
+    virtual void state(state_t new_state);
+
+    /** Set a label for the execution frame. The label is displayed in
+     * execution stack dumps.
+     * @param value The value for the frame label.
+     */
+    void label(const std::string &value);
+    virtual std::string label() const;
+
+    friend class component;
+    friend class interpreter;
+    friend std::ostream &::operator <<(std::ostream &os,
+                                       const cutlet::frame &frame);
+    friend void frame_dump(std::ostream &os, const class frame &f);
+
+  protected:
+    pointer _uplevel;
+    state_t _state;
+
+    pointer uplevel(unsigned int levels) const;
+    virtual pointer parent() const;
+
+  private:
+    std::string _label;
+    ast::node::pointer _compiled;
+
+    /** Used to restore the global environment if it was changed. */
+    memory::reference<sandbox> _sandbox_orig;
+    std::map<std::string, variable::pointer> _variables;
+
+    variable::pointer _return;
+
+    virtual void parent(pointer frame);
+  };
+
+  class DECLSPEC block_frame : public cutlet::frame {
+  public:
+    block_frame(frame::pointer uplevel);
+    block_frame(const std::string &label, frame::pointer uplevel);
+    virtual ~block_frame() noexcept;
+
+    virtual variable::pointer variable(const std::string &name) const;
+    virtual void variable(const std::string &name, variable::pointer value);
+
+    virtual void done(variable::pointer result);
+    virtual bool done() const;
+
+    virtual state_t state() const;
+    virtual void state(state_t new_state);
+
+    virtual std::string label() const;
+
+    friend class interpreter;
+
+  protected:
+    virtual pointer parent() const;
+
+  private:
+    cutlet::frame::pointer _parent;
+
+    virtual void parent(pointer frame);
+  };
+
+  class DECLSPEC loop_frame : public cutlet::block_frame {
+  public:
+    loop_frame(frame::pointer uplevel);
+    loop_frame(const std::string &label, frame::pointer level);
+    virtual ~loop_frame() noexcept;
+
+    virtual bool done() const;
+
+    virtual state_t state() const;
+    virtual void state(state_t new_state);
+
+    virtual std::string label() const;
+  };
+
+  /** A Cutlet language interpreter.
+   */
+  class DECLSPEC interpreter : protected parser::grammer {
+  public:
+    /** Initialize a new interpreter.
+     */
+    interpreter();
+
+    /** Disable the default copy constructor.
+     */
+    interpreter(const interpreter &other) = delete;
+
+    /** Disable the default assignment operator.
+     */
+    interpreter &operator =(const interpreter &) = delete;
+
+    /** Cleans up the interpreter.
+     */
+    virtual ~interpreter() noexcept;
+
+    /** Get the value of a variable.
+     * First the current frame is checked for the variable. If it doesn't
+     * on the frame then the current sandbox is checked for a global
+     * variable.
+     *
+     * @return A reference to the variable's value.
+     */
+    variable::pointer var(const std::string &name);
+
+    /** Set the value for a global variable in the currently active sandbox.
+     * @param name The name of the variable.
+     * @param value The value set for variable. If the value is a null pointer
+     *              then the variable is removed from the sandbox.
+     */
+    void global(const std::string &name, variable::pointer value);
+
+    /** Set the value for a local variable in the current frame.
+     * @param name The name of the variable.
+     * @param value The value set for variable. If the value is a null pointer
+     *              then the variable is removed from the frame.
+     */
+    void local(const std::string &name, variable::pointer value);
+
+    /** Use the interpreter to create a new list variable from the given code.
+     */
+    variable::pointer list(const std::string code);
+
+    variable::pointer list(const variable::pointer code);
+
+    /** Add a function to the interpreters global environment.
+     * @param name The name of the function in the interpreter.
+     * @param func The function pointer.
+     */
+    void add(const std::string &name, function_t func,
+             const std::string &docs = "");
+
+    void add(const std::string &name, component::pointer comp);
+
+    /** Get the current global enviroment for the interpreter.
+     * @see cutlet::sandbox
+     */
+    sandbox::pointer environment();
+
+    /**
+     * @todo Rename to comp.
+     */
+    component::pointer get(const std::string &name) const;
+
+    /** Compile and execute the code found in code. The abstract syntax tree
+     * is returned which can be executed again later or used for debugging
+     * purposes.
+     * @param code A reference pointer to a cutlet variable containing the
+     *             code to be compiled.
+     * @return A reference pointer to the compiled abstract syntax tree.
+     * @see cutlet::ast::node
+     */
+    ast::node::pointer operator()(variable::pointer code);
+    ast::node::pointer operator()(const std::string &code);
+    ast::node::pointer operator()(std::istream &in);
+
+    //ast::node::pointer compile(variable::pointer code);
+    //ast::node::pointer compile(const std::string &code);
+    //ast::node::pointer compile(std::istream &in);
+
+    ast::node::pointer compile_file(const std::string &filename);
+
+    variable::pointer expr(variable::pointer cmd);
+    variable::pointer expr(const std::string &cmd);
+
+    variable::pointer call(const std::string &procedure,
+                           const cutlet::list &arguments);
+
+    /** Get a reference to an excution stack frame.
+     * @param levels The number of callers up the stack to go to retrieve the
+     *               the frame. Level 0 is the current execution frame on the
+     *               top of the stack.
+     * @see cutlet::frame
+     */
+    cutlet::frame::pointer frame(unsigned int levels = 0) const;
+    int frames() const;
+
+    /** Create a new execution frame and push it on to the top of the stack.
+     * @param label The label
+     * @see cutlet::frame
+     * @see frame
+     * @see pop
+     */
+    void push(const std::string &label = "-");
+    void push(int level, const std::string &label = "-");
+    void push(sandbox::pointer sb, const std::string &label = "-");
+    void push(frame::pointer frm);
+    void push(frame::pointer frm, sandbox::pointer sb);
+
+    /** Pops the current execution frame off the top of the stack.
+     * @return If a return value was set in the frame, then that value is
+     *         returned, otherwise a null reference is returned.
+     * @see finish
+     */
+    variable::pointer pop();
+
+    variable::pointer pop(variable::pointer result);
+
+    /** End the execution of the current frame with an optional return value.
+     * The return value is returned when the frame is popped off the stack.
+     * @param result The return value from the completed frame.
+     * @see pop
+     */
+    void finish(variable::pointer result = nullptr);
+
+    /**
+     * @return The execute state of the current execution frame.
+     * @see frame::state_t
+     * @see frame::state
+     */
+    frame::state_t state() const;
+    void state(frame::state_t new_state);
+
+    /** Return if the execution of the current frame is done.
+     * @return Boolean result indicating if the frame execution is done.
+     */
+    bool done() const;
+
+    /** Load a dynamic shared library into the current global sandbox. Once
+     * the library is loaded it expects to find the init_cutlet function to
+     * initialize the library into the interpreter.
+     * @param library_name The full path to the dynamic library to be loaded.
+     */
+    void load(const std::string &library_name);
+
+    friend class component;
+
+  protected:
+    /** The entry point to the recursive descent parser. */
+    virtual void entry();
+
+    ast::node::pointer comment_();
+    ast::node::pointer command_();
+    ast::node::pointer variable_();
+    ast::node::pointer string_();
+    ast::node::pointer subcommand_();
+
+  private:
+    memory::reference<sandbox> _global;
+    memory::reference<cutlet::frame> _frame;
+
+    ast::node::pointer _compiled;
+
+    /** Internal reference count of all the cutlet interpreters. */
+    static unsigned int _interpreters;
+  };
+}
+
+std::ostream &operator <<(std::ostream &os,
+                          const cutlet::frame::pointer &frame);
+
+#endif /* __cplusplus */
+#endif /* _CUTLET_H */

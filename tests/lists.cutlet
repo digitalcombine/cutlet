@@ -1,0 +1,200 @@
+# Copyright © 2021 Ron R Wills <ron@digitalcombine.ca>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# Test the List Type
+
+# Remove the system library directory path
+$library.path remove 0
+
+import testsuite
+
+testsuite "List Type and Operators" {
+  import stdlib
+
+  test "Type" {
+    local list = [list Fred John Sam Smith]
+
+    assert {[$list type] = "list"} "$list isn't type list, returned" \
+           [$list type]
+
+    try {
+      "Hello" type is a string
+      fail {"Hello" type is a string}
+    }
+  }
+
+  test "Equality" {
+    local list = [list Fred John Sam Smith]
+    local list1 = [list Fred John Sam Smith]
+    local list2 = [list John Smith Sam Fred]
+
+    assert {$list == $list1} "$list == $list1"
+    assert_fail {$list == $list2} "$list == $list2"
+
+    try {
+      $list ==
+      fail "\$list =="
+    }
+
+    try {
+      $list == $list1 $list2
+      fail "\$list == $list1 $list2"
+    }
+  }
+
+  test "Inequality" {
+    local list = [list Fred John Sam Smith]
+    local list1 = [list Fred John Sam Smith]
+    local list2 = [list John Smith Sam Fred]
+
+    assert {$list <> $list2} "$list <> $list2"
+    assert_fail {$list <> $list1} "$list <> $list1"
+
+    try {
+      $list <>
+      fail "$list <>"
+    }
+
+    try {
+      $list == $list1 $list2
+      fail "\$list == \$list1 \$list2"
+    }
+  }
+
+  test "Size" {
+    local list = [list Fred John Sam Smith]
+
+    assert {[$list size] == 4} "[$list size] <> 4"
+
+    try {
+      $list size to many args
+      fail "Operator size accept to many arguments"
+    }
+  }
+
+  test "Clear" {
+    local list = [list Fred John Sam Smith]
+
+    $list clear
+    assert {[$list size] == 0} "List not empty, [$list size] entries found"
+
+    try {
+      $list clear to many args
+      fail "\$list clear to many args"
+    }
+  }
+
+  test "Foreach" {
+    local list = [list Fred John Sam Smith]
+    local names ""
+
+    $list foreach name {
+      local names "$names $name"
+    }
+
+    assert {$names == " Fred John Sam Smith"} "Foreach failed \"${names}\" <> \" Fred John Sam Smith\""
+  }
+
+  test "Join" {
+    local list = [list Fred John Sam Smith]
+    local who = "Hello [$list join { and }]"
+
+    assert {$who == "Hello Fred and John and Sam and Smith"} "$who == Hello Fred and John and Sam and Smith"
+  }
+
+  test "Append" {
+    local list1 = [list Fred John Sam Smith]
+    local list2 = [list Fred John Sam Smith Betty Joan]
+
+    $list1 append "Betty"
+    $list1 append "Joan"
+    assert {$list1 == $list2} "$list1 == $list2"
+  }
+
+  test "Prepend" {
+    local list1 = [list Fred John Sam Smith]
+    local list2 = [list Joan Betty Fred John Sam Smith]
+
+    $list1 prepend "Betty"
+    $list1 prepend "Joan"
+    assert {$list1 == $list2} "$list1 == $list2"
+  }
+
+  test "Index" {
+    local ilist = [list John Smith Sam Fred]
+
+    assert {[$ilist index 1] == "John"} "List index 1 [$ilist index 1] == John"
+
+    assert {[$ilist index 3] == "Sam"} "List index 3 [$ilist index 3] == Sam"
+
+    assert {[$ilist index -1] == "Fred"} "List index -1 [$ilist index -1] == Fred"
+
+    assert {[$ilist index -2] == "Sam"} "List index -2 [$ilist index -2] == Sam"
+
+    assert_fail {[$ilist index 0]} "List index 0"
+
+    # Setting an index value
+    $ilist index 2 = "Betty"
+    assert {[$ilist index 2] == "Betty"} "List setting index 2 \"[$ilist index 2]\" == Betty"
+
+    # Out of range indices.
+    [list 5 -5 0 -10 12] foreach idx {
+      try {
+        $ilist index $idx
+
+        fail "Out of range index of $idx didn't raise an error"
+        break
+      }
+    }
+  }
+
+  def rless {v1 v2} {
+    return [$v2 < $v1]
+  }
+
+  test "Sort" {
+    local list1 = [list Fred John Sam Smith]
+    local list2 = [list John Smith Sam Fred]
+
+    # Default sorting.
+    $list2 sort
+    assert {$list1 == $list2} "$list1 == $list2"
+
+    # Reverse sorting using our own comparison function.
+    $list2 sort rless
+    assert {$list2 == [list Smith Sam John Fred]} "$list2 == Smith Sam John Fred"
+  }
+
+  test "Unique" {
+    local list1 = [list Fred John Sam Smith]
+    local list2 = [list John Sam John Smith Sam Fred Fred]
+
+    $list2 unique
+    assert {$list1 == $list2} "$list1 == $list2"
+  }
+}

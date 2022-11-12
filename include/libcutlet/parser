@@ -1,0 +1,222 @@
+/*                                                                  -*- c++ -*-
+ * Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from this
+ *    software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <exception>
+#include <list>
+#include <stack>
+#include <string>
+#include <istream>
+#include <regex>
+
+#ifndef _PARSER_H
+#define _PARSER_H
+
+namespace parser {
+  class token;
+  class tokenizer;
+}
+
+std::ostream &operator <<(std::ostream &os, const parser::token &token);
+
+std::ostream &operator <<(std::ostream &os,
+                          const parser::tokenizer &tokenizer);
+
+namespace parser {
+
+  /**
+   */
+  class token {
+  public:
+    token(const token &other);
+
+    virtual ~token() noexcept;
+
+    std::string file() const { return _file; }
+
+    /** Position in the code stream where the token was found.
+     * @return Stream start position of the token.
+     */
+    std::streampos position() const { return _position; }
+
+    token &operator =(const token &other);
+
+    bool operator ==(const token &other) const;
+    bool operator ==(unsigned int id) const;
+
+    operator unsigned int() const { return _id; }
+    operator const std::string &() const { return _value; }
+
+    friend class tokenizer;
+
+  private:
+    /** Token type ID. */
+    unsigned int _id;
+    std::string _value;
+    std::string _file;
+    std::streampos _position;
+
+    /** If the content of the token isn't at the stream position we specify the
+     * offset to the content here. This is necessary if the token is to be
+     * parsed further.
+     */
+    std::streamoff _offset;
+
+  public:
+    token(unsigned int id, const std::string &value);
+    token(unsigned int id, const std::string &value, std::streampos position);
+    token(unsigned int id, const std::string &value, std::streampos position,
+          std::streamoff offset);
+  };
+
+  class syntax_error : public std::exception {
+  public:
+    syntax_error() noexcept;
+    syntax_error(const std::string &message) noexcept;
+    syntax_error(const std::string &message, token token) noexcept;
+    syntax_error(const exception& other) noexcept;
+    syntax_error(const syntax_error& other) noexcept;
+    virtual ~syntax_error() noexcept;
+
+    syntax_error& operator=(const syntax_error &other) noexcept;
+
+    virtual const char* what() const noexcept;
+    const token &get_token() const noexcept;
+
+  protected:
+    std::string _message;
+    token _token;
+  };
+
+  /** Tokenizer for a recursive decent parser.
+   */
+  class tokenizer {
+  public:
+    static const unsigned int T_EOF = 0;
+    static const unsigned int T_INVALID = -1;
+
+    tokenizer();
+    virtual ~tokenizer() noexcept;
+
+    void parse(const std::string &code);
+    void parse(std::istream &code);
+
+    /** Pop the token from the front of the list and return it. If there aren't
+     * any tokens available a parser::syntax_error is thrown.
+     */
+    token get_token();
+    token front();
+
+    bool expect(unsigned int id) noexcept;
+    bool expect(unsigned int id, const std::string &value) noexcept;
+
+    void permit(unsigned int id);
+    void permit(unsigned int id, const std::string &value);
+
+    bool is_more();
+    operator bool() { return is_more(); }
+
+    void next();
+
+    virtual void reset() noexcept;
+
+    /** Removes the token from the from the front of the list and pushes it
+     * into the tokenizer as code to be parsed further.
+     */
+    void push();
+    void push(token value);
+    void push(const std::string &code);
+    void push(std::istream &code, const std::string &source = "");
+
+    /** Pop any current code from the tokenizer and restore any code that was
+     * push earlier.
+     */
+    void pop();
+
+    friend std::ostream &::operator <<(std::ostream &os,
+                                       const parser::tokenizer &tokenizer);
+
+  protected:
+    /** The list of parsed tokens. */
+    std::list<token> tokens;
+    std::string code;
+    std::string file;
+    std::istream *stream;
+
+    std::streampos position;
+
+    void add_token_pattern(unsigned int token_id, const std::string &pattern);
+    void clear_token_patterns();
+
+    void add_token(unsigned int id, const std::string &value);
+    void add_token(unsigned int id, const std::string &value,
+                   std::streampos position);
+    void add_token(unsigned int id, const std::string &value,
+                   std::streampos position, std::streamoff offset);
+
+    /**
+     */
+    virtual void parse_tokens();
+
+  private:
+    struct token_pat_s {
+      unsigned int token_id;
+      std::regex pattern;
+    };
+    std::list<token_pat_s> _patterns;
+
+    struct stack_s {
+      std::list<token> tokens;
+      std::string code;
+      std::string file;
+      std::istream *stream;
+      std::streampos position;
+    };
+    std::stack<stack_s> _states;
+
+    void parse_next_token();
+  };
+
+  class grammer {
+  public:
+    grammer() : tokens(nullptr) {}
+    virtual ~grammer() noexcept;
+
+    void eval(const token &code);
+    void eval(const std::string &code);
+    void eval(std::istream &code, const std::string &source = "");
+
+  protected:
+    tokenizer *tokens;
+
+    virtual void entry() = 0;
+  };
+}
+
+#endif /* _PARSER_H */

@@ -1,0 +1,453 @@
+.\" Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice,this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the copyright holder nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd $Mdocdate$
+.Dt CUTLET 1
+.Os
+.Sh NAME
+.Nm cutlet
+.Nd a small utility language
+.Sh SYNOPSIS
+.Nm
+.Op Fl i Ar path
+.Op Ar
+.Nm
+.Op Fl h
+.Op Fl V
+.Sh DESCRIPTION
+Inspired by Tcl, Cutlet is designed to be a small and simple utility language to be used by other programs and projects. Where Tcl started as a basic Tool Command Language and has, over the years, become a general programming language. Cutlet is designed to be that original utility language and only as a utility language.
+.Bl -tag -width Ds
+.It Fl i Ar path
+Adds a directory to the library search path.
+.It Fl V
+Displays the version of Cutlet and exits.
+.It Fl h
+Displays a help screen and exits.
+.El
+.Sh SYNTAX
+The syntax, or grammer, for Cutlet is based on a few very simple rules that allow for a great amount of flexablity in the language.
+.Ss One line one command.
+.Bd -literal
+This is command one
+This is command two
+.Ed
+.Ss Each part of the command is separated by spaces.
+.Bd -literal
+This command has 5 words
+command arg1 arg2 arg3
+.Ed
+.Ss A name starting with the `$` character gets replaced with a variable's value.
+.Bd -literal
+global customer_name = "John Smith"
+print Hello $customer_name
+  -> Hello John Smith
+
+local counter = 10
+print We have $counter items.
+  -> We have 10 items
+.Ed
+.Ss Square brackets, `[]`, gets replaced with the return value from the command in them.
+.Bd -literal
+local mylist = [list value1 value2 value3]
+print [$mylist join .]
+  -> value1.value2.value3
+.Ed
+.Ss Strings are denoted with the quoting characters. Variable and command substitution can be preformed in strings.
+.Bd -literal
+print "Hello $client, your order [get_order $client] is ready\\n"
+print 'Hello $client, your order [get_order $client] is ready\\n'
+.Ed
+.Pp
+Strings have the following character substitutions. These substitutions use the ASCII/UTF-8 standard characters and not any platform dependant encodings. If you are using a system with its own encoding then you'll have to use the \\x## escape sequence to implement the special characters.
+.Bd -literal
+\\$   - Replaced with the '$' character.
+\\"   - Replaced with the '"' character.
+\\'   - Replaced with the ''' character.
+\\[   - Replaced with the '[' character.
+\\]   - Replaced with the ']' character.
+\\\\   - Replaced with the '\\' character.
+\\a   - Bell/Alarm character "\\x07".
+\\b   - Backspace character "\\x08".
+\\e   - Escape character "\\x1b".
+\\f   - Formfeed character "\\x0c".
+\\n   - Newline character "\\x0a".
+\\r   - Carrage return character "\\x0d".
+\\t   - Horizontal tab character "\\x09".
+\\v   - Vertical tab character "\\x0b".
+\\x## - The '#' characters are hexidecimal numbers for the byte
+        encoded character to be replaced in the string. For example
+        a space would be "\\x20".
+.Ed
+.Ss Blocks are denoted with curly brackets, {}. They can be used as literal strings and the only part of the language that can span multiple lines.
+.Bd -literal
+print {Hello World}
+
+def my_command {
+  command one
+  command two
+}
+.Ed
+.Ss Lines starting with the '#' character are comment lines and are ignored by Cutlet.
+.Bd -literal
+# This is a comment.
+print Hello # This is not a comment
+.Ed
+.Sh BUILTIN COMMANDS
+.Bl -tag -width Ds
+.It Ic import Ar *args
+Imports the all the libraries listed in
+.Ar args
+into the current interpreter. The libraries should only be the name of the library, without any file extention. The library will be searched for in the paths found in the list variable
+.Va $library.path .
+The library can be a cultet script or a native compiled shared library.
+.Bd -literal
+import stdlib
+import oo
+# or
+import stdlib oo
+.Ed
+.It Ic include Ar *args
+This loads all the filenames listed in
+.Ar args
+as a cultet script and executes it within the current interpreter. Unlike
+.Ic import ,
+each filename needs to be an absolute or relative filename to the script. No searches are made.
+.Bd -literal
+include /etc/myprog/global.cfg
+include /home/user/.app.cfg
+
+include /etc/myprog/global.cfg /home/user/.app.cfg
+.Ed
+.It Ic def Ar name Ar ¿arguments? Ar body
+The
+.Ic def
+funtion defines a new function component in the global environment.
+.Ar name
+is the name given to the new function and
+.Ar body
+the code executed when the function is called. Values can be passed to the function through the optionally defined
+.Ar ¿arguments? .
+.Bd -literal
+# A function without arguments.
+def get_number {
+  return 10
+}
+
+# A function with arguments.
+def max {value1 value2} {
+  if {$value1 > $value2} then {
+    return $value1
+  }
+  return $value2
+}
+
+# An argument with a default value.
+def hello {{to_who "me"}} {
+  print "Hello $to_who"
+}
+
+# Variadic arguments.
+def to_everybody {*args} {
+  print "Hello to [$args join { and }]"
+}
+.Ed
+.It Ic return Ar ¿*args?
+This finishes the current stack frame and optionally sets a return value. It’s typically used to return from a function or from the program itself if in the top stack frame.
+.Bd -literal
+def concat {val1 val2} { return "$val1 $val2" }
+
+# Returning from the toplevel interpreter is fine.
+# This will be cutlet's return value.
+return 0
+.Ed
+.It Ic global Ar name Ar ¿=? Ar ¿value?
+Create, assign or remove a variable from the current global
+.Vt sandbox .
+When value is given the variable is created, if needed, and assigned the value. When it's not given the variable is completely removed from the sandbox. The optional
+.Ar =
+argument is used to improve code clarity only.
+.It Ic local Ar name Ar ¿=? Ar ¿value?
+Create, assign or remove a variable from the current execution frame. When value is given the variable is created, if needed, and assigned the value. When it's not given the variable is completely removed from the frame. The optional
+.Ar =
+argument is used to improve code clarity only.
+.It Ic block Ar ¿levels? Ar body
+Creates and evaluates an execution block frame. All block frames must have an execution frame which it has full access to, it actually extends the frame. If
+.Ar levels
+is not given then the current execution frame is used. Otherwise, it uses the frame the number of levels up the execution stack. This is how confiditional execution function, like if or while, and iterators, like foreach, are created.
+.Bd -literal
+def on {condition body} {
+  if {$condition} then {
+    block 3 $body
+  }
+}
+
+on {$score == 10} cheer
+.Ed
+.It Ic print Ar *args
+Display all the arguments to standard out.
+.It Ic list Ar *args
+Creates a new list variable initially populating it with \fI*args\fR.
+.Bd -literal
+global names = [list John Fred Sam]
+print [$names size] $names
+  -> 3 John Fred Sam
+.Ed
+.It Ic sandbox
+Creates a new sandbox. All global variables and components are found in a sandbox. When a new interpreter is created it has its own default
+.Vt sandbox .
+By creating a new sandbox the interpreter's environment can be temporarily replaced with a modified one for a specific purpose.
+.Pp A good example for using a sandbox is when Cutlet is used for configurations files. The default environment can be used to build a list of all the configuration files for an application then each file evaluated within another sanbox only supporting the configuation syntax. This way configuration files can't be used to access parts of the application it's not supposed to.
+.Bd -literal
+global clean_env = [sandbox]
+$clean_env eval {
+  # Execute script in clean bare bone interpreter.
+  include mysript.cutlet
+}
+.Ed
+.Ed
+.Sh BUILTIN TYPES
+Variables within the interpreter all have a given
+.Em type
+that defines its value. Each of these
+.Em types
+can define a series of
+.Em operator functions
+to make the variable more convenient to work with.
+.Ss string
+A string contains text and is the fundamental type in cutlet.
+
+Character indices for operators like
+.Ic index
+.Ic insert
+and
+.Ic substr
+always start at 1. An index of 0 is invalid. They can also reference positions starting with the last character moving forward with negative values. For example an index of -1 is the very last character in the string. Any index out of range will raise an error.
+.Bl -tag -width Ds
+.It Ic "$string ==" Ar other
+.It Ic "$string =" Ar other
+.It Ic "$string !=" Ar other
+.It Ic "$string <>" Ar other
+.It Ic "$string <" Ar other
+.It Ic "$string <=" Ar other
+.It Ic "$string >" Ar other
+.It Ic "$string >=" Ar other
+Compares the value of
+.Va $string
+with the value of
+.Ar other ,
+returning true if the condition is met.
+.It Ic "$string +" Ar *args
+Conjugates the value of
+.Va $string
+and
+.Ar args
+together and returns the resulting string.
+.It Ic "$string append" Ar *args
+Appends the values of
+.Ar args
+to
+.Va $string .
+.It Ic "$string insert" Ar offset Ar value
+Inserts the
+.Ar value
+into the string at the given
+.Ar offset .
+.It Ic "$string index" Ar offset ¿¿=? value?
+Returns the character from
+.Va $string
+at the given
+.Ar index .
+If
+.Ar value
+is given then the character at
+.Ar index
+is replaced with value in
+.Ar value .
+.It Ic "$string find" Ar value
+Returns the index of
+.Ar value
+if it is found within the string otherwise false is returned.
+.It Ic "$string startswith" Ar value
+Returns true if the string starts with
+.Ar value
+otherwise false is returned.
+.It Ic "$string endswith" Ar value
+Returns true if the string ends with
+.Ar value
+otherwise false is returned.
+.It Ic "$string substr" Ar start Ar end
+Return part of the string starting at index
+.Ar start
+and ending at index
+.Ar end .
+.It Ic "$string length"
+Returns the number of characters within the string.
+.It Ic "$string type"
+Always returns the value
+.Em string .
+.El
+.Ss boolean
+A boolean is a true or false value.
+.Bl -tag -width Ds
+.It Ic "$boolean ==" Ar other
+.It Ic "$boolean =" Ar other
+.It Ic "$boolean !=" Ar other
+.It Ic "$boolean <>" Ar other
+Compares the value of
+.Va $boolean
+with the value of
+.Ar other ,
+returning true if the condition is met.
+.It Ic "$boolean and" Ar other
+.It Ic "$boolean nand" Ar other
+.It Ic "$boolean or" Ar other
+.It Ic "$boolean nor" Ar other
+.It Ic "$boolean xor" Ar other
+Logical comparisons of
+.Va $boolean
+with the value of
+.Ar other ,
+returning true if the condition is met.
+.It Ic "$boolean not"
+Returns the inverse value of
+.Va $boolean ,
+true returns false and false returns true.
+.It Ic "$boolean type"
+Always returns the value
+.Em boolean .
+.El
+.Ss list
+A list is used to contain a number of other variables.
+.Bl -tag -width Ds
+.It Ic "$list append" Ar *args
+Adds all the
+.Ar args
+individually to the end of the list.
+.Bd -literal
+global nums = [list 1 2 3]
+$nums append 4 5 6
+print $nums
+  -> 1 2 3 4 5 6
+.Ed
+.It Ic "$list clear"
+Removes all the items from the list leaving it empty.
+.It Ic "$list foreach" Ar item Ar body
+Evaluates
+.Ar body
+for each item in the list. The item is places in a local
+variable of
+.Ar body
+with the name specified by
+.Ar item .
+.Bd -literal
+$names foreach name {
+  print $name
+}
+.Ed
+.It Ic "$list index" Ar index Ar ¿¿=? value?
+Returns the value from
+.Va $list
+at the given
+.Ar index .
+If
+.Ar value
+is given then the value at
+.Ar index
+is replaced with value in
+.Ar value .
+.It Ic "$list join" Ar ¿delimiter?
+Takes the contents of the list and joins them into a single string using
+.Ar delimiter
+as a seperator between each entry. If the
+.Ar delimiter
+is not given then a single empty space is used.
+.It Ic "$list size"
+Returns the number of entries within the list.
+.Bd -literal
+global nums = [list 1 2 3]
+print [$nums size]
+  -> 3
+.Ed
+.It Ic "$list sort" Ar ¿less?
+Sorts the items of the list in ascending order. By default each item will be compared as strings when sorting. The optional
+.Ar less
+argument can be used to specify a less comparison function used to sort the list with. The following examples how variable operators can be used to sort the list and even reverse the sorting.
+.Bd -literal
+def _less_operator {v1 v2) {
+  return [$v1 < $v2]
+}
+
+def _less_reverse {v1 v2} {
+  return [$v1 > $v2]
+}
+
+$mylist sort
+$mylist sort _less_operator
+$mylist sort _less_reverse
+.Ed
+.El
+.Ss sandbox
+A sandbox contains the global environment for a Cutlet interpreter. A sandbox contains all the global variables and components. Typically a component is just a function but are flexable enough to represent other objects like object oriented programming classes.
+.Bl -tag -width Ds
+.It Ic "$sandbox eval" Ar body
+Executes
+.Ar body
+with
+.Va $sandbox
+as the global environment.
+.It Ic "$sandbox expr" Ar body
+Executes
+.Ar body
+with
+.Va $sandbox
+as the global environment and returns the result created.
+.It Ic "$sandbox link" Ar component Ar ¿¿as? ¿name??
+Creates a reference to a
+.Ar component
+from the current global sandbox in
+.Va $sandbox .
+The component can be referenced by a different name specified in
+.Ar name .
+.It Ic "$sandbox unlink" Ar component
+Removes
+.Ar component
+from the
+.Va $sandbox .
+.It Ic "$sandbox global" Ar ¿=? Ar ¿value?
+Sets or remove a global variable in the sandbox. This is identical to the
+builtin command global.
+.It Ic "$sandbox clear"
+Removes all variables and components from the sandbox.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev CUTLETPATH
+If set, is a colon delimited list of directories added to the library search
+list in
+.Va $library.path .
+.El

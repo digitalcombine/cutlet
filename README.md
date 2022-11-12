@@ -20,9 +20,9 @@ The entire global environment can be removed, replaced, redefined or overridden 
    This command has 5 words
    command arg1 arg2 arg3
    ```
-3. Variables
+3. Variables.
 
-   A name starting with the `$` character get replaced with a variable's value.
+   A name starting with the `$` character gets replaced with a variable's value.
    ```tcl
    global customer_name = "John Smith"
    print $customer_name
@@ -30,45 +30,45 @@ The entire global environment can be removed, replaced, redefined or overridden 
    local counter = 10
    print We have $counter items.
    ```
-4. Command substitution
+4. Command substitutions.
 
-   Square brackets, `[]`, gets replaced with return value from the command in
+   Square brackets, `[]`, gets replaced with the return value from the command in
    them.
    ```tcl
    local mylist = [list value1 value2 value3]
-   print [mylist join .]
+   print [$mylist join .]
      -> value1.value2.value3
    ```
-5. Strings
+5. Strings and substitutions.
 
-   Strings are denoted with the quoting characters "" and ''. Variable and command substitution are preformed in strings.
+   Strings are denoted with the quoting characters "" and ''. Variable and command substitution can be preformed in strings.
    ```tcl
    "Hello $client, your order [get_order $client] is ready\n"
    'Hello $client, your order [get_order $client] is ready\n'
    ```
-6. Blocks
+6. Blocks.
 
-   Blocks are denoted with curly brackets, {}. They can be used as literal strings and can span multiple lines.
-   ```tcl
-   print {Hello World}
+  Blocks are denoted with curly brackets, {}. They can be used as literal strings and the only part of the language that can span multiple lines.
+  ```tcl
+  print {Hello World}
 
-   def my_command {
-     command one
-     command two
-   }
-   ```
+  def my_command {
+    command one
+    command two
+  }
+  ```
 7. Comments
 
-   Lines starting with the *#* character are comment lines and are ignored by Cutlet.
-   ```tcl
-   # This is a comment.
-   print Hello # This is not a comment
-   ```
+  Lines starting with the *#* character are comment lines and are ignored by Cutlet.
+  ```tcl
+  # This is a comment.
+  print Hello # This is not a comment
+  ```
 
 **Simple Implementation**
 
 Cutlet as a language doesn't define any language constructs with the exception
-of variables, command and string substitutions. Things like looping, conditional
+of variable, command and string substitutions. Things like looping, conditional
 branching, object orientation, procedures and functions and so on, are defined
 by libraries or by the encapsulating program. Even setting variable values is not defined by Cutlet and is implementation specific.
 
@@ -99,17 +99,17 @@ Cutlet can be used to create a slimmer configuration that is easier to understan
 ```tcl
 # Xfce4 XSettings
 Net {
-  ThemeName Greybird
-  IconThemeName elementary-xfce-dark
-  DoubleClickTime default
-  DoubleClickDistance default
-  DndDragThreshold default
-  CursorBlink default
-  CursorBlinkTime default
-  SoundThemeName default
-  EnableEventSounds false
+  ThemeName                 Greybird
+  IconThemeName             elementary-xfce-dark
+  DoubleClickTime           default
+  DoubleClickDistance       default
+  DndDragThreshold          default
+  CursorBlink               default
+  CursorBlinkTime           default
+  SoundThemeName            default
+  EnableEventSounds         false
   EnableInputFeedbackSounds false
-  FallbackIconTheme default
+  FallbackIconTheme         default
 }
 ```
 Making some of Cutlets scripting capabilities available, complicated configurations can be handled well as in this http server example.

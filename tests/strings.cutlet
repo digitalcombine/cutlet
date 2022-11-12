@@ -1,0 +1,314 @@
+# Copyright © 2021 Ron R Wills <ron@digitalcombine.ca>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# Test the String Type
+
+# Remove the system library directory path
+$library.path remove 0
+
+import testsuite
+
+testsuite "String Type and Operators" {
+  import stdlib
+
+  test "Type" {
+    assert {["Hello" type] = "string"} {"Hello" isn't type string, returned} \
+           ["Hello" type]
+
+    try {
+      "Hello" type is a string
+      fail {"Hello" type is a string}
+    }
+  }
+
+  test "Equality" {
+    assert {"Hello" == "Hello"} {"Hello" == "Hello"}
+    assert_fail {"Hello" == "Bye"} {"Hello" == "Bye"}
+
+    try {
+      "Hello" ==
+      fail {"Hello" ==}
+    }
+
+    try {
+      "Hello" == Hello World
+      fail {"Hello" == Hello World}
+    }
+  }
+
+  test "Inequality" {
+    assert {"Hello" <> "Bye"} {"Hello" <> "Bye"}
+    assert_fail {"Hello" <> "Hello"} {"Hello" <> "Hello"}
+
+    try {
+      "Hello" <>
+      fail {"Hello" <>}
+    }
+
+    try {
+      "Hello" <> Hello World
+      fail {"Hello" <> Hello World}
+    }
+  }
+
+  test "Less Than" {
+    assert {"Bye" < "Hello"} {"Bye" < "Hello"}
+    assert_fail {"Hello" < "Bye"} {"Hello" < "Bye"}
+
+    try {
+      "Bye" <
+      fail "\"Bye\" <"
+    }
+
+    try {
+      "Bye" < Hello World
+      fail "\"Bye\" < Hello World"
+    }
+  }
+
+  test "Less Than Equal" {
+    assert {"Bye" <= "Hello"} {"Bye" <= "Hello"}
+    assert {"Hello" <= "Hello"} {"Hello" <= "Hello"}
+    assert_fail {"Hello" <= "Bye"} {"Hello" <= "Bye"}
+
+    try {
+      "Bye" <=
+      fail "\"Bye\" <="
+    }
+
+    try {
+      "Bye" <= Hello World
+      fail "\"Bye\" <= Hello World"
+    }
+  }
+
+  test "Greater Than" {
+    if {"Bye" > "Hello"} then {
+      fail "\"Bye\" < \"Hello\""
+    }
+
+    if {"Hello" > "Bye"} then {
+    } else {
+      fail "\"Bye\" < \"Hello\""
+    }
+
+    try {
+      "Bye" >
+      fail "\"Bye\" >"
+    }
+
+    try {
+      "Bye" > Hello World
+      fail "\"Bye\" > Hello World"
+    }
+  }
+
+  test "Greater Than Equal" {
+    if {"Bye" >= "Hello"} then {
+      fail "\"Bye\" <= \"Hello\""
+    }
+
+    if {"Hello" >= "Bye"} then {
+    } else {
+      fail "\"Bye\" <= \"Hello\""
+    }
+
+    if {"Hello" >= "Hello"} then {
+    } else {
+      fail "\"Bye\" <= \"Hello\""
+    }
+
+    try {
+      "Bye" >=
+      fail "\"Bye\" >="
+    }
+
+    try {
+      "Bye" >= Hello World
+      fail "\"Bye\" >= Hello World"
+    }
+  }
+
+  test "Add" {
+    try {
+      "Hello" +
+      fail {"Hello" +}
+    }
+
+    local result = ["Hello" + " World"]
+    if {$result <> "Hello World"} then {
+      fail {["Hello" + " World"] returned} $result
+    }
+
+    local result = ["Hello " + to the World]
+    if {$result <> "Hello to the World"} then {
+      fail {["Hello " + to the World] returned} $result
+    }
+  }
+
+  test "Append" {
+    try {
+      "Hello" append
+      fail {"Hello" append}
+    }
+
+    local hw = "Hello"
+    $hw append " World"
+    assert {$hw == "Hello World"} {"Hello" append " World" returned} $hw
+  }
+
+  test "Index" {
+    local hw = "Hello World"
+
+    if {[$hw index 1] <> "H"} then {
+      fail {["Hello World" index 1] returned} [$hw index 1]
+    }
+
+    if {[$hw index 5] <> "o"} then {
+      fail {["Hello World" index 5] returned} [$hw index 5]
+    }
+
+    if {[$hw index -1] <> "d"} then {
+      fail {["Hello World" index -1] returned} [$hw index -1]
+    }
+
+    if {[$hw index -5] <> "W"} then {
+      fail {["Hello World" index -5] returned} [$hw index -5]
+    }
+
+    try {
+      $hw index 0
+      fail {"Hello World" index 0 returned} [$hw index 0]
+    }
+
+    try {
+      $hw index 30
+      fail {"Hello World" index 30}
+    }
+
+    $hw index 7 = "to all of the "
+    if {$hw <> "Hello to all of the World"} then {
+       fail {"Hello World" index 7 = "to all of the " returned } $hw
+    }
+
+    $hw index 1 = "Narrator: "
+    if {$hw <> "Narrator: Hello to all of the World"} then {
+       fail {"Hello to all of the World" index 7 = "Narrator: " returned } $hw
+    }
+  }
+
+  test "Find" {
+
+  }
+
+  test "Endswith" {
+    assert {"Hello World" endswith "rld"} {"\"Hello World\" endswith \"rld\"}
+
+    assert_fail {"Hello World" endswith "llo"} {"\"Hello World\" endswith \"llo\"}
+    assert_fail {"Hello World" endswith "kitty"} {"\"Hello World\" endswith \"kitty\"}
+
+    try {
+      "Hello World" endswith
+      fail "\"Hello World\" endswith"
+    }
+
+    try {
+      "Hello World" endswith o W
+      fail "\"Hello World\" endswith o W"
+    }
+  }
+
+  test "Length" {
+    if {["Hello World" length] <> 11} then {
+      fail "\[\"Hello World\" length\] returned" ["Hello World" length]
+    }
+
+    if {["¿Dónde está la salida?" length] <> 22} then {
+      fail "\[\"¿Dónde está la salida?\" length\] returned" \
+        ["¿Dónde está la salida?" length]
+    }
+
+    try {
+      "Hello" length to many arguments
+      fail "\"Hello\" length to many arguments"
+    }
+  }
+
+  test "Variable Substitution" {
+    local var1 = value1
+    local var2 = value2
+    local var3 = value3
+
+    local string = "${var1}${var2}${var3}"
+    if {$string <> "value1value2value3"} then {
+      fail "$string <> value1value2value3"
+    }
+
+    local string = "$var1$var2$var3"
+    if {$string <> "value1value2value3"} then {
+      fail "$string <> value1value2value3"
+    }
+
+    try {
+      "$does't exist"
+      fail "resolved noexisting variable"
+    }
+  }
+
+  def hello {to} {
+    return "Hello $to"
+  }
+
+  test "Command Substitution" {
+    local list1 = [list John A Smith]
+    local list2 = [list Jane A Smith]
+
+    if {"[hello John]" <> "Hello John"} then {
+      fail "[hello John] <> \"Hello John\""
+    }
+
+    local string = "Hello [$list1 join][$list2 join]"
+    if {$string <> "Hello John A SmithJane A Smith"} then {
+      fail "$string <> Hello John A SmithJane A Smith"
+    }
+  }
+
+  test "General" {
+    local var1 = value1
+
+    local string = "This is a variable \$name.\n\tAnd a \"backslash\" \\\n\t\$var1 = $var1"
+    print $string
+
+    local string = "\x48\x65\x6c\x6c\x6f!"
+    if {$string <> "Hello!"} then {
+      fail "$string <> Hello!"
+    }
+  }
+}
+
+return $test_result
