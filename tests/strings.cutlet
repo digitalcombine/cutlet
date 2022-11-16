@@ -108,14 +108,8 @@ testsuite "String Type and Operators" {
   }
 
   test "Greater Than" {
-    if {"Bye" > "Hello"} then {
-      fail "\"Bye\" < \"Hello\""
-    }
-
-    if {"Hello" > "Bye"} then {
-    } else {
-      fail "\"Bye\" < \"Hello\""
-    }
+    assert_fail {"Bye" > "Hello"} "\"Bye\" < \"Hello\""
+    assert {"Hello" > "Bye"} "\"Bye\" < \"Hello\""
 
     try {
       "Bye" >
@@ -129,19 +123,9 @@ testsuite "String Type and Operators" {
   }
 
   test "Greater Than Equal" {
-    if {"Bye" >= "Hello"} then {
-      fail "\"Bye\" <= \"Hello\""
-    }
-
-    if {"Hello" >= "Bye"} then {
-    } else {
-      fail "\"Bye\" <= \"Hello\""
-    }
-
-    if {"Hello" >= "Hello"} then {
-    } else {
-      fail "\"Bye\" <= \"Hello\""
-    }
+    assert_fail {"Bye" >= "Hello"} "\"Bye\" <= \"Hello\""
+    assert {"Hello" >= "Bye"} fail "\"Bye\" <= \"Hello\""
+    assert {"Hello" >= "Hello"} "\"Bye\" <= \"Hello\""
 
     try {
       "Bye" >=
@@ -161,13 +145,10 @@ testsuite "String Type and Operators" {
     }
 
     local result = ["Hello" + " World"]
-    if {$result <> "Hello World"} then {
-      fail {["Hello" + " World"] returned} $result
-    }
+    assert {$result == "Hello World"} ["Hello" + " World"] returned $result
 
     local result = ["Hello " + to the World]
-    if {$result <> "Hello to the World"} then {
-      fail {["Hello " + to the World] returned} $result
+    assert {$result == "Hello to the World"} ["Hello " + to the World] returned $result
     }
   }
 
@@ -185,21 +166,10 @@ testsuite "String Type and Operators" {
   test "Index" {
     local hw = "Hello World"
 
-    if {[$hw index 1] <> "H"} then {
-      fail {["Hello World" index 1] returned} [$hw index 1]
-    }
-
-    if {[$hw index 5] <> "o"} then {
-      fail {["Hello World" index 5] returned} [$hw index 5]
-    }
-
-    if {[$hw index -1] <> "d"} then {
-      fail {["Hello World" index -1] returned} [$hw index -1]
-    }
-
-    if {[$hw index -5] <> "W"} then {
-      fail {["Hello World" index -5] returned} [$hw index -5]
-    }
+    assert {[$hw index 1] == "H"} ["Hello World" index 1] returned [$hw index 1]
+    assert {[$hw index 5] == "o"} ["Hello World" index 5] returned [$hw index 5]
+    assert {[$hw index -1] == "d"} ["Hello World" index -1] returned [$hw index -1]
+    assert {[$hw index -5] == "W"} ["Hello World" index -5] returned [$hw index -5]
 
     try {
       $hw index 0
@@ -212,14 +182,10 @@ testsuite "String Type and Operators" {
     }
 
     $hw index 7 = "to all of the "
-    if {$hw <> "Hello to all of the World"} then {
-       fail {"Hello World" index 7 = "to all of the " returned } $hw
-    }
+    assert {$hw == "Hello to all of the World"} {"Hello World" index 7 = "to all of the " returned } $hw
 
     $hw index 1 = "Narrator: "
-    if {$hw <> "Narrator: Hello to all of the World"} then {
-       fail {"Hello to all of the World" index 7 = "Narrator: " returned } $hw
-    }
+    assert {$hw == "Narrator: Hello to all of the World"} {"Hello to all of the World" index 7 = "Narrator: " returned } $hw
   }
 
   test "Find" {
@@ -228,7 +194,6 @@ testsuite "String Type and Operators" {
 
   test "Endswith" {
     assert {"Hello World" endswith "rld"} {"\"Hello World\" endswith \"rld\"}
-
     assert_fail {"Hello World" endswith "llo"} {"\"Hello World\" endswith \"llo\"}
     assert_fail {"Hello World" endswith "kitty"} {"\"Hello World\" endswith \"kitty\"}
 
@@ -244,14 +209,9 @@ testsuite "String Type and Operators" {
   }
 
   test "Length" {
-    if {["Hello World" length] <> 11} then {
-      fail "\[\"Hello World\" length\] returned" ["Hello World" length]
-    }
+    assert {["Hello World" length] == 11} "\[\"Hello World\" length\] returned" ["Hello World" length]
 
-    if {["¿Dónde está la salida?" length] <> 22} then {
-      fail "\[\"¿Dónde está la salida?\" length\] returned" \
-        ["¿Dónde está la salida?" length]
-    }
+    assert {["¿Dónde está la salida?" length] == 22} "\[\"¿Dónde está la salida?\" length\] returned" ["¿Dónde está la salida?" length]
 
     try {
       "Hello" length to many arguments
@@ -265,14 +225,10 @@ testsuite "String Type and Operators" {
     local var3 = value3
 
     local string = "${var1}${var2}${var3}"
-    if {$string <> "value1value2value3"} then {
-      fail "$string <> value1value2value3"
-    }
+    assert {$string == "value1value2value3"} "$string <> value1value2value3"
 
     local string = "$var1$var2$var3"
-    if {$string <> "value1value2value3"} then {
-      fail "$string <> value1value2value3"
-    }
+    assert {$string == "value1value2value3"} "$string <> value1value2value3"
 
     try {
       "$does't exist"
@@ -288,14 +244,10 @@ testsuite "String Type and Operators" {
     local list1 = [list John A Smith]
     local list2 = [list Jane A Smith]
 
-    if {"[hello John]" <> "Hello John"} then {
-      fail "[hello John] <> \"Hello John\""
-    }
+    assert {"[hello John]" == "Hello John"} "[hello John] <> \"Hello John\""
 
     local string = "Hello [$list1 join][$list2 join]"
-    if {$string <> "Hello John A SmithJane A Smith"} then {
-      fail "$string <> Hello John A SmithJane A Smith"
-    }
+    assert {$string == "Hello John A SmithJane A Smith"} "$string <> Hello John A SmithJane A Smith"
   }
 
   test "General" {
@@ -308,6 +260,14 @@ testsuite "String Type and Operators" {
     if {$string <> "Hello!"} then {
       fail "$string <> Hello!"
     }
+
+    # Make sure brackets are creating proper strings
+    local string = {}
+    assert {$string == ""} "{} didn't create an empty string"
+
+    local string = { }
+    assert {$string == " "} "{ } <> \" \""
+    assert_fail {$string == ""} "{ } created an empty string"
   }
 }
 
