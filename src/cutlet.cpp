@@ -492,198 +492,210 @@ void cutlet_tokenizer::parse_next_token() {
       return;
     }
 
-    switch ((*it)[0]) {
+    if ((*it).compare(0, std::string::npos, "\\") == 0) {
+      /* Remove the line continuation character, newline character and prevent
+       * a newline token from being created.
+       */
+      ++it; // Remove '\' character
+      ++it; // Remove the newline character
+      position += 2;
 
-    // End of File
-    case '\0':
-      it = it.end();
-      break;
+    } else {
+      // Figure out and create the next token.
 
-    // Varible token.
-    case '$': {
-      ++it; // Remove the $ character.
+      switch ((*it)[0]) {
 
-      cutlet::utf8::iterator start(it);
-      std::string result;
+        // End of File
+      case '\0':
+        it = it.end();
+        break;
 
-      // Find the end of the variable name.
-      while ((not is_space(*it) and not is_eol(*it))
-              and it != it.end())
-        ++it;
+        // Varible token.
+      case '$': {
+        ++it; // Remove the $ character.
 
-      // Add the token.
-      add_token(cutlet::T_VARIABLE,
-                cutlet::utf8::substr(start, it),
-                position, 1);
-      break;
-    }
+        cutlet::utf8::iterator start(it);
+        std::string result;
 
-    // String token.
-    case '"': {
-      ++it; // Remove the " character.
+        // Find the end of the variable name.
+        while ((not is_space(*it) and not is_eol(*it))
+               and it != it.end())
+          ++it;
 
-      cutlet::utf8::iterator start(it);
-      bool ignore = false;
-
-      // Find the matching " character.
-      for (; *it != "\"" or ignore; ++it) {
-
-        // Make sure the " isn't escaped (\").
-        if (*it == "\\" and not ignore) ignore = true;
-        else ignore = false;
-
-        // Matching " not found, throw and error.
-        if (is_eol(*it) or it == it.end())
-          throw parser::syntax_error("Unmatched \"",
-                                     parser::token(cutlet::T_STRING,
-                                                   cutlet::utf8::substr(start,
-                                                                        it),
-                                                   position));
+        // Add the token.
+        add_token(cutlet::T_VARIABLE,
+                  cutlet::utf8::substr(start, it),
+                  position, 1);
+        break;
       }
 
-      // Add the token.
-      add_token(cutlet::T_STRING,
-                cutlet::utf8::substr(start, it),
-                position, 1);
-      ++it; // Remove trailing "
-      break;
-    }
+        // String token.
+      case '"': {
+        ++it; // Remove the " character.
 
-    // String token.
-    case '\'': {
-      ++it; // Remove the ' character
+        cutlet::utf8::iterator start(it);
+        bool ignore = false;
 
-      cutlet::utf8::iterator start(it);
-      bool ignore = false;
+        // Find the matching " character.
+        for (; *it != "\"" or ignore; ++it) {
 
-      // Find the matching ' character.
-      for (; *it != "'" or ignore; ++it) {
+          // Make sure the " isn't escaped (\").
+          if (*it == "\\" and not ignore) ignore = true;
+          else ignore = false;
 
-        // Make sure the ' isn't escaped (\').
-        if (*it == "\\" and not ignore) ignore = true;
-        else ignore = false;
-
-        // Matching ' not found, throw and error.
-        if (is_eol(*it) or it == it.end())
-          throw parser::syntax_error("Unmatched '",
-                                     parser::token(cutlet::T_STRING,
-                                                   cutlet::utf8::substr(start,
-                                                                        it),
-                                                   position));
-      }
-
-      // Add the token.
-      add_token(cutlet::T_STRING,
-                cutlet::utf8::substr(start, it),
-                position, 1);
-      ++it; // Remove trailing '
-      break;
-    }
-
-    // Subcommand token.
-    case '[': {
-      ++it; // Remove the [ character.
-
-      cutlet::utf8::iterator start(it), previous(it);
-      unsigned int count = 1;
-      unsigned int blocks = 0;
-
-      // Find the matching ] character.
-      while (count) {
-
-        // Matching ] character not found, throw and error.
-        if ((is_eol(*it) and not blocks) or it == it.end())
-          throw parser::syntax_error("Unmatched [",
-                                     parser::token(cutlet::T_SUBCMD,
-                                                   cutlet::utf8::substr(start,
-                                                                        it),
-                                                   position));
-
-        // Keep track of subcommands within this subcommand.
-        if (*it == "]") {
-          count--;
-          previous = it;
-        } else if (*it == "[") count++;
-
-        // Keep track of blocks within this subcommand.
-        if (*it == "}") blocks--;
-        else if (*it == "{") blocks++;
-
-        ++it; // Next character please.
-      }
-
-      // Add the token.
-      add_token(cutlet::T_SUBCMD,
-                cutlet::utf8::substr(start, previous),
-                position, 1);
-      break;
-    }
-
-    // Block token.
-    case '{': {
-      ++it; // Remove the { character.
-
-      cutlet::utf8::iterator start(it), previous(it);
-      unsigned int count = 1;
-
-      // Find the matching } character.
-      while (count) {
-
-        // Matching } character not found, throw and error.
-        if (it == it.end()) {
-          std::stringstream msg;
-          msg << file << ":" << position << ": Unmatched {";
-          throw parser::syntax_error(msg.str(),
-                                     parser::token(cutlet::T_BLOCK,
-                                                   cutlet::utf8::substr(start,
-                                                                        it),
-                                                   position));
+          // Matching " not found, throw and error.
+          if (is_eol(*it) or it == it.end())
+            throw parser::syntax_error("Unmatched \"",
+                                       parser::token(cutlet::T_STRING,
+                                                     cutlet::utf8::substr(start,
+                                                                          it),
+                                                     position));
         }
 
-        // Keep track of blocks within this block.
-        if (*it == "}") {
-          count--;
-          previous = it;
-        } else if (*it == "{") count++;
-
-        ++it; // Next character please.
-      }
-
-      // Add the token.
-      add_token(cutlet::T_BLOCK,
-                cutlet::utf8::substr(start, previous),
-                position, 1);
-      break;
-    }
-
-    default: {
-      cutlet::utf8::iterator start(it);
-
-      if (is_eol(*it) or it == it.end()) {
-        // Add an end of line token.
-        add_token(cutlet::T_EOL, *it, position);
-        ++it;
-
-      } else if ((tokens.empty() or
-                  (unsigned int)tokens.back() == cutlet::T_EOL) and
-                 (*it)[0] == '#') {
-        // Add a comment token.
-        cutlet::utf8::iterator startx(it);
-        while (not is_eol(*it)) ++it;
-        add_token(cutlet::T_COMMENT,
-                  cutlet::utf8::substr(startx + 1, it),
-                  position, 1);
-
-      } else {
-        // Add a word token.
-        while (not is_space(*it) and not is_eol(*it) and it != it.end())
-          ++it;
-        add_token(cutlet::T_WORD,
+        // Add the token.
+        add_token(cutlet::T_STRING,
                   cutlet::utf8::substr(start, it),
-                  position);
+                  position, 1);
+        ++it; // Remove trailing "
+        break;
       }
-      break;
-    }
+
+        // String token.
+      case '\'': {
+        ++it; // Remove the ' character
+
+        cutlet::utf8::iterator start(it);
+        bool ignore = false;
+
+        // Find the matching ' character.
+        for (; *it != "'" or ignore; ++it) {
+
+          // Make sure the ' isn't escaped (\').
+          if (*it == "\\" and not ignore) ignore = true;
+          else ignore = false;
+
+          // Matching ' not found, throw and error.
+          if (is_eol(*it) or it == it.end())
+            throw parser::syntax_error("Unmatched '",
+                                       parser::token(cutlet::T_STRING,
+                                                     cutlet::utf8::substr(start,
+                                                                          it),
+                                                     position));
+        }
+
+        // Add the token.
+        add_token(cutlet::T_STRING,
+                  cutlet::utf8::substr(start, it),
+                  position, 1);
+        ++it; // Remove trailing '
+        break;
+      }
+
+        // Subcommand token.
+      case '[': {
+        ++it; // Remove the [ character.
+
+        cutlet::utf8::iterator start(it), previous(it);
+        unsigned int count = 1;
+        unsigned int blocks = 0;
+
+        // Find the matching ] character.
+        while (count) {
+
+          // Matching ] character not found, throw and error.
+          if ((is_eol(*it) and not blocks) or it == it.end())
+            throw parser::syntax_error("Unmatched [",
+                                       parser::token(cutlet::T_SUBCMD,
+                                                     cutlet::utf8::substr(start,
+                                                                          it),
+                                                     position));
+
+          // Keep track of subcommands within this subcommand.
+          if (*it == "]") {
+            count--;
+            previous = it;
+          } else if (*it == "[") count++;
+
+          // Keep track of blocks within this subcommand.
+          if (*it == "}") blocks--;
+          else if (*it == "{") blocks++;
+
+          ++it; // Next character please.
+        }
+
+        // Add the token.
+        add_token(cutlet::T_SUBCMD,
+                  cutlet::utf8::substr(start, previous),
+                  position, 1);
+        break;
+      }
+
+        // Block token.
+      case '{': {
+        ++it; // Remove the { character.
+
+        cutlet::utf8::iterator start(it), previous(it);
+        unsigned int count = 1;
+
+        // Find the matching } character.
+        while (count) {
+
+          // Matching } character not found, throw and error.
+          if (it == it.end()) {
+            std::stringstream msg;
+            msg << file << ":" << position << ": Unmatched {";
+            throw parser::syntax_error(msg.str(),
+                                       parser::token(cutlet::T_BLOCK,
+                                                     cutlet::utf8::substr(start,
+                                                                          it),
+                                                     position));
+          }
+
+          // Keep track of blocks within this block.
+          if (*it == "}") {
+            count--;
+            previous = it;
+          } else if (*it == "{") count++;
+
+          ++it; // Next character please.
+        }
+
+        // Add the token.
+        add_token(cutlet::T_BLOCK,
+                  cutlet::utf8::substr(start, previous),
+                  position, 1);
+        break;
+      }
+
+      default: {
+        cutlet::utf8::iterator start(it);
+
+        if (is_eol(*it) or it == it.end()) {
+          // Add an end of line token.
+          add_token(cutlet::T_EOL, *it, position);
+          ++it;
+
+        } else if ((tokens.empty() or
+                    (unsigned int)tokens.back() == cutlet::T_EOL) and
+                   (*it)[0] == '#') {
+          // Add a comment token.
+          cutlet::utf8::iterator startx(it);
+          while (not is_eol(*it)) ++it;
+          add_token(cutlet::T_COMMENT,
+                    cutlet::utf8::substr(startx + 1, it),
+                    position, 1);
+
+        } else {
+          // Add a word token.
+          while (not is_space(*it) and not is_eol(*it) and it != it.end())
+            ++it;
+          add_token(cutlet::T_WORD,
+                    cutlet::utf8::substr(start, it),
+                    position);
+        }
+        break;
+      }
+      }
     }
 
     position = start_pos + (std::streampos)it.position();

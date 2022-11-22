@@ -36,15 +36,15 @@ import testsuite
 testsuite "Language Core" {
 
   test "Variables" {
-    local str = "string"
-    if {[$str type] <> "string"} then {
-      fail {["string" type] <> "string"}
-    }
+    local str = "A string"
+
+    assert {[$str type] = "string"} ["string" type] <> "string"
   }
 
   test "Include" {
     include "@top_srcdir@/tests/include.cutlet"
-    assert {$include_var == "I got included"} {$include_var == "I got included"}
+    assert {$include_var == "I got included"} \
+      {$include_var == "I got included"}
     global include_var
   }
 
@@ -68,51 +68,65 @@ testsuite "Language Core" {
     hello Ron George Bill Jane
   }
 
+  def _args_count {count *args} {
+    print " args $count $args"
+    assert {$count == [$args size]} "Argument count not matching"
+  }
+
+  test "Continue line" {
+    _args_count 2 Hello World
+    _args_count 2 Hello \
+      World
+    _args_count 2 \
+      Hello \
+      World
+  }
+
   #===========================================================================#
 
   def block_test {*args} {
-    local level = "level b"
     local levelb = [true]
 
     $args foreach parm {
-      local level = "level c"
       local levelc = [true]
 
       uplevel {
-        # This should be level c
-        if {$level <> "level c"} then {
-          fail "$level <> level c"
-        }
+        # This should be level b
+        assert {$levelb} "I cannot see level b"
+        assert_fail {$levelc} "I shouldn't see level c"
 
         uplevel {
-          # This should still be level c
-          if {$level <> "level c"} then {
-            fail "$level <> level c"
-          }
+          # This should still be level b
+          assert {$levelb} "I cannot see level b"
+          assert_fail {$levelc} "I shouldn't see level c"
         }
       }
 
       uplevel 1 {
-        # This should be level b
-        print "Block test at $level"
-        assert {$levelb} {uplevel 1 not level b}
+        # This should be level a
+        assert {$levela} "I cannot see level a"
+        assert_fail {$levelb} "I shouldn't see level b"
+        assert_fail {$levelc} "I shouldn't see level c"
 
-        uplevel 1 {
+        uplevel {
           # This should be level a
-          print "Block test at $level"
+          assert {$levela} "I cannot see level a"
+          assert_fail {$levelb} "I shouldn't see level b"
+          assert_fail {$levelc} "I shouldn't see level c"
         }
       }
 
       uplevel 2 {
-        # This should be level a
-        print "Block test at $level"
+        # This should be farther than level a
+        assert_fail {$levela} "I shouldn't see level a"
+        assert_fail {$levelb} "I shouldn't see level b"
+        assert_fail {$levelc} "I shouldn't see level c"
       }
     }
   }
 
   test "Uplevels" {
-    global level = "level a"
+    local levela = [true]
     block_test 1
-    global level
   }
 }
