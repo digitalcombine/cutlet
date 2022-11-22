@@ -319,10 +319,13 @@ static cutlet::variable::pointer
 _try(cutlet::interpreter &interp, const cutlet::list &arguments) {
   auto it = arguments.begin();
 
+  cutlet::frame::pointer cur_frame = interp.frame();
+
   interp.push(1, "try body");
   try {
     // Eval the body.
     interp(*it);
+    //interp.pop(); // Remove try body frame.
 
   } catch (std::exception &err) {
     // An exception was caught, so eval the err_body.
@@ -332,6 +335,10 @@ _try(cutlet::interpreter &interp, const cutlet::list &arguments) {
 
       // Set the local variable with the error in it.
       next(it, arguments);
+
+      // Clean up the stack
+      while (interp.frame() != cur_frame) interp.pop();
+
       interp.push(1, "catch body");
       interp.local(*(*it), new cutlet::string(err.what()));
 
@@ -342,7 +349,9 @@ _try(cutlet::interpreter &interp, const cutlet::list &arguments) {
       interp.pop();
     }
   }
-  interp.pop(); // Remove try body frame.
+  // Clean up the stack
+  while (interp.frame() != cur_frame) interp.pop();
+
 
   return nullptr;
 }
