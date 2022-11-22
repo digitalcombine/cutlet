@@ -117,9 +117,10 @@ std::ostream &operator <<(std::ostream &os,
   }
 
   // Display the variables in the frame.
-  for (auto &it: frame._variables) {
+  /*for (auto &it: frame._variables) {
     os << "\n  $" << it.first;
-  }
+    //os << "\n  $" << it.first << " = " << (std::string)(*(it.second));
+    }*/
 
   return os;
 }
@@ -479,8 +480,6 @@ void cutlet_tokenizer::parse_next_token() {
   if (not code.empty()) {
     cutlet::utf8::iterator it(code);
     std::streampos start_pos = position;
-
-    //std::clog << "PARSING: " << code << std::endl;
 
     // Skip any white space.
     while (is_space(*it) and it != it.end()) {

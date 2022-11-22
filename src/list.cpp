@@ -434,7 +434,7 @@ cutlet::variable::pointer cutlet::list::_foreach(interpreter &interp,
 
   for (auto &item: *this) {
     // Setup the frame.
-    interp.push(new cutlet::block_frame(interp.frame(0)));
+    interp.push(new cutlet::block_frame("foreach", interp.frame(0)));
     interp.local(item_name, item);
 
     // On the fly compiling and execution.

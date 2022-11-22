@@ -70,7 +70,7 @@ _frame_var::operator ()(cutlet::variable::pointer self,
 
   // XXX local name ??=? value?
   if (op == "label") {
-    // $frame lable ??=? value?
+    // $frame label ??=? value?
     return new cutlet::string(_frame->label());
 
   } else if (op == "state") {
@@ -98,9 +98,9 @@ _frame_var::operator std::string() const {
   return "frame(" + _frame->label() + ")";
 }
 
-/****************
- * debug.frames *
- ****************/
+/***************
+ * debug.stack *
+ ***************/
 
 static cutlet::variable::pointer _stack(cutlet::interpreter &interp,
                                         const cutlet::list &arguments) {

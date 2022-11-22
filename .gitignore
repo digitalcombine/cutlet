@@ -51,5 +51,6 @@ tests/*.log
 tests/*.trs
 tests/memory-tests
 tests/debugger-tests
+tests/core.cutlet
 cutlet-*.tar.gz
 /docs/
