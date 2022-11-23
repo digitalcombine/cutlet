@@ -264,7 +264,7 @@ void cutlet::block_frame::state(cutlet::frame::state_t new_state) {
  ******************************/
 
 std::string cutlet::block_frame::label() const {
-  return std::string("^ ") + frame::label();
+  return std::string("□ ") + frame::label();
 }
 
 /*******************************

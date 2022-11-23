@@ -149,7 +149,6 @@ testsuite "String Type and Operators" {
 
     local result = ["Hello " + to the World]
     assert {$result == "Hello to the World"} ["Hello " + to the World] returned $result
-    }
   }
 
   test "Append" {

@@ -38,6 +38,12 @@ testsuite "Standard Library" {
 
   #============================================================================
 
+  def _throw_exception {} {
+    if {[true]} then {
+      raise "I threw an error"
+    }
+  }
+
   test "Try Catch Throw Statements" {
     try {
       raise "I threw an error"
@@ -62,6 +68,13 @@ testsuite "Standard Library" {
       }
     } catch err {
       fail "Unexpected error, $err"
+    }
+
+    try {
+      _throw_exception
+      fail "Uncaught exception"
+    } catch err {
+      print " I caught an error, \"${err}\""
     }
   }
 

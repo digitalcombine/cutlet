@@ -315,7 +315,7 @@ builtin::local(cutlet::interpreter &interp,
 cutlet::variable::pointer
 builtin::uplevel(cutlet::interpreter &interp,
                  const cutlet::list &arguments) {
-  unsigned int levels = 0;
+  unsigned int levels = 2;
   size_t p_count = arguments.size();
   bool expr = false;
 
@@ -337,32 +337,27 @@ builtin::uplevel(cutlet::interpreter &interp,
       if (p_count == 3)
         arg = cutlet::convert<int>(arguments[1]);
 
-      if (arg < 0) {
-        std::stringstream mesg;
-        mesg << "Invalid argument level for uplevel "
-             << " (" << arg
-             << " >= 0).\n uplevel expr ¿levels? body";
-        throw std::runtime_error(mesg.str());
-      }
     } else {
       arg = cutlet::convert<int>(arguments[0]);
-      if (arg < 0) {
-        std::stringstream mesg;
-        mesg << "Invalid argument level for uplevel "
-             << " (1 >= " << arg
-             << " >= 2).\n uplevel ¿levels? body";
-        throw std::runtime_error(mesg.str());
-      }
     }
 
-
-    levels = (unsigned int)arg;
+    if (arg < 0) {
+      levels = interp.frames() + arg;
+    } else {
+      levels = arg + 2;
+    }
   }
 
   // Create the new block frame and execute the body within it.
   cutlet::variable::pointer result;
 
-  interp.push(levels + 1, "uplevel body");
+  interp.push(levels, "uplevel body");
+
+  /*std::clog << "TRACE: uplevel " << levels << std::endl;
+  for (int i = 0; i < interp.frames(); i++) {
+    std::clog << interp.frame(i) << std::endl;
+    }*/
+
   if (expr)
     result = interp.expr(body);
   else

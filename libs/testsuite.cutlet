@@ -48,21 +48,6 @@ def testsuite.test {name body} {
   }
 }
 
-#######################
-# testsuite.test_fail #
-#######################
-
-def testsuite.test_fail {name body} {
-  print "Test: $name"
-  $_tests append $name
-
-  try {
-    uplevel 2 $body
-    $_errors append "$name tested without failure"
-  } catch err {
-  }
-}
-
 ####################
 # testsuite.assert #
 ####################
@@ -71,7 +56,7 @@ def testsuite.assert {condition *args} {
   # Assert that $condition is true.
 
   try {
-    local result = [uplevel expr 2 $condition]
+    local result = [uplevel expr 1 $condition]
 
     if {$result not} then {
       print " [$args join]: failed"
@@ -93,7 +78,7 @@ def testsuite.assert_fail {condition *args} {
   # Assert that $condition is false.
 
   try {
-    local result = [uplevel expr 2 $condition]
+    local result = [uplevel expr 1 $condition]
 
     if {$result not} then {
       # Condition was false, perfect.
@@ -141,7 +126,6 @@ def testsuite {name body} {
   $test_box global _errors = [list]
   $test_box global _tests = [list]
   $test_box link testsuite.test as test
-  $test_box link testsuite.test_fail as test_fail
   $test_box link testsuite.assert as assert
   $test_box link testsuite.assert_fail as assert_fail
   $test_box link testsuite.fail as fail
@@ -151,7 +135,8 @@ def testsuite {name body} {
     $test_box eval $body
   } catch err {
     print "ERROR: $err"
-    uplevel 2 { return 1 }
+    uplevel -1 { return 1 }
+    return
   }
 
   # Report of the results of the tests.
@@ -168,12 +153,12 @@ def testsuite {name body} {
 
     # Exit with the appropriate value.
     #global test_result = 1
-    uplevel 2 { return 1 }
+    uplevel -1 { return 1 }
   } else {
     # All tests passed! Yay!
     print "All [$tests size] tests passed!"
 
     # Exit with the appropriate value.
-    uplevel 2 { return 0 }
+    uplevel -1 { return 0 }
   }
 }
