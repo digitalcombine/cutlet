@@ -138,29 +138,26 @@ std::string cutlet::frame::label() const {
 cutlet::frame::pointer
 cutlet::frame::uplevel(unsigned int levels) const {
   cutlet::frame::pointer result;
-  bool end = false;
 
   // Returning a reference to ourselves just breaks things.
   if (levels == 0)
     throw std::runtime_error("Internal error returning a frame level 0.");
 
-  result = _uplevel;
+  // Start traversing the frame stack.
   --levels;
+  for (result = _uplevel; result and levels;
+       result = result->_uplevel, --levels) {
 
-  while (result and levels > 0 and not end) {
-    /* We don't allow this to go pass a frame if the global enviroment was
-     * changed. We don't want to break the sandboxing.
-     */
-    if (not result->_sandbox_orig.is_null())
-      end = true;
-
-    result = result->_uplevel;
-    --levels;
+    // Don't break out of a sandbox.
+    if (result->_sandbox_orig and levels)
+      throw std::runtime_error("Frame level out of range");
   }
 
-  if (not result or (levels and end))
+  // Did we get a valid frame?
+  if (not result or levels)
     throw std::runtime_error("Frame level out of range");
 
+  // Return the frame.
   return result;
 }
 

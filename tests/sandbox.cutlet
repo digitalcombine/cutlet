@@ -31,95 +31,90 @@
 # Remove the system library directory path
 $library.path remove 0
 
-import stdlib
+import testsuite
 
-global result = 0
+testsuite "Sandbox" {
 
-#=============================================================================#
-# Test 1: Attempt to call a core function in an empty sandbox.
+  test "Calling function in empty sandbox" {
+    global sandbox1 [sandbox]
 
-print "Test 1: Call function in empty sandbox"
+    try {
+      $sandbox1 eval {
+        print "  Is there anybody out there?"
+      }
 
-global sandbox1 [sandbox]
+      fail "Invalid function call didn't raise an exception"
 
-try {
-  $sandbox1 eval {
-    print "Is there anybody out there?"
+    } catch err {
+      print "  Successfully caught error: $err"
+    }
   }
 
-  # We shouldn't get here.
-  global result = 1
-
-} catch err {
-  print "Successfully caught error: $err"
-}
-
-#=============================================================================#
-# Test 2: We link the print function into the new sandbox and attempt to call
-#         it.
-
-print "Test 2: Link function in sandbox"
-
-$sandbox1 link print
-
-try {
-  $sandbox1 eval {
-    print "Is there anybody out there?"
-  }
-  print "Yes, we can hear you."
-
-} catch err {
-  # We shouldn't get here.
-  print $err
-  global result = 1
-}
-
-#=============================================================================#
-# Test 3: Attempt to access ourselves to bypass the sandbox.
-
-print "Test 3: Attempt to access sandbox within sandbox"
-
-try {
-  $sandbox1 eval {
-    # We shouldn't be able to access ourself this way.
+  test "Link function in sandbox" {
+    #local sandbox1 [sandbox]
     $sandbox1 link print
-  }
-  global result = 1
-} catch err {
-  print "Successfully caught error: $err"
-}
 
-#=============================================================================#
-# Test 4: Importing libraries.
+    try {
+      $sandbox1 eval {
+        print "  Is there anybody out there?"
+      }
+      print "  Yes, we can hear you."
 
-print "Test 4: Import library into sandbox"
-
-$sandbox1 global library.path = $library.path
-$sandbox1 link import
-
-try {
-  $sandbox1 eval {
-    import oo
-
-    class test_class { }
+    } catch err {
+      # We shouldn't get here.
+      print $err
+      global result = 1
+    }
   }
 
-  # The library oo should only have been imported into the sandbox.
-  try {
-    class test_class { }
-
-    global result = 1
-  } catch err {
+  test "Attempt to access sandbox within sandbox" {
+    try {
+      $sandbox1 eval {
+        # We shouldn't be able to access ourself this way.
+        $sandbox1 link print
+      }
+      fail "The sandbox was able to access itself"
+    } catch err {
+      print "  Successfully caught error: $err"
+    }
   }
 
-} catch err {
-  global result = 1
-}
+  test "Import library into sandbox" {
+    $sandbox1 global library.path = $library.path
+    $sandbox1 link import
 
-#=============================================================================#
-# Test 5:
+    try {
+      $sandbox1 eval {
+        import oo
 
-if {$result == 0} then {
-  print "All of our sanbox tests passed!"
+        class test_class { }
+      }
+
+      # The library oo should only have been imported into the sandbox.
+      try {
+        class test_class { }
+
+        fail "Sandbox importing library outside of itself"
+      } catch err {
+      }
+
+    } catch err {
+      fail "Sandbox failed to import library: $err"
+    }
+  }
+
+  test "Uplevel within a sandbox" {
+    local opps = "Opps"
+    $sandbox1 link uplevel
+
+    try {
+      $sandbox1 eval {
+        uplevel {
+          print "$opps"
+        }
+      }
+      fail "I was able to access frames outside of then sandbox"
+    } catch err {
+    }
+  }
 }
-return $result
