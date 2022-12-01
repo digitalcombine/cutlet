@@ -152,7 +152,7 @@ namespace cutlet {
     /** When a variable is called this is used to implement operators for the
      * variable type.
      *
-'     * @param self Reference to the variable called.
+     * @param self Reference to the variable called.
      * @param interp Reference to the Cutlet interpreter.
      */
     virtual variable::pointer operator()(pointer self,

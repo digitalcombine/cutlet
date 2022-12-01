@@ -1335,7 +1335,7 @@ void cutlet::interpreter::push(frame::pointer new_frame) {
 void cutlet::interpreter::push(frame::pointer new_frame, sandbox::pointer sb) {
   new_frame->_sandbox_orig = _global;
   _global = sb;
-  push(new_frame);
+  push(new_frame); // XXX This needs to change.
 }
 
 /****************************
