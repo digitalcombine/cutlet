@@ -77,7 +77,9 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
       throw std::runtime_error("Invalid number of arguments to "
                                "boolean operator not");
 
-    return (not _value ? new boolean(true) : new boolean(false));
+    return (not _value
+            ? std::make_shared<boolean>(true)
+            : std::make_shared<boolean>(false));
 
   } else if (op == "type") {
     // $boolean type
@@ -85,7 +87,7 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
       throw std::runtime_error("Invalid number of arguments to "
                                "boolean operator type");
 
-    return new string("boolean");
+    return std::make_shared<string>("boolean");
 
   } else if (op == "==" or op == "=") {
     // $boolean == other
@@ -93,8 +95,9 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
       throw std::runtime_error("Invalid number of arguments to "
                                "boolean operator ==");
 
-    return (_value == convert<bool>(arguments[1])
-            ? new boolean(true) : new boolean(false));
+    return (_value == primative<bool>(arguments[1])
+            ? std::make_shared<boolean>(true)
+            : std::make_shared<boolean>(false));
 
   } else if (op == "<>" or op == "!=") {
     // $boolean <> other
@@ -102,8 +105,9 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
       throw std::runtime_error("Invalid number of arguments to "
                                "boolean operator <>");
 
-    return (_value != convert<bool>(arguments[1])
-            ? new boolean(true) : new boolean(false));
+    return (_value != primative<bool>(arguments[1])
+            ? std::make_shared<boolean>(true)
+            : std::make_shared<boolean>(false));
 
   } else if (op == "and") {
     // $boolean and other
@@ -111,8 +115,9 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
       throw std::runtime_error("Invalid number of arguments to "
                                "boolean operator and");
 
-    return (_value and convert<bool>(arguments[1])
-            ? new boolean(true) : new boolean(false));
+    return (_value and primative<bool>(arguments[1])
+            ? std::make_shared<boolean>(true)
+            : std::make_shared<boolean>(false));
 
   } else if (op == "nand") {
     // $boolean and other
@@ -120,8 +125,9 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
       throw std::runtime_error("Invalid number of arguments to "
                                "boolean operator nand");
 
-    return (not (_value and convert<bool>(arguments[1]))
-            ? new boolean(true) : new boolean(false));
+    return (not (_value and primative<bool>(arguments[1]))
+            ? std::make_shared<boolean>(true)
+            : std::make_shared<boolean>(false));
 
   } else if (op == "or") {
     // $boolean or other
@@ -129,8 +135,9 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
       throw std::runtime_error("Invalid number of arguments to "
                                "boolean operator or");
 
-    return (_value or convert<bool>(arguments[1])
-            ? new boolean(true) : new boolean(false));
+    return (_value or primative<bool>(arguments[1])
+            ? std::make_shared<boolean>(true)
+            : std::make_shared<boolean>(false));
 
   } else if (op == "nor") {
     // $boolean or other
@@ -138,8 +145,9 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
       throw std::runtime_error("Invalid number of arguments to "
                                "boolean operator nor");
 
-    return (not (_value or convert<bool>(arguments[1]))
-            ? new boolean(true) : new boolean(false));
+    return (not (_value or primative<bool>(arguments[1]))
+            ? std::make_shared<boolean>(true)
+            : std::make_shared<boolean>(false));
 
   }  else if (op == "xor") {
     // $boolean xor other
@@ -147,8 +155,9 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
       throw std::runtime_error("Invalid number of arguments to "
                                "boolean operator xor");
 
-    return (_value xor convert<bool>(arguments[1])
-            ? new boolean(true) : new boolean(false));
+    return (_value xor primative<bool>(arguments[1])
+            ? std::make_shared<boolean>(true)
+            : std::make_shared<boolean>(false));
   }
 
   throw std::runtime_error(std::string("Unknown operator ") +

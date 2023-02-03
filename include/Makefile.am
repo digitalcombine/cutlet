@@ -1,1 +1,1 @@
-nobase_include_HEADERS = cutlet libcutlet/memory libcutlet/parser
+nobase_include_HEADERS = cutlet libcutlet/parser

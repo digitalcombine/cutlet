@@ -39,46 +39,64 @@
 #include <getopt.h>
 #include <unistd.h>
 
-/********
- * help *
- ********/
+namespace {
 
-static void help() {
-  std::cout << "Cutlet v" << VERSION << "\n\n"
-            << "cutlet [-i path] filename ...\n"
-            << "cutlet -h\n"
-            << "  -i path      Include path to the library search\n"
-            << "  -V           Display the version\n"
-            << "  -h           Displays this help"
-            << std::endl;
-}
+  /********
+   * help *
+   ********/
 
-/***********
- * version *
- ***********/
+  void help() {
+    std::cout << "Cutlet v" << VERSION << "\n\n"
+              << "cutlet [-i path] filename ...\n"
+              << "cutlet -h\n"
+              << "  --include=path  Include path to the library search\n"
+              << "  -I path\n"
+              << "  -V              Display the version\n"
+              << "  --help|-h       Displays this help"
+              << std::endl;
+  }
 
-static void version () {
-  std::cout << "Cutlet Version " << VERSION << "\n\n"
-            << "Copyright (c) 2019 Ron R Wills <ron@digitalcombine.ca>\n"
-            << "License BSD: 3-Clause BSD License\n"
-            << "  <https://opensource.org/licenses/BSD-3-Clause>\n"
-            << "This is free software: you are free to change and "
-            << "redistribute it.\n"
-            << "There is NO WARRANTY, to the extent permitted by law."
-            << std::endl;
-}
+  /***********
+   * version *
+   ***********/
 
-/************
- * add_path *
- ************/
+  void version () {
+    std::cout << "Cutlet Version " << VERSION << "\n\n"
+              << "Copyright (c) 2019 Ron R Wills <ron@digitalcombine.ca>\n"
+              << "License BSD: 3-Clause BSD License\n"
+              << "  <https://opensource.org/licenses/BSD-3-Clause>\n"
+              << "This is free software: you are free to change and "
+              << "redistribute it.\n"
+              << "There is NO WARRANTY, to the extent permitted by law."
+              << std::endl;
+  }
 
-/** Adds a file path to the search paths list for libraries.
- * @param interp The cutlet interpreter.
- * @param path The path to add to the search list.
- */
-static void add_path(cutlet::interpreter &interp, const std::string &path) {
-  cutlet::variable::pointer lib_path = interp.var("library.path");
-  cutlet::cast<cutlet::list>(lib_path).push_back(new cutlet::string(path));
+  /************
+   * add_path *
+   ************/
+
+  void add_path(cutlet::interpreter &interp, const std::string &path) {
+    /* Adds a file path to the search paths list for libraries.
+     */
+
+    auto lib_path = interp.var("library.path");
+    cutlet::cast<cutlet::list>(lib_path).push_back(
+      std::make_shared<cutlet::string>(path));
+  }
+
+  /************
+   * longopts *
+   ************/
+
+  struct option longopts[] = {
+    {"include", required_argument, nullptr, 'I' },
+    {"libdir",  no_argument,       nullptr, 'L' },
+    {"libs",    no_argument,       nullptr, 'l' },
+    {"cflags",  no_argument,       nullptr, 'c' },
+    {"version", no_argument,       nullptr, 'V' },
+    {"help",    no_argument,       nullptr, 'h' },
+    {nullptr,   0,                 nullptr, 0}
+  };
 }
 
 /******************************************************************************
@@ -87,24 +105,36 @@ static void add_path(cutlet::interpreter &interp, const std::string &path) {
 
 int main(int argc, char *argv[]) {
   cutlet::interpreter interpreter;
+  std::string info;
 
   // Parse the command line options.
   opterr = 0;
   int opt;
-  while ((opt = getopt(argc, argv, "i:hV")) != -1) {
+  while ((opt = getopt_long(argc, argv, "I:hV", longopts, nullptr)) != -1) {
     switch (opt) {
-    case 'i': // Path option
-      add_path(interpreter, optarg);
+    case 'c': // C flags
+      if (not info.empty()) info += " ";
+      info += "-std=c++11";
       break;
     case 'h': // Help option
       help();
-      return 0;
+      return EXIT_SUCCESS;
+    case 'l':
+      if (not info.empty()) info += " ";
+      info = "-lcutlet";
+      break;
+    case 'I': // Path option
+      add_path(interpreter, optarg);
+      break;
+    case 'L': // Library linking
+      info = PKGLIBDIR;
+      break;
     case 'V': // Version option
       version();
       return 0;
     default: // Unknown option.
-      std::cerr << "FATAL: unknown option -" << (char)optopt << '\n';
-      return 1;
+      help();
+      return EXIT_FAILURE;
     }
   }
 
@@ -118,7 +148,10 @@ int main(int argc, char *argv[]) {
     } else {
       // Nothing on the command line so read from stdin.
 
-      if (isatty(STDIN_FILENO)) {
+      if (not info.empty()) {
+        std::cout << info << std::endl;
+        return 0;
+      } else if (isatty(STDIN_FILENO)) {
         /* This appears to be an interactive shell so read and execute line
          * by line.
          */
@@ -135,13 +168,13 @@ int main(int argc, char *argv[]) {
     /* If the return function was called by the script then attempt to return
      * it's value.
      */
-    return cutlet::convert<int>(interpreter.pop());
+    return cutlet::primative<int>(interpreter.pop());
 
   } catch (parser::syntax_error &err) {
     // Caught a parsing error.
     std::cerr << "SYNTAX ERROR: " << err.what() << ", \""
               << (const std::string &)err.get_token() << "\"" << std::endl;
-    return 1;
+    return EXIT_FAILURE;
 
   } catch (cutlet::exception &err) {
     // Caught a exception through the AST.
@@ -149,7 +182,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < interpreter.frames(); i++) {
       std::cerr << interpreter.frame(i) << std::endl;
     }
-    return 1;
+    return EXIT_FAILURE;
 
   } catch (std::exception &err) {
     // Caught some kind of exception.
@@ -157,6 +190,6 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < interpreter.frames(); i++) {
       std::cerr << interpreter.frame(i) << std::endl;
     }
-    return 1;
+    return EXIT_FAILURE;
   }
 }

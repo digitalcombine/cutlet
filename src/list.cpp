@@ -31,53 +31,379 @@
 #include <cutlet>
 #include <algorithm>
 
-/***********
- * _d_less *
- ***********/
+namespace {
 
-static bool _d_less(cutlet::variable::pointer v1,
-                    cutlet::variable::pointer v2) {
-  // Compares if string v1 is less than string v2
+  /***********
+   * _d_less *
+   ***********/
 
-  return ((std::string)(*v1) < (std::string)(*v2));
-}
+  bool _d_less(const cutlet::variable::pointer v1,
+               const cutlet::variable::pointer v2) {
+    // Compares if string v1 is less than string v2
 
-/***********
- * _c_less *
- ***********/
-
-class _c_less {
-  /* Use a cutlet function for the less comparison for algorithms.
-   */
-
-public:
-  _c_less(cutlet::interpreter &interp, cutlet::variable::pointer function)
-    : _interp(interp), _function(function) {}
-
-  bool operator ()(cutlet::variable::pointer v1,
-                   cutlet::variable::pointer v2) {
-    // Call the cutlet function.
-
-    cutlet::list parms({v1, v2});
-    return cutlet::convert<bool>(_interp.call((std::string)(*_function),
-                                              parms));
+    return ((std::string)(*v1) < (std::string)(*v2));
   }
 
-private:
-  cutlet::interpreter &_interp;
-  cutlet::variable::pointer _function;
-};
+  /***********
+   * _c_less *
+   ***********/
 
-/************
- * _d_equal *
- ************/
+  class _c_less {
+    /* Use a cutlet function for the less comparison for algorithms.
+     */
 
-static bool _d_equal(cutlet::variable::pointer v1,
-                     cutlet::variable::pointer v2) {
-  // Compares if string v1 is equal than string v2
+  public:
+    _c_less(cutlet::interpreter &interp, cutlet::variable::pointer function)
+      : _interp(interp), _function(function) {}
 
-  return ((std::string)(*v1) == (std::string)(*v2));
-}
+    bool operator ()(const cutlet::variable::pointer v1,
+                     const cutlet::variable::pointer v2) {
+      // Call the cutlet function.
+
+      const cutlet::list parms({v1, v2});
+      return cutlet::primative<bool>(_interp.call((std::string)(*_function),
+                                                parms));
+    }
+
+  private:
+    cutlet::interpreter &_interp;
+    cutlet::variable::pointer _function;
+  };
+
+  /************
+   * _d_equal *
+   ************/
+
+  bool _d_equal(const cutlet::variable::pointer v1,
+                const cutlet::variable::pointer v2) {
+    // Compares if string v1 is equal than string v2
+
+    return ((std::string)(*v1) == (std::string)(*v2));
+  }
+
+  /***********
+   * _append *
+   ***********/
+
+  inline
+  cutlet::variable::pointer
+  _append(std::deque<cutlet::variable::pointer> &self,
+          cutlet::interpreter &interp,
+          const cutlet::list &arguments) {
+    (void)interp;
+
+    auto it = arguments.begin(); ++it;
+    for (; it != arguments.end(); ++it) self.push_back(*it);
+    return nullptr;
+  }
+
+  /**********
+   * _equal *
+   **********/
+
+  inline
+  cutlet::variable::pointer
+  _equal(const std::deque<cutlet::variable::pointer> &self,
+         cutlet::interpreter &interp,
+         const cutlet::list &arguments) {
+    (void)interp;
+
+    if (arguments.size() == 2) {
+      const cutlet::list &other = cutlet::cast<cutlet::list>(arguments[1]);
+
+      return (std::equal(self.begin(), self.end(), other.begin(), _d_equal)
+              ? std::make_shared<cutlet::boolean>(true)
+              : std::make_shared<cutlet::boolean>(false));
+    }
+
+    throw std::runtime_error(std::string("Invalid number of arguments to "
+                                         "$list == other"));
+  }
+
+
+  /***********
+   * _extend *
+   ***********/
+
+  inline
+  cutlet::variable::pointer
+  _extend(std::deque<cutlet::variable::pointer> &self,
+          cutlet::interpreter &interp,
+          const cutlet::list &arguments) {
+    (void)interp;
+
+    auto it = arguments.begin(); ++it;
+    for (; it != arguments.end(); ++it) {
+      for (auto &item: cutlet::cast<cutlet::list>(*it)) {
+        self.push_back(item);
+      }
+    }
+    return nullptr;
+  }
+
+  /************
+   * _foreach *
+   ************/
+
+  inline
+  cutlet::variable::pointer
+  _foreach(const std::deque<cutlet::variable::pointer> &self,
+           cutlet::interpreter &interp,
+           const cutlet::list &arguments) {
+    if (arguments.size() != 3) {
+      throw std::runtime_error("Invalid number of arguments to "
+                               "$list foreach item body");
+    }
+
+    // $list foreach item block
+    const auto item_name = cutlet::primative<std::string>(arguments[1]);
+    cutlet::ast::node::pointer ast;
+
+    for (auto &item: self) {
+      // Setup the frame.
+      interp.push(std::make_shared<cutlet::block_frame>("foreach",
+                                                        interp.frame(0)));
+      interp.local(item_name, item);
+
+      // On the fly compiling and execution.
+      if (not ast)
+        ast = interp(arguments[2]);
+      else
+        (*ast)(interp);
+
+      // Clean up.
+      interp.pop();
+    }
+
+    // We never return anything.
+    return nullptr;
+  }
+
+
+  /**********
+   * _index *
+   **********/
+
+  inline
+  cutlet::variable::pointer
+  _index(std::deque<cutlet::variable::pointer> &self,
+         cutlet::interpreter &interp,
+         const cutlet::list &arguments) {
+    (void)interp;
+
+    if (arguments.size() < 2 or arguments.size() > 4) {
+      throw std::runtime_error("Invalid number of arguments to "
+                               "$list index index ¿¿=? value?");
+    }
+    int index = cutlet::primative<int>(arguments[1]);
+
+    // Negative indexes start from the back and index towards the front.
+    if (index < 0) {
+      index = self.size() + index;
+    } else if (index > 0) {
+      index--;
+    } else {
+      throw std::runtime_error("List index out of range " +
+                               (std::string)*(arguments[1]));
+    }
+
+    // Make sure the index is in range.
+    if (index < 0 or index >= (long long)self.size()) {
+      // XXX Should specify the size of the list in error message.
+      throw std::runtime_error("List index out of range " +
+                               (std::string)*(arguments[1]));
+    }
+
+    if (arguments.size() == 3) {
+      // $list index value
+      self.at(index) = arguments[2];
+
+    } else if (arguments.size() == 4) {
+      // $list index = value
+      if (*(arguments[2]) != "=")
+        throw std::runtime_error("Unexpected character " +
+                                 (std::string)*(arguments[2]) +
+                                 ", expected =");
+      self.at(index) = arguments[3];
+    }
+
+    return self.at(index);
+  }
+
+  /*********
+   * _join *
+   *********/
+
+  inline
+  cutlet::variable::pointer
+  _join(const std::deque<cutlet::variable::pointer> &self,
+        cutlet::interpreter &interp,
+        const cutlet::list &arguments) {
+    (void)interp;
+
+    // Create our result variable and default deliminator.
+    auto rvalue = std::make_shared<cutlet::string>();
+    std::string delim = " ";
+
+    // Set the deliminator if it was specified.
+    if (arguments.size() == 2)
+      delim = static_cast<std::string>(*(arguments[1]));
+
+    // Put all our entries together.
+    bool first = true;
+    for (auto &val: self) {
+      if (not first) *rvalue += delim;
+      else first = false;
+      *rvalue += static_cast<std::string>(*val);
+    }
+
+    return rvalue;
+  }
+
+  /***********
+   * _nequal *
+   ***********/
+
+  inline
+  cutlet::variable::pointer
+  _nequal(const std::deque<cutlet::variable::pointer> &self,
+          cutlet::interpreter &interp,
+          const cutlet::list &arguments) {
+    (void)interp;
+
+    if (arguments.size() == 2) {
+      const cutlet::list &other = cutlet::cast<cutlet::list>(arguments[1]);
+
+      return (std::equal(self.begin(), self.end(), other.begin(), _d_equal)
+              ? std::make_shared<cutlet::boolean>(false)
+              : std::make_shared<cutlet::boolean>(true));
+    }
+
+    throw std::runtime_error(std::string("Invalid number of arguments to "
+                                         "$list <> other"));
+  }
+
+  /************
+   * _prepend *
+   ************/
+
+  inline
+  cutlet::variable::pointer
+  _prepend(std::deque<cutlet::variable::pointer> &self,
+           cutlet::interpreter &interp,
+           const cutlet::list &arguments) {
+    (void)interp;
+
+    auto it = arguments.begin(); ++it;
+    for (; it != arguments.end(); ++it) self.push_front(*it);
+    return nullptr;
+  }
+
+  /***********
+   * _remove *
+   ***********/
+
+  inline
+  cutlet::variable::pointer
+  _remove(std::deque<cutlet::variable::pointer> &self,
+          cutlet::interpreter &interp,
+          const cutlet::list &arguments) {
+    (void)interp;
+
+    int index = cutlet::primative<int>(arguments[1]);
+
+    if (arguments.size() == 3) {
+      const int end = cutlet::primative<int>(arguments[2]);
+      self.erase(self.begin() + index, self.begin() + end);
+    } else {
+      self.erase(self.begin() + index);
+    }
+
+    return nullptr;
+  }
+
+  /************
+   * _reverse *
+   ************/
+
+  inline
+  cutlet::variable::pointer
+  _reverse(std::deque<cutlet::variable::pointer> &self,
+           cutlet::interpreter &interp,
+           const cutlet::list &arguments) {
+    (void)interp;
+
+    if (arguments.size() == 1) {
+      std::reverse(self.begin(), self.end());
+      return nullptr;
+    }
+
+    throw std::runtime_error(std::string("Invalid number of arguments to "
+                                           "$list reverse"));
+  }
+
+  /************
+   * _shuffle *
+   ************/
+
+  inline
+  cutlet::variable::pointer
+  _shuffle(std::deque<cutlet::variable::pointer> &self,
+           cutlet::interpreter &interp,
+           const cutlet::list &arguments) {
+    if (arguments.size() == 1) {
+      std::random_shuffle(self.begin(), self.end());
+      return nullptr;
+
+    }
+
+    throw std::runtime_error(std::string("Invalid number of arguments to "
+                                           "$list shuffle"));
+  }
+
+  /*********
+   * _sort *
+   *********/
+
+  inline
+  cutlet::variable::pointer
+  _sort(std::deque<cutlet::variable::pointer> &self,
+        cutlet::interpreter &interp,
+        const cutlet::list &arguments) {
+    if (arguments.size() == 1) {
+      std::sort(self.begin(), self.end(), _d_less);
+      return nullptr;
+
+    } else if (arguments.size() == 2) {
+      _c_less comp_less(interp, arguments[1]);
+      std::sort(self.begin(), self.end(), comp_less);
+      return nullptr;
+    }
+
+    throw std::runtime_error(std::string("Invalid number of arguments to "
+                                         "$list sort ¿less?"));
+  }
+
+  /***********
+   * _unique *
+   ***********/
+
+  inline
+  cutlet::variable::pointer
+  _unique(std::deque<cutlet::variable::pointer> &self,
+          cutlet::interpreter &interp,
+          const cutlet::list &arguments) {
+    if (arguments.size() == 1) {
+      std::sort(self.begin(), self.end(), _d_less);
+      auto it = std::unique(self.begin(), self.end(), _d_equal);
+      self.resize(std::distance(self.begin(), it));
+      return nullptr;
+    }
+
+    throw std::runtime_error(std::string("Invalid number of arguments to "
+                                           "$list unique"));
+  }
+} // namespace
 
 /******************************************************************************
  * class cutlet::list
@@ -113,8 +439,7 @@ std::string cutlet::list::join(const std::string &delim) const {
     if (not first) result += delim;
     else first = false;
 
-    if (not val.is_null())
-      result += (std::string)(*val);
+    if (val) result += (std::string)(*val);
   }
 
   return result;
@@ -135,20 +460,20 @@ cutlet::variable::pointer cutlet::list::operator()(variable::pointer self,
   case '=':
     if (op == "==" or op == "=") {
       // $list == $other or $list = $other
-      return _equal(interp, arguments);
+      return _equal(*this, interp, arguments);
     }
     break;
   case '<':
   case '!':
     if (op == "<>" or op == "!=") {
       // $list <> $other or $list != $other
-      return _nequal(interp, arguments);
+      return _nequal(*this, interp, arguments);
     }
     break;
   case 'a':
     if (op == "append") {
       // $list append *args
-      return _append(interp, arguments);
+      return _append(*this, interp, arguments);
     }
     break;
   case 'c':
@@ -167,66 +492,66 @@ cutlet::variable::pointer cutlet::list::operator()(variable::pointer self,
   case 'e':
     if (op == "extend") {
       // $list extend *args
-      return _extend(interp, arguments);
+      return _extend(*this, interp, arguments);
     }
     break;
   case 'f':
     if (op == "foreach") {
       // $list foreach item body
-      return _foreach(interp, arguments);
+      return _foreach(*this, interp, arguments);
     }
     break;
   case 'i':
     if (op == "index") {
       // $list index index ¿¿=? value?
-      return _index(interp, arguments);
+      return _index(*this, interp, arguments);
     }
     break;
   case 'j':
     if (op == "join") {
       // $list join ¿delim?
-      return _join(interp, arguments);
+      return _join(*this, interp, arguments);
     }
     break;
   case 'p':
     if (op == "prepend") {
       // $list prepend *args
-      return _prepend(interp, arguments);
+      return _prepend(*this, interp, arguments);
     }
     break;
   case 'r':
     if (op == "remove") {
       // $list remove index ¿end?
-      return _remove(interp, arguments);
+      return _remove(*this, interp, arguments);
 
     } else if (op == "reverse") {
       // $list remove index ¿end?
-      return _reverse(interp, arguments);
+      return _reverse(*this, interp, arguments);
     }
     break;
   case 's':
     if (op == "shuffle") {
       // $list shuffle
-      return _shuffle(interp, arguments);
+      return _shuffle(*this, interp, arguments);
 
     } else if (op == "size") {
       // $list size
       if (arguments.size() == 1) {
-        return new cutlet::string(size());
+        return std::make_shared<cutlet::string>(size());
       } else {
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "$list size"));
       }
     } else if (op == "sort") {
       // $list sort ¿less?
-      return _sort(interp, arguments);
+      return _sort(*this, interp, arguments);
     }
     break;
   case 't':
     if (op == "type") {
       // $list type
       if (arguments.size() == 1) {
-        return new cutlet::string("list");
+        return std::make_shared<cutlet::string>("list");
       } else {
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "$list type"));
@@ -236,7 +561,7 @@ cutlet::variable::pointer cutlet::list::operator()(variable::pointer self,
   case 'u':
     if (op == "unique") {
       // $list unique
-      return _unique(interp, arguments);
+      return _unique(*this, interp, arguments);
     }
     break;
   }
@@ -261,283 +586,4 @@ cutlet::list::operator std::string() const {
 
   result += "}";
   return result;
-}
-
-/***********************
- * cutlet::list::_join *
- ***********************/
-
-cutlet::variable::pointer cutlet::list::_join(interpreter &interp,
-                                              const list &arguments) {
-  (void)interp;
-
-  // Create our result variable and default deliminator.
-  cutlet::string *rvalue = new cutlet::string;
-  std::string delim = " ";
-
-  // Set the deliminator if it was specified.
-  if (arguments.size() == 2)
-    delim = (std::string)*(arguments[1]);
-
-  // Put all our entries together.
-  bool first = true;
-  for (auto &val: *this) {
-    if (not first) *rvalue += delim;
-    else first = false;
-    *rvalue += (std::string)*val;
-  }
-
-  return rvalue;
-}
-
-/*************************
- * cutlet::list::_append *
- *************************/
-
-cutlet::variable::pointer cutlet::list::_append(interpreter &interp,
-                                                const list &arguments) {
-  (void)interp;
-
-  auto it = arguments.begin(); ++it;
-  for (; it != arguments.end(); ++it) push_back(*it);
-  return nullptr;
-}
-
-/**************************
- * cutlet::list::_prepend *
- **************************/
-
-cutlet::variable::pointer cutlet::list::_prepend(interpreter &interp,
-                                                 const list &arguments) {
-  (void)interp;
-
-  auto it = arguments.begin(); ++it;
-  for (; it != arguments.end(); ++it) push_front(*it);
-  return nullptr;
-}
-
-/*************************
- * cutlet::list::_extend *
- *************************/
-
-cutlet::variable::pointer cutlet::list::_extend(interpreter &interp,
-                                                const list &arguments) {
-  (void)interp;
-
-  auto it = arguments.begin(); ++it;
-  for (; it != arguments.end(); ++it) {
-    for (auto &item: cast<cutlet::list>(*it)) {
-      push_back(item);
-    }
-  }
-  return nullptr;
-}
-
-/************************
- * cutlet::list::_index *
- ************************/
-
-cutlet::variable::pointer cutlet::list::_index(interpreter &interp,
-                                               const list &arguments) {
-  (void)interp;
-
-  if (arguments.size() < 2 or arguments.size() > 4) {
-    throw std::runtime_error("Invalid number of arguments to "
-                             "$list index index ¿¿=? value?");
-  }
-  int index = convert<int>(arguments[1]);
-
-  // Negative indexes start from the back and index towards the front.
-  if (index < 0) {
-    index = size() + index;
-  } else if (index > 0) {
-    index--;
-  } else {
-    throw std::runtime_error("List index out of range " +
-                             (std::string)*(arguments[1]));
-  }
-
-  // Make sure the index is in range.
-  if (index < 0 or index >= (long long)size()) {
-    // XXX Should specify the size of the list in error message.
-    throw std::runtime_error("List index out of range " +
-                             (std::string)*(arguments[1]));
-  }
-
-  if (arguments.size() == 3) {
-    // $list index value
-    at(index) = arguments[2];
-
-  } else if (arguments.size() == 4) {
-    // $list index = value
-    if (*(arguments[2]) != "=")
-      throw std::runtime_error("Unexpected character " +
-                               (std::string)*(arguments[2]) +
-                               ", expected =");
-    at(index) = arguments[3];
-  }
-
-  return at(index);
-}
-
-/*************************
- * cutlet::list::_remove *
- *************************/
-
-cutlet::variable::pointer cutlet::list::_remove(interpreter &interp,
-                                                const list &arguments) {
-  (void)interp;
-
-  int index = convert<int>(arguments[1]);
-
-  if (arguments.size() == 3) {
-    int end = convert<int>(arguments[2]);
-    erase(begin() + index, begin() + end);
-  } else {
-    erase(begin() + index);
-  }
-
-  return nullptr;
-}
-
-/**************************
- * cutlet::list::_reverse *
- **************************/
-
-cutlet::variable::pointer cutlet::list::_reverse(interpreter &interp,
-                                                 const list &arguments) {
-  (void)interp;
-
-  if (arguments.size() == 1) {
-    std::reverse(begin(), end());
-    return nullptr;
-  } else {
-    throw std::runtime_error(std::string("Invalid number of arguments to "
-                                         "$list reverse"));
-  }
-}
-
-/**************************
- * cutlet::list::_foreach *
- **************************/
-
-cutlet::variable::pointer cutlet::list::_foreach(interpreter &interp,
-                                                 const list &arguments) {
-  if (arguments.size() != 3) {
-    throw std::runtime_error("Invalid number of arguments to "
-                             "$list foreach item body");
-  }
-
-  // $list foreach item block
-  std::string item_name = convert<std::string>(arguments[1]);
-  cutlet::ast::node::pointer ast;
-
-  for (auto &item: *this) {
-    // Setup the frame.
-    interp.push(new cutlet::block_frame("foreach", interp.frame(0)));
-    interp.local(item_name, item);
-
-    // On the fly compiling and execution.
-    if (ast.is_null())
-      ast = interp(arguments[2]);
-    else
-      (*ast)(interp);
-
-    // Clean up.
-    interp.pop();
-  }
-
-  // We never return anything.
-  return nullptr;
-}
-
-/************************
- * cutlet::list::_equal *
- ************************/
-
-cutlet::variable::pointer cutlet::list::_equal(interpreter &interp,
-                                               const list &arguments) {
-  (void)interp;
-
-  if (arguments.size() == 2) {
-    cutlet::list &other = cast<cutlet::list>(arguments[1]);
-
-    return (std::equal(begin(), end(), other.begin(), _d_equal)
-            ? new cutlet::boolean(true) : new cutlet::boolean(false));
-  }
-
-  throw std::runtime_error(std::string("Invalid number of arguments to "
-                                       "$list == other"));
-}
-
-/*************************
- * cutlet::list::_nequal *
- *************************/
-
-cutlet::variable::pointer cutlet::list::_nequal(interpreter &interp,
-                                                const list &arguments) {
-  (void)interp;
-
-  if (arguments.size() == 2) {
-    cutlet::list &other = cast<cutlet::list>(arguments[1]);
-
-    return (std::equal(begin(), end(), other.begin(), _d_equal)
-            ? new cutlet::boolean(false) : new cutlet::boolean(true));
-  }
-
-  throw std::runtime_error(std::string("Invalid number of arguments to "
-                                       "$list <> other"));
-}
-
-/**************************
- * cutlet::list::_shuffle *
- **************************/
-
-cutlet::variable::pointer cutlet::list::_shuffle(interpreter &interp,
-                                                 const list &arguments) {
-  if (arguments.size() == 1) {
-    std::random_shuffle(begin(), end());
-    return nullptr;
-
-  } else if (arguments.size() == 2) {
-    throw std::runtime_error(std::string("Invalid number of arguments to "
-                                         "$list shuffle"));
-  }
-}
-
-/***********************
- * cutlet::list::_sort *
- ***********************/
-
-cutlet::variable::pointer cutlet::list::_sort(interpreter &interp,
-                                              const list &arguments) {
-  if (arguments.size() == 1) {
-    std::sort(begin(), end(), _d_less);
-    return nullptr;
-
-  } else if (arguments.size() == 2) {
-    _c_less comp_less(interp, arguments[1]);
-    std::sort(begin(), end(), comp_less);
-    return nullptr;
-  }
-
-  throw std::runtime_error(std::string("Invalid number of arguments to "
-                                       "$list sort ¿less?"));
-}
-
-/*************************
- * cutlet::list::_unique *
- *************************/
-
-cutlet::variable::pointer cutlet::list::_unique(interpreter &interp,
-                                                const list &arguments) {
-  if (arguments.size() == 1) {
-    std::sort(begin(), end(), _d_less);
-    auto it = std::unique(begin(), end(), _d_equal);
-    resize(std::distance(begin(), it));
-    return nullptr;
-  } else {
-    throw std::runtime_error(std::string("Invalid number of arguments to "
-                                         "$list unique"));
-  }
 }

@@ -31,33 +31,36 @@
 #include "ast.h"
 #include <sstream>
 
-//#define DEBUG_AST 1
+// #define DEBUG_AST 1
 
 #if defined(DEBUG_AST)
 #pragma message ("AST debugging enabled")
 #include <iostream>
 #endif
 
-template <typename Ty>
-static bool is_type(cutlet::ast::node::pointer ast_object) {
-  return ((dynamic_cast<Ty *>(&(*ast_object))) != nullptr);
-}
-
-/* This class extends cutlet::string to add a pointer to the node
- */
-class value : public cutlet::string {
-public:
-  value(cutlet::ast::node &node) : cutlet::string(node.body()), _node(&node) {}
-  virtual ~value() noexcept;
-
-protected:
-  virtual operator cutlet::ast::node *() const {
-    return _node;
+namespace {
+  template <typename Ty>
+  constexpr bool is_type(cutlet::ast::node::pointer ast_object) {
+    return ((dynamic_cast<Ty *>(&(*ast_object))) != nullptr);
   }
 
-private:
-  cutlet::ast::node *_node;
-};
+  /* This class extends cutlet::string to add a pointer to the node
+   */
+  class value : public cutlet::string {
+  public:
+    value(cutlet::ast::node &node)
+      : cutlet::string(node.body()), _node(&node) {}
+    virtual ~value() noexcept;
+
+  protected:
+    virtual operator cutlet::ast::node *() const {
+      return _node;
+    }
+
+  private:
+    cutlet::ast::node *_node;
+  };
+} // namespace
 
 value::~value() noexcept {}
 
@@ -77,7 +80,7 @@ void cutlet::ast::node::debugger(debug_function_t dfunc) {
  * cutlet::ast::node::node *
  ***************************/
 
-cutlet::ast::node::node() : _break(false) {}
+cutlet::ast::node::node() {}
 
 /****************************
  * cutlet::ast::node::~node *
@@ -124,13 +127,12 @@ cutlet::ast::block::~block() noexcept {}
 
 void cutlet::ast::block::add(cutlet::ast::node::pointer n) {
 #if defined(DEBUG_AST)
-  if (n.is_null()) {
+  if (not n) {
     std::clog << "ast::block attempting to add null ast node to block"
               << std::endl;
   }
 #endif
-  if (not n.is_null())
-    _nodes.push_back(n);
+  if (n) _nodes.push_back(n);
 }
 
 /***********************************
@@ -141,9 +143,9 @@ cutlet::variable::pointer
 cutlet::ast::block::operator()(cutlet::interpreter &interp) {
   cutlet::frame &frame = *interp.frame();
 
-  for (auto node: _nodes) {
+  for (auto &node: _nodes) {
 #if defined(DEBUG_AST)
-    if (node.is_null()) {
+    if (not node) {
       std::clog << "ast::block attempting to execute null ast node"
                 << std::endl;
       continue;
@@ -207,7 +209,8 @@ const parser::token &cutlet::ast::block::token() const {
  * cutlet::ast::value::value *
  *****************************/
 
-cutlet::ast::value::value(const parser::token &token) : node(), _token(token) {}
+cutlet::ast::value::value(const parser::token &token)
+  : node(), _token(token) {}
 
 /******************************
  * cutlet::ast::value::~value *
@@ -228,7 +231,7 @@ cutlet::ast::value::operator()(cutlet::interpreter &interp) {
             << std::endl;
 #endif
 
-  return new ::value(*this);
+  return std::make_shared<::value>(*this);
 }
 
 /**************************
@@ -489,7 +492,8 @@ const parser::token &cutlet::ast::command::token() const {
  * cutlet::ast::string::string *
  *******************************/
 
-cutlet::ast::string::string(const parser::token &token) : node(), _token(token) {}
+cutlet::ast::string::string(const parser::token &token)
+  : node(), _token(token) {}
 
 /********************************
  * cutlet::ast::string::~string *
@@ -522,13 +526,13 @@ cutlet::ast::string::operator()(cutlet::interpreter &interp) {
 
   // Run through the string parts and put it all together.
   for (auto &part: _stringy) {
-    if (part.n.is_null()) {
+    if (not part.n) {
       // Literal string part.
       result += part.s;
     } else {
       // Variable or command substitution.
-      cutlet::variable::pointer v = (*(part.n))(interp);
-      if (not v.is_null())
+      auto v = (*(part.n))(interp);
+      if (v)
         result += (std::string)(*v);
     }
   }
@@ -537,7 +541,7 @@ cutlet::ast::string::operator()(cutlet::interpreter &interp) {
   std::clog << "AST:" << position() << ": \"" << result << "\"" << std::endl;
 #endif
 
-  return new cutlet::string(result);
+  return std::make_shared<cutlet::string>(result);
 }
 
 /***************************

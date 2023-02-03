@@ -1,26 +1,21 @@
 #                                                           -*- Makefile.am -*-
 
-check_PROGRAMS = memory-tests debugger-tests
+check_PROGRAMS = debugger-tests
 
-TESTS = memory-tests core.cutlet hello.cutlet booleans.cutlet strings.cutlet \
+TESTS = core.cutlet hello.cutlet booleans.cutlet strings.cutlet \
 	lists.cutlet stdlib.cutlet unknown.cutlet bad_method.cutlet sandbox.cutlet \
 	oo.cutlet threading.cutlet debugger-tests
 XFAIL_TESTS = bad_method.cutlet
 TEST_EXTENSIONS = .cutlet
 CUTLET_LOG_COMPILER = ../bin/cutlet
-AM_CUTLET_LOG_FLAGS = -i ../libs/.libs/ -i ../libs/ \
-	-i @top_srcdir@/libs/.libs/ -i @top_srcdir@/libs/
+AM_CUTLET_LOG_FLAGS = -I ../libs/.libs/ -I ../libs/ \
+	-I @top_srcdir@/libs/.libs/ -I @top_srcdir@/libs/
 
 EXTRA_DIST = $(TESTS) include.cutlet
 
 noinst_LIBRARIES = libtesting.a
 libtesting_a_SOURCES = testsuite.cpp testsuite.h include.cutlet
 libtesting_a_CPPFLAGS = -I$(top_srcdir)/include
-
-memory_tests_SOURCES = memory-tests.cpp
-memory_tests_CPPFLAGS = -I$(top_srcdir)/include
-memory_tests_LDADD = ../src/libcutlet.la libtesting.a
-memory_tests_LDFLAGS = -rdynamic
 
 debugger_tests_SOURCES = debugger-tests.cpp
 debugger_tests_CPPFLAGS = -I$(top_srcdir)/include

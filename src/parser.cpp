@@ -31,10 +31,10 @@
 #include <libcutlet/parser>
 #include <iostream>
 
-//#define DEBUG_PARSER 1
+// #define DEBUG_PARSER 1
 
 #if defined(DEBUG_PARSER)
-#pragma message ("PARSER debugging enabled")
+#pragma message("PARSER debugging enabled")
 #endif
 
 /******************************************************************************
@@ -48,7 +48,7 @@ std::ostream &operator <<(std::ostream &os, const parser::token &token) {
 
 std::ostream &operator <<(std::ostream &os,
                           const parser::tokenizer &tokenizer) {
-  for (auto &token: tokenizer.tokens) {
+  for (auto &token : tokenizer.tokens) {
     os << token << "\n";
   }
   return os;
@@ -63,7 +63,7 @@ std::ostream &operator <<(std::ostream &os,
  ************************/
 
 parser::token::token(unsigned int id, const std::string &value)
-  : _id(id), _value(value), _position(0), _offset(0) {
+  : _id(id), _value(value) {
 #if defined(DEBUG_PARSER)
   if (_id != 7) {
     std::clog << "TOKEN:";
@@ -96,7 +96,7 @@ parser::token::token(const token &other)
 
 parser::token::token(unsigned int id, const std::string &value,
                      std::streampos position)
-  : _id(id), _value(value), _position(position), _offset(0) {
+  : _id(id), _value(value), _position(position) {
 #if defined(DEBUG_PARSER)
   if (_id != 7) {
     std::clog << "TOKEN:";
@@ -142,8 +142,7 @@ parser::token::token(unsigned int id, const std::string &value,
  * parser::token::~token *
  *************************/
 
-parser::token::~token() noexcept {
-}
+parser::token::~token() noexcept {}
 
 /*****************************
  * parser::token::operator = *
@@ -206,8 +205,7 @@ parser::syntax_error::syntax_error(const syntax_error& other) noexcept
  * parser::syntax_error::~syntax_error *
  ***************************************/
 
-parser::syntax_error::~syntax_error() noexcept {
-}
+parser::syntax_error::~syntax_error() noexcept {}
 
 /************************************
  * parser::syntax_error::operator = *
@@ -244,7 +242,7 @@ const parser::token &parser::syntax_error::get_token() const noexcept {
  * parser::tokenizer::tokenizer *
  ********************************/
 
-parser::tokenizer::tokenizer() : stream(NULL), position(0) {
+parser::tokenizer::tokenizer() {
   tokens.push_back(token(T_EOF, "", position));
 }
 
@@ -252,8 +250,7 @@ parser::tokenizer::tokenizer() : stream(NULL), position(0) {
  * parser::tokenizer::~tokenizer *
  *********************************/
 
-parser::tokenizer::~tokenizer() noexcept {
-}
+parser::tokenizer::~tokenizer() noexcept {}
 
 /****************************
  * parser::tokenizer::parse *
@@ -324,7 +321,6 @@ void parser::tokenizer::permit(unsigned int id) {
 }
 
 void parser::tokenizer::permit(unsigned int id, const std::string &value) {
-
   if (expect(id, value)) {
     tokens.pop_front();
     return;
@@ -450,6 +446,10 @@ void parser::tokenizer::clear_token_patterns() {
   _patterns.clear();
 }
 
+/********************************
+ * parser::tokenizer::add_token *
+ ********************************/
+
 void parser::tokenizer::add_token(unsigned int id, const std::string &value) {
   token result(id, value);
   result._file = file;
@@ -479,7 +479,7 @@ void parser::tokenizer::parse_next_token() {
   if (not code.empty()) {
     std::smatch match;
 
-    for (auto &pattern: _patterns) {
+    for (auto &pattern : _patterns) {
       if (regex_search(code, match, pattern.pattern,
                        std::regex_constants::match_continuous)) {
         tokens.push_back(token(pattern.token_id, match.str(), position));
@@ -507,8 +507,9 @@ void parser::tokenizer::parse_tokens() {
         stream = NULL;
         return;
       }
-    } else
+    } else {
       return;
+    }
   }
 
   // If we have some code then tokenize it.
@@ -539,8 +540,9 @@ void parser::grammer::eval(const token &code) {
     tokens->push(code);
     entry();
     tokens->pop();
-  } else
+  } else {
     throw std::runtime_error("parser::grammer tokenizer not set");
+  }
 }
 
 void parser::grammer::eval(const std::string &code) {
@@ -548,8 +550,9 @@ void parser::grammer::eval(const std::string &code) {
     tokens->push(code);
     entry();
     tokens->pop();
-  } else
+  } else {
     throw std::runtime_error("parser::grammer tokenizer not set");
+  }
 }
 
 void parser::grammer::eval(std::istream &code, const std::string &source) {
@@ -557,6 +560,7 @@ void parser::grammer::eval(std::istream &code, const std::string &source) {
     tokens->push(code, source);
     entry();
     tokens->pop();
-  } else
+  } else {
     throw std::runtime_error("parser::grammer tokenizer not set");
+  }
 }

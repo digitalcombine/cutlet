@@ -49,7 +49,7 @@ cutlet::frame::frame(pointer uplevel, const std::string &label)
  *************************/
 
 cutlet::frame::~frame() noexcept {
-  memory::gc::collect();
+  //memory::gc::collect();
 }
 
 /***************************
@@ -59,7 +59,7 @@ cutlet::frame::~frame() noexcept {
 cutlet::variable::pointer
 cutlet::frame::variable(const std::string &name) const {
   // Search for the variable and return it's value if it is found.
-  auto item = _variables.find(name);
+  const auto item = _variables.find(name);
   if (item != _variables.end())
     return item->second;
 
@@ -69,7 +69,7 @@ cutlet::frame::variable(const std::string &name) const {
 
 void cutlet::frame::variable(const std::string &name,
                              variable::pointer value) {
-  if (value.is_null()) {
+  if (not value) {
     // If the value in null erase the variable from the frame.
     _variables.erase(name);
   } else {
@@ -81,7 +81,7 @@ void cutlet::frame::variable(const std::string &name,
 cutlet::list cutlet::frame::variables() const {
   cutlet::list names;
   for (auto &it: _variables) {
-    names.push_back(new cutlet::string(it.first));
+    names.push_back(std::make_shared<cutlet::string>(it.first));
   }
   return names;
 }
@@ -137,13 +137,12 @@ std::string cutlet::frame::label() const {
 
 cutlet::frame::pointer
 cutlet::frame::uplevel(unsigned int levels) const {
-  cutlet::frame::pointer result;
-
   // Returning a reference to ourselves just breaks things.
   if (levels == 0)
     throw std::runtime_error("Internal error returning a frame level 0.");
 
   // Start traversing the frame stack.
+  cutlet::frame::pointer result;
   --levels;
   for (result = _uplevel; result and levels;
        result = result->_uplevel, --levels) {

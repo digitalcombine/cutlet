@@ -47,7 +47,7 @@ static std::ifstream script;
  */
 static void add_path(cutlet::interpreter &interp, const std::string &path) {
   cutlet::variable::pointer lib_path = interp.var("library.path");
-  cutlet::cast<cutlet::list>(lib_path).push_back(new cutlet::string(path));
+  cutlet::cast<cutlet::list>(lib_path).push_back(std::make_shared<cutlet::string>(path));
 }
 
 /*************

@@ -57,8 +57,8 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
                                  cutlet::interpreter &interp,
                                  const cutlet::list &arguments) {
   (void)self;
-  std::string op = *(arguments[0]);
-  size_t args = arguments.size();
+  const std::string op = *(arguments[0]);
+  const size_t args = arguments.size();
 
   if (op == "eval") {
     // $sandbox eval body ...
@@ -144,7 +144,7 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
     if (args != 2)
       throw std::runtime_error("To many arguments to sandbox operator type");
 
-    return new cutlet::string("sandbox");
+    return std::make_shared<cutlet::string>("sandbox");
 
   } else if (op == "global") {
     // $sandbox global name ¿=? ¿value?

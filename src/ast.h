@@ -36,8 +36,6 @@
 namespace cutlet {
   namespace ast {
 
-    /**
-     */
     class block : public node {
     public:
       block();
@@ -62,8 +60,6 @@ namespace cutlet {
       std::list<node::pointer> _nodes;
     };
 
-    /**
-     */
     class value : public node {
     public:
       value(const parser::token &token);
@@ -86,8 +82,6 @@ namespace cutlet {
       parser::token _token;
     };
 
-    /**
-     */
     class variable : public node {
     public:
       variable(const parser::token &token);
@@ -110,8 +104,6 @@ namespace cutlet {
       parser::token _token;
     };
 
-    /**
-     */
     class command : public node {
     public:
       command(node::pointer n);
@@ -137,8 +129,6 @@ namespace cutlet {
       std::list<node::pointer> _parameters;
     };
 
-    /**
-     */
     class string : public node {
     public:
       string(const parser::token &token);
@@ -170,8 +160,6 @@ namespace cutlet {
       std::list<_parts_s> _stringy;
     };
 
-    /**
-     */
     class comment : public node {
     public:
       comment(const parser::token &token);

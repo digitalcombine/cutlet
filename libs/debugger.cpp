@@ -35,21 +35,23 @@ extern "C" {
   DECLSPEC void init_cutlet(cutlet::interpreter *interp);
 }
 
-class _frame_var : public cutlet::variable {
-public:
-  _frame_var(cutlet::frame::pointer frame);
-  virtual ~_frame_var() noexcept;
+namespace {
+  class _frame_var : public cutlet::variable {
+  public:
+    _frame_var(cutlet::frame::pointer frame);
+    virtual ~_frame_var() noexcept;
 
-  virtual cutlet::variable::pointer
-  operator ()(cutlet::variable::pointer self,
-              cutlet::interpreter &interp,
-              const cutlet::list &arguments);
+    virtual cutlet::variable::pointer
+    operator ()(cutlet::variable::pointer self,
+                cutlet::interpreter &interp,
+                const cutlet::list &arguments);
 
-  virtual operator std::string() const;
+    virtual operator std::string() const;
 
-private:
-  cutlet::frame::pointer _frame;
-};
+  private:
+    cutlet::frame::pointer _frame;
+  };
+}
 
 _frame_var::_frame_var(cutlet::frame::pointer frame) : _frame(frame) {}
 
@@ -71,23 +73,23 @@ _frame_var::operator ()(cutlet::variable::pointer self,
   // XXX local name ??=? value?
   if (op == "label") {
     // $frame label ??=? value?
-    return new cutlet::string(_frame->label());
+    return std::make_shared<cutlet::string>(_frame->label());
 
   } else if (op == "state") {
     // $frame state ??=? value?
     switch (_frame->state()) {
     case cutlet::frame::FS_DONE:
-      return new cutlet::string("done");
+      return std::make_shared<cutlet::string>("done");
     case cutlet::frame::FS_RUNNING:
-      return new cutlet::string("running");
+      return std::make_shared<cutlet::string>("running");
     case cutlet::frame::FS_BREAK:
-      return new cutlet::string("break");
+      return std::make_shared<cutlet::string>("break");
     case cutlet::frame::FS_CONTINUE:
-      return new cutlet::string("continue");
+      return std::make_shared<cutlet::string>("continue");
     }
 
   } else if (op == "variables") {
-    return new cutlet::list(_frame->variables());
+    return std::make_shared<cutlet::list>(_frame->variables());
   }
 
   throw std::runtime_error(std::string("Unknown operator ") +
@@ -98,20 +100,22 @@ _frame_var::operator std::string() const {
   return "frame(" + _frame->label() + ")";
 }
 
-/***************
- * debug.stack *
- ***************/
+namespace {
+  /***************
+   * debug.stack *
+   ***************/
 
-static cutlet::variable::pointer _stack(cutlet::interpreter &interp,
-                                        const cutlet::list &arguments) {
-  cutlet::list *frms = new cutlet::list();
+  static cutlet::variable::pointer _stack(cutlet::interpreter &interp,
+                                          const cutlet::list &arguments) {
+    auto frms = std::make_shared<cutlet::list>();
 
-  int count = interp.frames();
-  for (int c = 1; c < count; c++) {
-    frms->push_back(new _frame_var(interp.frame(c)));
+    int count = interp.frames();
+    for (int c = 1; c < count; c++) {
+      frms->push_back(std::make_shared<_frame_var>(interp.frame(c)));
+    }
+
+    return frms;
   }
-
-  return frms;
 }
 
 /***************

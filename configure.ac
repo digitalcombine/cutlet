@@ -35,9 +35,9 @@ AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 # Checks for programs.
 AC_LANG(C++)
 AC_PROG_CXX
-AX_CHECK_COMPILE_FLAG([-std=c++11],
-  [AX_APPEND_FLAG([-std=c++11], CXXFLAGS)],
-  AC_MSG_ERROR(C++11 not supported by compiler))
+AX_CHECK_COMPILE_FLAG([-std=c++17],
+  [AX_APPEND_FLAG([-std=c++17], CXXFLAGS)],
+  AC_MSG_ERROR(C++ 17 not supported by compiler))
 AC_PROG_CC
 AC_PROG_LIBTOOL
 
@@ -60,6 +60,8 @@ case $host_os in
 esac
 
 # Checks for header files.
+AC_CHECK_HEADER([getopt.h], [],
+                            [AC_MSG_ERROR([Missing header getopt.h])])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_HEADER_STDBOOL

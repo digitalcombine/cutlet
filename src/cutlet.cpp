@@ -37,47 +37,37 @@
 #include "utilities.h"
 #include "ast.h"
 
-/** Wrapper for native dynamic library loading.
- */
-class native_lib {
-public:
+namespace {
 
-  /** Load a native library.
-   * @param filename The path to the library to be loaded.
-   * @throws runtime_error
-   */
-  native_lib(const std::string &filename) {
+  class _native_lib {
+  public:
+    explicit _native_lib(const std::string &filename) {
 #if defined (__linux__) || defined (__FreeBSD__)
-    _handle = dlopen(filename.c_str(), RTLD_LAZY);
-    if (_handle == NULL)
-      throw std::runtime_error(dlerror());
+      _handle = dlopen(filename.c_str(), RTLD_LAZY);
+      if (_handle == NULL)
+        throw std::runtime_error(dlerror());
 #else
-    throw std::runtime_error("Dynamic libraries are not supported.");
+      throw std::runtime_error("Dynamic libraries are not supported.");
 #endif
-  }
+    }
 
-  /** Close and cleanup the native library.
-   */
-  virtual ~native_lib() noexcept;
+    virtual ~_native_lib() noexcept;
 
-  /** Lookup a symbol within the library.
-   * @return A pointer to the symbol. If the symbol doesn't exist then a null
-   *         pointer is returned.
-   */
-  void *symbol(const std::string &name) {
+    void *symbol(const std::string &name) {
 #if defined (__linux__) || defined (__FreeBSD__)
-    if (_handle) return dlsym(_handle, name.c_str());
-    return nullptr;
+      if (_handle) return dlsym(_handle, name.c_str());
+      return nullptr;
 #else
-    return nullptr;
+      return nullptr;
 #endif
-  }
+    }
 
-private:
-  nativelib_t _handle;
-};
+  private:
+    nativelib_t _handle;
+  };
+} // namespace
 
-native_lib::~native_lib() noexcept {
+_native_lib::~_native_lib() noexcept {
 #if defined (__linux__) || defined (__FreeBSD__)
   if (_handle and dlclose(_handle) != 0)
     std::cerr << "WARNING: dlclose " << dlerror() << std::endl;
@@ -154,12 +144,13 @@ protected:
  */
 std::ostream &operator <<(std::ostream &os, const cutlet_tokenizer &tks) {
   unsigned int size = tks.tokens.size();
-  for (auto &token: tks.tokens) {
+  for (const auto &token: tks.tokens) {
     os << "token(" << size << "): " << (unsigned int)token << " ";
-    if ((unsigned int)token != 6)
-      os << (std::string)token << "\n";
-    else
+    if ((unsigned int)token != 6) {
+      os << static_cast<std::string>(token) << "\n";
+    } else {
       os << "EOL\n";
+    }
   }
   return os;
 }
@@ -176,14 +167,14 @@ std::ostream &operator <<(std::ostream &os, const cutlet_tokenizer &tks) {
 cutlet::utf8::iterator::iterator(const std::string &value)
   : _value(&value), _index(0), _length(1) {
   // Find the length of the character and make a copy for dereferencing.
-  for (; ((*_value)[_index + _length] & 0xc0) == 0x80; ++_length);
+  for (; ((*_value)[_index + _length] & 0xc0) == 0x80; ++_length) {}
   _current = _value->substr(_index, _length);
 }
 
 cutlet::utf8::iterator::iterator(const std::string &value, size_t offset)
   : _value(&value), _index(offset), _length(1) {
   // Find the length of the character and make a copy for dereferencing.
-  for (; ((*_value)[_index + _length] & 0xc0) == 0x80; ++_length);
+  for (; ((*_value)[_index + _length] & 0xc0) == 0x80; ++_length) {}
   _current = _value->substr(_index, _length);
 }
 
@@ -217,7 +208,8 @@ cutlet::utf8::iterator &cutlet::utf8::iterator::operator ++() {
 
   // Get the length of the character and copy the character.
   if (_index < _value->length()) {
-    for (_length = 1; ((*_value)[_index + _length] & 0xc0) == 0x80; ++_length);
+    for (_length = 1; ((*_value)[_index + _length] & 0xc0) == 0x80;
+         ++_length) {}
     _current = _value->substr(_index, _length);
   } else {
     _current.clear();
@@ -234,7 +226,8 @@ cutlet::utf8::iterator cutlet::utf8::iterator::operator ++(int) {
 
   // Get the length of the character and copy it.
   if (_index < _value->length()) {
-    for (_length = 1; ((*_value)[_index + _length] & 0xc0) == 0x80; ++_length);
+    for (_length = 1; ((*_value)[_index + _length] & 0xc0) == 0x80;
+         ++_length) {}
     _current = _value->substr(_index, _length);
   } else {
     _current.clear();
@@ -249,10 +242,11 @@ cutlet::utf8::iterator cutlet::utf8::iterator::operator ++(int) {
 
 cutlet::utf8::iterator &cutlet::utf8::iterator::operator --() {
   if (_index > 0) {
-    size_t tmp = _index;
+    const size_t tmp = _index;
 
     // Find the first character.
-    for (--_index; ((*_value)[_index] & 0xc0) == 0x80 and _index > 0; --_index);
+    for (--_index; ((*_value)[_index] & 0xc0) == 0x80 and _index > 0;
+         --_index);
 
     // Get the length of the character and copy it.
     _length = tmp - _index;
@@ -268,11 +262,11 @@ cutlet::utf8::iterator cutlet::utf8::iterator::operator --(int) {
   iterator tmp(*this);
 
   if (_index > 0) {
-    size_t tmps = _index;
+    const size_t tmps = _index;
 
     // Find the first character.
     for (--_index; ((*_value)[_index] & 0xc0) == 0x80 and _index > 0;
-         --_index);
+         --_index) {}
 
     // Get the length of the character and copy it.
     _length = tmps - _index;
@@ -306,8 +300,11 @@ bool cutlet::utf8::iterator::operator !=(const iterator &other) const {
 
 cutlet::utf8::iterator cutlet::utf8::iterator::operator +(int value) const {
   auto result = *this;
-  if (value > 0) for (; value > 0; ++result, --value);
-  else for (; value < 0; --result, ++value);
+  if (value > 0) {
+    for (; value > 0; ++result, --value) {}
+  } else {
+    for (; value < 0; --result, ++value) {}
+  }
   return result;
 }
 
@@ -317,8 +314,11 @@ cutlet::utf8::iterator cutlet::utf8::iterator::operator +(int value) const {
 
 cutlet::utf8::iterator cutlet::utf8::iterator::operator -(int value) const {
   auto result = *this;
-  if (value > 0) for (; value > 0; --result, --value);
-  else for (; value < 0; ++result, ++value);
+  if (value > 0) {
+    for (; value > 0; --result, --value) {}
+  } else {
+    for (; value < 0; ++result, ++value) {}
+  }
   return result;
 }
 
@@ -371,7 +371,7 @@ std::string cutlet::utf8::substr(const iterator &start, const iterator &end) {
   if (start != start.end() and end._index >= start._index) {
     return value.substr(start._index, end._index - start._index);
   }
-  //return "";
+
   throw std::range_error("utf-8 sub-string iterators out of range");
 }
 
@@ -426,7 +426,7 @@ void cutlet_tokenizer::parse_tokens() {
       tokens.push_back(parser::token(T_EOF, "", position));
   }
 
-  //std::clog << "TOKENS: " << (parser::tokenizer)*this << std::endl;
+  // std::clog << "TOKENS: " << (parser::tokenizer)*this << std::endl;
 
 #ifdef TESTING
   /* I'd like to have this in the test suites, but unfortunately
@@ -479,7 +479,7 @@ void cutlet_tokenizer::parse_tokens() {
 void cutlet_tokenizer::parse_next_token() {
   if (not code.empty()) {
     cutlet::utf8::iterator it(code);
-    std::streampos start_pos = position;
+    const std::streampos start_pos = position;
 
     // Skip any white space.
     while (is_space(*it) and it != it.end()) {
@@ -638,7 +638,6 @@ void cutlet_tokenizer::parse_next_token() {
 
         // Find the matching } character.
         while (count) {
-
           // Matching } character not found, throw and error.
           if (it == it.end()) {
             std::stringstream msg;
@@ -736,22 +735,6 @@ std::string cutlet::component::documentation() const {
 cutlet::variable::~variable() noexcept {}
 
 /*********************************
- * cutlet::variable::operator == *
- *********************************/
-
-bool cutlet::variable::operator ==(const std::string &value) const {
-  return ((std::string)*this == value);
-}
-
-/*********************************
- * cutlet::variable::operator != *
- *********************************/
-
-bool cutlet::variable::operator !=(const std::string &value) const {
-  return ((std::string)*this != value);
-}
-
-/*********************************
  * cutlet::variable::operator () *
  *********************************/
 
@@ -759,7 +742,7 @@ cutlet::variable::pointer
 cutlet::variable::operator()(variable::pointer self, interpreter &interp,
                              const list &arguments) {
   (void)self;
-  return interp.call((std::string)*this, arguments);
+  return interp.call(static_cast<std::string>(*this), arguments);
 }
 
 /******************************************
@@ -780,28 +763,30 @@ cutlet::ast::node *cutlet::variable::node() const { return nullptr; }
  *  A component wrapper around the cutlet::function_t.
  */
 
-class _function : public cutlet::component {
-public:
-  _function(const std::string &label, cutlet::function_t func,
-            const std::string &doc)
-    : _label(label), _doc(doc), _function_ptr(func) {}
+namespace {
+  class _function : public cutlet::component {
+  public:
+    _function(const std::string &label, cutlet::function_t func,
+              const std::string &doc)
+      : _label(label), _doc(doc), _function_ptr(func) {}
 
-  virtual ~_function() noexcept;
+    virtual ~_function() noexcept;
 
-  virtual cutlet::variable::pointer
-  operator ()(cutlet::interpreter &interp, const cutlet::list &arguments) {
-    interp.push(_label);
-    interp.finish(_function_ptr(interp, arguments));
-    return interp.pop();
-  }
+    virtual cutlet::variable::pointer
+    operator ()(cutlet::interpreter &interp, const cutlet::list &arguments) {
+      interp.push(_label);
+      interp.finish(_function_ptr(interp, arguments));
+      return interp.pop();
+    }
 
-  virtual std::string documentation() const { return _doc; }
+    virtual std::string documentation() const { return _doc; }
 
-private:
-  std::string _label;
-  std::string _doc;
-  cutlet::function_t _function_ptr;
-};
+  private:
+    std::string _label;
+    std::string _doc;
+    cutlet::function_t _function_ptr;
+  };
+} // namespace
 
 _function::~_function() noexcept {}
 
@@ -873,7 +858,7 @@ cutlet::sandbox::~sandbox() noexcept {
   _variables.clear();
   _components.clear();
   for (auto &item: _native_libs) {
-    delete (native_lib *)item;
+    delete reinterpret_cast<_native_lib *>(item);
   }
 }
 
@@ -883,7 +868,7 @@ cutlet::sandbox::~sandbox() noexcept {
 
 void cutlet::sandbox::add(const std::string &name, function_t func,
                           const std::string &doc) {
-  _components[name] = new _function(name, func, doc);
+  _components[name] = std::make_shared<_function>(name, func, doc);
 }
 
 void cutlet::sandbox::add(const std::string &name, component::pointer comp) {
@@ -926,7 +911,7 @@ cutlet::variable::pointer cutlet::sandbox::variable(interpreter &interp,
     return _variables[name];
   else {
     try {
-      list arguments({new cutlet::string(name)});
+      list arguments({std::make_shared<cutlet::string>(name)});
       return call(interp, "¿variable?", arguments);
     } catch (std::runtime_error &err) {}
   }
@@ -935,7 +920,7 @@ cutlet::variable::pointer cutlet::sandbox::variable(interpreter &interp,
 
 void cutlet::sandbox::variable(const std::string &name,
                                variable::pointer value) {
-  if (value.is_null())
+  if (not value)
     _variables.erase(name);
   else
     _variables[name] = value;
@@ -971,7 +956,7 @@ cutlet::sandbox::call(interpreter &interp,
     it = _components.find("¿component?");
     if (it != _components.end()) {
       cutlet::list args(arguments);
-      args.push_front(new cutlet::string(name));
+      args.push_front(std::make_shared<cutlet::string>(name));
       return (*it->second)(interp, args);
     } else {
       throw std::runtime_error("Unresolved component \"" + name + "\"");
@@ -987,8 +972,8 @@ void *cutlet::sandbox::symbol(const std::string &name) const {
   void *result = nullptr;
 
   // Search all the loaded libraries for the symbol.
-  for (auto &lib: _native_libs) {
-    result = reinterpret_cast<native_lib *>(lib)->symbol(name);
+  for (const auto &lib: _native_libs) {
+    result = reinterpret_cast<_native_lib *>(lib)->symbol(name);
     if (result) return result;
   }
 
@@ -1003,7 +988,7 @@ void *cutlet::sandbox::symbol(const std::string &name) const {
 void cutlet::sandbox::load(interpreter &interp,
                            const std::string &library_name) {
   if (fexists(library_name)) {
-    native_lib *lib = new native_lib(library_name);
+    auto lib = new _native_lib(library_name);
     libinit_t init = (libinit_t)lib->symbol("init_cutlet");
 
     if (init != nullptr) {
@@ -1027,7 +1012,7 @@ void cutlet::sandbox::load(interpreter &interp,
 
 cutlet::interpreter::interpreter() {
   tokens = new cutlet_tokenizer;
-  _global = new sandbox();
+  _global = std::make_shared<sandbox>();
   _global->add("print", ::builtin::print);
   _global->add("global", ::builtin::global);
   _global->add("local", ::builtin::local);
@@ -1041,27 +1026,29 @@ cutlet::interpreter::interpreter() {
   _global->add("sandbox", ::builtin::sandbox);
 
   // Create the global library.path list variable.
-  cutlet::list *path = new cutlet::list();
-  std::string env_path = env("CUTLETPATH");
+  auto path = std::make_shared<cutlet::list>();
+  const std::string env_path = env("CUTLETPATH");
 
   // Parse CUTLETPATH
   auto start = 0U;
   auto end = env_path.find(":");
   while (end != std::string::npos) {
-    path->push_back(new cutlet::string(env_path.substr(start, end - start)));
+    path->push_back(std::make_shared<cutlet::string>(env_path.substr(start,
+                                                       end - start)));
     start = end + 1;
     end = env_path.find(":", start);
   }
 
-  cutlet::variable::pointer pkglibdir = new cutlet::string(PKGLIBDIR);
+  cutlet::variable::pointer pkglibdir =
+    std::make_shared<cutlet::string>(PKGLIBDIR);
   path->push_back(pkglibdir);
   global("library.path", path);
   global("library.dir", pkglibdir);
 
   // Create the toplevel frame with the default program return value.
-  _frame = new cutlet::frame();
+  _frame = std::make_shared<cutlet::frame>();
   _frame->label("_main_");
-  _frame->_return = new cutlet::string(0);
+  _frame->_return = std::make_shared<cutlet::string>(0);
 
   _interpreters++;
 }
@@ -1080,12 +1067,6 @@ cutlet::interpreter::~interpreter() noexcept {
   _compiled = nullptr;
 
   _interpreters--;
-
-  /*  When all the interpreters are destroyed then run a full memory
-   * collection otherwise just run a normal one.
-   */
-  if (_interpreters == 0) { memory::gc::collect_all(); }
-  else { memory::gc::collect(); }
 }
 
 /****************************
@@ -1098,33 +1079,15 @@ cutlet::variable::pointer cutlet::interpreter::var(const std::string &name) {
 
   // If we don't have a local variable attempt to resolved to a global
   // variable.
-  if (result.is_null())
+  if (not result)
     result = _global->variable(*this, name);
 
   // We couldn't resolve the variable.
-  if (result.is_null())
+  if (not result)
     throw std::runtime_error(std::string("Unable to resolve variable $") +
                              name);
 
   return result;
-}
-
-/*******************************
- * cutlet::interpreter::global *
- *******************************/
-
-void cutlet::interpreter::global(const std::string &name,
-                                 variable::pointer value) {
-  _global->variable(name, value);
-}
-
-/******************************
- * cutlet::interpreter::local *
- ******************************/
-
-void cutlet::interpreter::local(const std::string &name,
-                                variable::pointer value) {
-  _frame->variable(name, value);
 }
 
 /*****************************
@@ -1134,14 +1097,14 @@ void cutlet::interpreter::local(const std::string &name,
 cutlet::variable::pointer cutlet::interpreter::list(const std::string value) {
   tokens->push(parser::token(cutlet::T_BLOCK, value));
 
-  cutlet::list *result = new cutlet::list();
+  auto result = std::make_shared<cutlet::list>();
   while (*tokens and not tokens->expect(cutlet_tokenizer::T_EOF)) {
     if (tokens->expect(cutlet::T_BLOCK)) {
       auto token = tokens->get_token();
       result->push_back(list((const std::string &)token));
     } else {
       auto token = tokens->get_token();
-      result->push_back(new cutlet::string((const std::string &)token));
+      result->push_back(std::make_shared<cutlet::string>((const std::string &)token));
     }
   }
 
@@ -1158,50 +1121,19 @@ cutlet::interpreter::list(const variable::pointer value) {
     return list((std::string)*value);
   }
 
-  cutlet::list *result = new cutlet::list();
+  auto result = std::make_shared<cutlet::list>();
   while (*tokens and not tokens->expect(cutlet_tokenizer::T_EOF)) {
     if (tokens->expect(cutlet::T_BLOCK)) {
       auto token = tokens->get_token();
       result->push_back(list((const std::string &)token));
     } else {
       auto token = tokens->get_token();
-      result->push_back(new cutlet::string((const std::string &)token));
+      result->push_back(std::make_shared<cutlet::string>((const std::string &)token));
     }
   }
 
   tokens->pop();
   return result;
-}
-
-/****************************
- * cutlet::interpreter::add *
- ****************************/
-
-void cutlet::interpreter::add(const std::string &name, function_t func,
-                              const std::string &docs) {
-  _global->add(name, func, docs);
-}
-
-void cutlet::interpreter::add(const std::string &name,
-                              component::pointer comp) {
-  _global->add(name, comp);
-}
-
-/************************************
- * cutlet::interpreter::environment *
- ************************************/
-
-cutlet::sandbox::pointer cutlet::interpreter::environment() {
-  return _global;
-}
-
-/****************************
- * cutlet::interpreter::get *
- ****************************/
-
-cutlet::component::pointer
-cutlet::interpreter::get(const std::string &name) const {
-  return _global->get(name);
 }
 
 /************************************
@@ -1259,11 +1191,11 @@ cutlet::variable::pointer cutlet::interpreter::expr(variable::pointer cmd) {
   } else {
     tokens->push((std::string)*cmd);
   }
-  ast::node::pointer result = command_();
+  ast::node::pointer result = _command();
   tokens->pop();
 
-  if (result.is_null()) {
-    std::clog << "DEBUG: " << (std::string)*cmd << std::endl;
+  if (not result) {
+    std::clog << "DEBUG: " << static_cast<std::string>(*cmd) << std::endl;
   }
 
   return (*result)(*this);
@@ -1271,19 +1203,9 @@ cutlet::variable::pointer cutlet::interpreter::expr(variable::pointer cmd) {
 
 cutlet::variable::pointer cutlet::interpreter::expr(const std::string &cmd) {
   tokens->push(cmd);
-  ast::node::pointer result = command_();
+  ast::node::pointer result = _command();
   tokens->pop();
   return (*result)(*this);
-}
-
-/*****************************
- * cutlet::interpreter::call *
- *****************************/
-
-cutlet::variable::pointer
-cutlet::interpreter::call(const std::string &procedure,
-                          const cutlet::list &arguments) {
-  return _global->call(*this, procedure, arguments);
 }
 
 /******************************
@@ -1313,20 +1235,6 @@ int cutlet::interpreter::frames() const {
  * cutlet::interpreter::push *
  *****************************/
 
-void cutlet::interpreter::push(const std::string &label) {
-  frame::pointer new_frame = new cutlet::frame(label);
-  push(new_frame);
-}
-
-void cutlet::interpreter::push(int level, const std::string &label) {
-  push(new cutlet::block_frame(label, frame(level)));
-}
-
-void cutlet::interpreter::push(sandbox::pointer sb, const std::string &label) {
-  frame::pointer new_frame = new cutlet::frame(label);
-  push(new_frame, sb);
-}
-
 void cutlet::interpreter::push(frame::pointer new_frame) {
   new_frame->parent(_frame);
   _frame = new_frame;
@@ -1344,15 +1252,15 @@ void cutlet::interpreter::push(frame::pointer new_frame, sandbox::pointer sb) {
 
 cutlet::variable::pointer cutlet::interpreter::pop() {
   // Get the previous environment.
-  variable::pointer result = _frame->_return;
-  memory::reference<sandbox> sb_saved = _frame->_sandbox_orig;
+  auto result = _frame->_return;
+  auto sb_saved = _frame->_sandbox_orig;
 
   // Retore the frame.
-  memory::reference<cutlet::frame> uplevel = _frame->parent();
+  auto uplevel = _frame->parent();
   _frame = uplevel;
 
   // Restore the global environment if necessary.
-  if (not sb_saved.is_null()) _global = sb_saved;
+  if (sb_saved) _global = sb_saved;
 
   return result;
 }
@@ -1363,48 +1271,12 @@ cutlet::interpreter::pop(variable::pointer result) {
   return pop();
 }
 
-/*******************************
- * cutlet::interpreter::finish *
- *******************************/
-
-void cutlet::interpreter::finish(variable::pointer result) {
-  _frame->done(result);
-}
-
-/******************************
- * cutlet::interpreter::state *
- ******************************/
-
-cutlet::frame::state_t cutlet::interpreter::state() const {
-  return _frame->state();
-}
-
-void cutlet::interpreter::state(frame::state_t new_state) {
-  _frame->state(new_state);
-}
-
-/*****************************
- * cutlet::interpreter::done *
- *****************************/
-
-bool cutlet::interpreter::done() const {
-  return _frame->done();
-}
-
-/*****************************
- * cutlet::interpreter::load *
- *****************************/
-
-void cutlet::interpreter::load(const std::string &library_name) {
-  _global->load(*this, library_name);
-}
-
 /******************************
  * cutlet::interpreter::entry *
  ******************************/
 
 void cutlet::interpreter::entry() {
-  ast::block *ast_tree = new ast::block();
+  auto ast_tree = std::make_shared<ast::block>();
 
   while (tokens or not tokens->expect(parser::tokenizer::T_EOF)) {
 
@@ -1416,9 +1288,9 @@ void cutlet::interpreter::entry() {
 
     // Now we only expect commands and comments.
     if (tokens->expect(cutlet::T_COMMENT))
-      ast_tree->add(comment_());
+      ast_tree->add(_comment());
     else
-      ast_tree->add(command_());
+      ast_tree->add(_command());
   }
 
   (*ast_tree)(*this);
@@ -1426,33 +1298,34 @@ void cutlet::interpreter::entry() {
 }
 
 /*********************************
- * cutlet::interpreter::comment_ *
+ * cutlet::interpreter::_comment *
  *********************************/
 
-cutlet::ast::node::pointer cutlet::interpreter::comment_() {
-  return new ast::comment(tokens->get_token());
+cutlet::ast::node::pointer cutlet::interpreter::_comment() {
+  return std::make_shared<ast::comment>(tokens->get_token());
 }
 
 /*********************************
- * cutlet::interpreter::command_ *
+ * cutlet::interpreter::_command *
  *********************************/
 
-cutlet::ast::node::pointer cutlet::interpreter::command_() {
-  ast::command *cmd_ast;
+cutlet::ast::node::pointer cutlet::interpreter::_command() {
+  std::shared_ptr<ast::command> cmd_ast;
 
   // Get the command name.
   if (tokens->expect(cutlet::T_WORD) or
       tokens->expect(cutlet::T_BLOCK)) {
-    cmd_ast = new ast::command(new ast::value(tokens->get_token()));
+    cmd_ast = std::make_shared<ast::command>(
+                std::make_shared<ast::value>(tokens->get_token()));
 
   } else if (tokens->expect(cutlet::T_STRING)) {
-    cmd_ast = new ast::command(string_());
+    cmd_ast = std::make_shared<ast::command>(_string());
 
   } else if (tokens->expect(cutlet::T_VARIABLE)) {
-    cmd_ast = new ast::command(variable_());
+    cmd_ast = std::make_shared<ast::command>(_variable());
 
   } else if (tokens->expect(cutlet::T_SUBCMD)) {
-    cmd_ast = new ast::command(subcommand_());
+    cmd_ast = std::make_shared<ast::command>(_subcommand());
 
   } else {
     throw parser::syntax_error("Invalid token", tokens->get_token());
@@ -1463,14 +1336,14 @@ cutlet::ast::node::pointer cutlet::interpreter::command_() {
          not tokens->expect(parser::tokenizer::T_EOF)) {
 
     if (tokens->expect(cutlet::T_VARIABLE)) {
-      cmd_ast->parameter(variable_());
+      cmd_ast->parameter(_variable());
     } else if (tokens->expect(cutlet::T_STRING)) {
-      cmd_ast->parameter(string_());
+      cmd_ast->parameter(_string());
     } else if (tokens->expect(cutlet::T_SUBCMD)) {
-      cmd_ast->parameter(subcommand_());
+      cmd_ast->parameter(_subcommand());
     } else if (tokens->expect(cutlet::T_WORD) or
                tokens->expect(cutlet::T_BLOCK)) {
-      cmd_ast->parameter(new ast::value(tokens->get_token()));
+      cmd_ast->parameter(std::make_shared<ast::value>(tokens->get_token()));
     } else {
       throw parser::syntax_error("Invalid token", tokens->get_token());
     }
@@ -1480,20 +1353,20 @@ cutlet::ast::node::pointer cutlet::interpreter::command_() {
 }
 
 /**********************************
- * cutlet::interpreter::variable_ *
+ * cutlet::interpreter::_variable *
  **********************************/
 
-cutlet::ast::node::pointer cutlet::interpreter::variable_() {
-  return new ast::variable(tokens->get_token());
+cutlet::ast::node::pointer cutlet::interpreter::_variable() {
+  return std::make_shared<ast::variable>(tokens->get_token());
 }
 
 /********************************
- * cutlet::interpreter::string_ *
+ * cutlet::interpreter::_string *
  ********************************/
 
-cutlet::ast::node::pointer cutlet::interpreter::string_() {
+cutlet::ast::node::pointer cutlet::interpreter::_string() {
   auto token = tokens->get_token();
-  ast::string *ast_str = new ast::string(token);
+  auto ast_str = std::make_shared<ast::string>(token);
   std::string result((const std::string &)token);
   std::string part;
 
@@ -1524,10 +1397,11 @@ cutlet::ast::node::pointer cutlet::interpreter::string_() {
 
         std::string var_name = utf8::substr(start + 2, index);
 
-        ast_str->add(new ast::variable(parser::token(cutlet::T_VARIABLE,
-                                                     var_name,
-                                                     (size_t)token.position() +
-                                                     start.position() + 1, 2)));
+        ast_str->add(std::make_shared<ast::variable>(
+                       parser::token(cutlet::T_VARIABLE,
+                                     var_name,
+                                     static_cast<size_t>(token.position()) +
+                                     start.position() + 1, 2)));
       } else {
         // Unquoted variable name.
         ++index;
@@ -1537,10 +1411,11 @@ cutlet::ast::node::pointer cutlet::interpreter::string_() {
 
         std::string var_name = utf8::substr(start + 1, index);
 
-        ast_str->add(new ast::variable(parser::token(cutlet::T_VARIABLE,
-                                                     var_name,
-                                                     (size_t)token.position() +
-                                                     start.position() + 1, 1)));
+        ast_str->add(std::make_shared<ast::variable>(
+                       parser::token(cutlet::T_VARIABLE,
+                                     var_name,
+                                     static_cast<size_t>(token.position()) +
+                                     start.position() + 1, 1)));
         --index;
       }
 
@@ -1561,9 +1436,10 @@ cutlet::ast::node::pointer cutlet::interpreter::string_() {
 
       parser::token cmd(cutlet::T_SUBCMD,
                         utf8::substr(start + 1, index),
-                        (size_t)token.position() + start.position() + 1, 1);
+                        static_cast<size_t>(token.position()) +
+                        start.position() + 1, 1);
       tokens->push(cmd);
-      ast_str->add(command_());
+      ast_str->add(_command());
       tokens->pop();
 
     } else if (*index == "\\") {
@@ -1651,12 +1527,12 @@ cutlet::ast::node::pointer cutlet::interpreter::string_() {
 }
 
 /************************************
- * cutlet::interpreter::subcommand_ *
+ * cutlet::interpreter::_subcommand *
  ************************************/
 
-cutlet::ast::node::pointer cutlet::interpreter::subcommand_() {
+cutlet::ast::node::pointer cutlet::interpreter::_subcommand() {
   tokens->push();
-  ast::node::pointer result = command_();
+  ast::node::pointer result = _command();
   tokens->pop();
   return result;
 }

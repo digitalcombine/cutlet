@@ -38,79 +38,81 @@
 #include <mutex>
 #include <iostream>
 
-typedef struct {
-  cutlet::interpreter *interp;
-  cutlet::variable::pointer body;
-} thread_args_t;
+namespace {
+  using thread_args_t = struct {
+    cutlet::interpreter *interp;
+    cutlet::variable::pointer body;
+  };
 
-/*****************
- * _thread_entry *
- *****************/
+  /*****************
+   * _thread_entry *
+   *****************/
 
-static void _thread_entry(thread_args_t *args) {
-  /* XXX Need to catch exceptions here and add them to the _thread_var class.
-   * The exception can then be rethrown by the join operator.
+  void _thread_entry(thread_args_t *args) {
+    /* XXX Need to catch exceptions here and add them to the _thread_var class.
+     * The exception can then be rethrown by the join operator.
+     */
+
+    try {
+      /* Create a new Cutlet interpreter to execute the the new thread
+       * in. This gives the thread its own Cutlet frame stack.
+       */
+      cutlet::interpreter tinterp;
+
+      // Copy the global environment into the new interpreter.
+      tinterp.push(args->interp->environment());
+
+      // Execute the body.
+      tinterp(args->body);
+    } catch (std::exception &err) {
+    }
+  }
+
+  void (*_entry_ptr)(thread_args_t *) = nullptr;
+
+  /******************************************************************************
+   * class prototypes
    */
 
-  try {
-    /* Create a new Cutlet interpreter to execute the the new thread
-     * in. This gives the thread its own Cutlet frame stack.
-     */
-    cutlet::interpreter tinterp;
+  /*********************
+   * class _thread_var *
+   *********************/
 
-    // Copy the global environment into the new interpreter.
-    tinterp.push(args->interp->environment());
+  class _thread_var : public cutlet::variable {
+  public:
+    _thread_var(cutlet::interpreter &interp,
+                cutlet::variable::pointer body);
+    virtual ~_thread_var() noexcept;
 
-    // Execute the body.
-    tinterp(args->body);
-  } catch (std::exception &err) {
-  }
+    virtual cutlet::variable::pointer
+    operator ()(cutlet::variable::pointer self,
+                cutlet::interpreter &interp,
+                const cutlet::list &arguments);
+
+  private:
+    thread_args_t _args;
+    std::thread _thread;
+  };
+
+  /********************
+   * class _mutex_var *
+   ********************/
+
+  class _mutex_var : public cutlet::variable {
+  public:
+    _mutex_var();
+    virtual ~_mutex_var() noexcept;
+
+    virtual cutlet::variable::pointer
+    operator ()(cutlet::variable::pointer self,
+                cutlet::interpreter &interp,
+                const cutlet::list &arguments);
+
+  private:
+    std::recursive_mutex _mutex;
+    cutlet::ast::node::pointer _compiled;
+  };
 }
-
-void (*_entry_ptr)(thread_args_t *) = nullptr;
-
-/******************************************************************************
- * class prototypes
- */
-
-/*********************
- * class _thread_var *
- *********************/
-
-class _thread_var : public cutlet::variable {
-public:
-  _thread_var(cutlet::interpreter &interp,
-               cutlet::variable::pointer body);
-  virtual ~_thread_var() noexcept;
-
-  virtual cutlet::variable::pointer
-  operator ()(cutlet::variable::pointer self,
-              cutlet::interpreter &interp,
-              const cutlet::list &arguments);
-
-private:
-  thread_args_t _args;
-  std::thread _thread;
-};
-
-/********************
- * class _mutex_var *
- ********************/
-
-class _mutex_var : public cutlet::variable {
-public:
-  _mutex_var();
-  virtual ~_mutex_var() noexcept;
-
-  virtual cutlet::variable::pointer
-  operator ()(cutlet::variable::pointer self,
-              cutlet::interpreter &interp,
-              const cutlet::list &arguments);
-
-private:
-  std::recursive_mutex _mutex;
-  cutlet::ast::node::pointer _compiled;
-};
 
 /******************************************************************************
  * class _thread_var
@@ -210,31 +212,34 @@ _mutex_var::operator ()(cutlet::variable::pointer self,
  * Public API
  */
 
-/*******************
- * def thread body *
- *******************/
-
 #include <type_traits>
 
-static cutlet::variable::pointer
-_thread(cutlet::interpreter &interp, const cutlet::list &arguments) {
-  size_t argc = arguments.size();
-  if (argc == 1) {
-    return new _thread_var(interp, arguments[0]);
+namespace {
+
+  /*******************
+   * def thread body *
+   *******************/
+
+  cutlet::variable::pointer
+  _thread(cutlet::interpreter &interp, const cutlet::list &arguments) {
+    size_t argc = arguments.size();
+    if (argc == 1) {
+      return std::make_shared<_thread_var>(interp, arguments[0]);
+    }
+    return nullptr;
   }
-  return nullptr;
-}
 
-/*************
- * def mutex *
- *************/
+  /*************
+   * def mutex *
+   *************/
 
-static cutlet::variable::pointer
-_mutex(cutlet::interpreter &interp, const cutlet::list &arguments) {
-  (void)interp;
-  (void)arguments;
+  cutlet::variable::pointer
+  _mutex(cutlet::interpreter &interp, const cutlet::list &arguments) {
+    (void)interp;
+    (void)arguments;
 
-  return new _mutex_var();
+    return std::make_shared<_mutex_var>();
+  }
 }
 
 /******************************************************************************

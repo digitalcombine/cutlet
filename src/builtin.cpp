@@ -39,77 +39,80 @@
  * The Cutlet component for functions created by def.
  */
 
-class _def_function : public cutlet::component {
-public:
-  _def_function(const std::string &label,
-                cutlet::variable::pointer arguments,
-                cutlet::variable::pointer body)
-    : _label(label), _arguments(arguments), _body(body) {}
-  virtual ~_def_function() noexcept;
+namespace {
+  class _def_function : public cutlet::component {
+  public:
+    _def_function(const std::string &label,
+                  cutlet::variable::pointer arguments,
+                  cutlet::variable::pointer body)
+      : _label(label), _arguments(arguments), _body(body) {}
+    virtual ~_def_function() noexcept;
 
-  /** Execute the function.
-   */
-  virtual cutlet::variable::pointer
-  operator ()(cutlet::interpreter &interp, const cutlet::list &args) {
-    interp.push(_label); // New frame for the function.
-
-    // Populate the arguments of the function.
-    auto p_it = cutlet::cast<cutlet::list>(_arguments).begin();
-    auto a_it = args.begin();
-
-    for (; p_it != cutlet::cast<cutlet::list>(_arguments).end() and
-           a_it != args.end(); ++p_it, ++a_it) {
-      cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
-      if (l) {
-        // Set the value for the parameter that has a default value.
-        interp.local(*(l->front()), *a_it);
-      } else {
-        std::string name(*(*p_it));
-        if (name == "*args") {
-          // If *args found populate it with a list of the remaining values.
-          interp.local("args", new cutlet::list(a_it, args.end()));
-        } else {
-          // Set the value for the parameter.
-          interp.local(name, *a_it);
-        }
-      }
-    }
-
-    /* If there are any remaining arguments that we didn't get a value for
-     * the attempt to populate them with default values if any were given.
+    /** Execute the function.
      */
-    if (cutlet::cast<cutlet::list>(_arguments).size() > args.size()) {
-      // Set default parameter values if needed.
-      while (p_it != cutlet::cast<cutlet::list>(_arguments).end()) {
+    virtual cutlet::variable::pointer
+    operator ()(cutlet::interpreter &interp, const cutlet::list &args) {
+      interp.push(_label); // New frame for the function.
+
+      // Populate the arguments of the function.
+      auto p_it = cutlet::cast<cutlet::list>(_arguments).begin();
+      auto a_it = args.begin();
+
+      for (; p_it != cutlet::cast<cutlet::list>(_arguments).end() and
+             a_it != args.end(); ++p_it, ++a_it) {
         cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
         if (l) {
-          interp.local(*(l->front()), l->back());
+          // Set the value for the parameter that has a default value.
+          interp.local(*(l->front()), *a_it);
         } else {
-          // Silly programmer.
-          throw std::runtime_error("Missing value for argument " +
-                                   (std::string)*(*p_it) +
-                                   " for function " + _label);
+          std::string name(*(*p_it));
+          if (name == "*args") {
+            // If *args found populate it with a list of the remaining values.
+            interp.local("args",
+                         std::make_shared<cutlet::list>(a_it, args.end()));
+          } else {
+            // Set the value for the parameter.
+            interp.local(name, *a_it);
+          }
         }
       }
+
+      /* If there are any remaining arguments that we didn't get a value for
+       * the attempt to populate them with default values if any were given.
+       */
+      if (cutlet::cast<cutlet::list>(_arguments).size() > args.size()) {
+        // Set default parameter values if needed.
+        while (p_it != cutlet::cast<cutlet::list>(_arguments).end()) {
+          cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
+          if (l) {
+            interp.local(*(l->front()), l->back());
+          } else {
+            // Silly programmer.
+            throw std::runtime_error("Missing value for argument " +
+                                     (std::string)*(*p_it) +
+                                     " for function " + _label);
+          }
+        }
+      }
+
+      // We made it, now run the function.
+      if (not _compiled) {
+        _compiled = interp(_body);
+      } else
+        (*_compiled)(interp);
+
+      // Clean up the stack and return a value if there was one.
+      return interp.pop();
     }
 
-    // We made it, now run the function.
-    if (_compiled.is_null()) {
-      _compiled = interp(_body);
-    } else
-      (*_compiled)(interp);
+  private:
+    std::string _label;
+    cutlet::variable::pointer _arguments;
+    cutlet::variable::pointer _body;
 
-    // Clean up the stack and return a value if there was one.
-    return interp.pop();
-  }
-
-private:
-  std::string _label;
-  cutlet::variable::pointer _arguments;
-  cutlet::variable::pointer _body;
-
-  cutlet::ast::node::pointer _compiled;
-};
+    cutlet::ast::node::pointer _compiled;
+  };
+}
 
 _def_function::~_def_function() noexcept {}
 
@@ -130,7 +133,7 @@ builtin::def(cutlet::interpreter &interp,
   if (p_count < 2 or p_count > 3) {
    std::stringstream mesg;
    mesg << "Invalid number of arguments for def "
-        << (p_count >= 1 ? cutlet::convert<std::string>(arguments[0]) : "")
+        << (p_count >= 1 ? cutlet::primative<std::string>(arguments[0]) : "")
         << " (2 <= " << p_count
         << " <= 3).\n def name ¿arguments? body";
    throw std::runtime_error(mesg.str());
@@ -143,7 +146,7 @@ builtin::def(cutlet::interpreter &interp,
   cutlet::variable::pointer body;
   cutlet::variable::pointer def_arguments;
   if (p_count == 2) {
-    def_arguments = new cutlet::list();
+    def_arguments = std::make_shared<cutlet::list>();
     body = arguments[1];
   } else {
     def_arguments = interp.list(arguments[1]);
@@ -151,7 +154,7 @@ builtin::def(cutlet::interpreter &interp,
   }
 
   // Add the function to the interpreter.
-  interp.add(name, new _def_function(name, def_arguments, body));
+  interp.add(name, std::make_shared<_def_function>(name, def_arguments, body));
 
   return nullptr;
 }
@@ -335,10 +338,10 @@ builtin::uplevel(cutlet::interpreter &interp,
       expr = true;
 
       if (p_count == 3)
-        arg = cutlet::convert<int>(arguments[1]);
+        arg = cutlet::primative<int>(arguments[1]);
 
     } else {
-      arg = cutlet::convert<int>(arguments[0]);
+      arg = cutlet::primative<int>(arguments[0]);
     }
 
     if (arg < 0) {
@@ -383,7 +386,7 @@ builtin::ret(cutlet::interpreter &interp,
     frame->done(arguments[0]);
     break;
   default:
-    frame->done(new cutlet::list(arguments));
+    frame->done(std::make_shared<cutlet::list>(arguments));
     break;
   }
 
@@ -414,7 +417,7 @@ builtin::list(cutlet::interpreter &interp,
   if (arguments.size() == 1)
     result = interp.list(*(arguments[0]));
   else
-    result = new cutlet::list(arguments);
+    result = std::make_shared<cutlet::list>(arguments);
   return result;
 }
 
@@ -431,5 +434,7 @@ builtin::sandbox(cutlet::interpreter &interp,
   if (arguments.size() > 0)
     throw std::runtime_error("Invalid number of arguments for sandbox");
 
-  return new builtin::sandbox_var(new cutlet::sandbox);
+  return
+    std::make_shared<builtin::sandbox_var>(
+      std::make_shared<cutlet::sandbox>());
 }
