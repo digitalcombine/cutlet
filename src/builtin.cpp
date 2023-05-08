@@ -40,6 +40,9 @@
  */
 
 namespace {
+
+  /* Internal function definition.
+   */
   class _def_function : public cutlet::component {
   public:
     _def_function(const std::string &label,
@@ -48,7 +51,7 @@ namespace {
       : _label(label), _arguments(arguments), _body(body) {}
     virtual ~_def_function() noexcept;
 
-    /** Execute the function.
+    /* Execute the function.
      */
     virtual cutlet::variable::pointer
     operator ()(cutlet::interpreter &interp, const cutlet::list &args) {
@@ -69,7 +72,7 @@ namespace {
           if (name == "*args") {
             // If *args found populate it with a list of the remaining values.
             interp.local("args",
-                         std::make_shared<cutlet::list>(a_it, args.end()));
+                         cutlet::var<cutlet::list>(a_it, args.end()));
           } else {
             // Set the value for the parameter.
             interp.local(name, *a_it);
@@ -98,8 +101,9 @@ namespace {
       // We made it, now run the function.
       if (not _compiled) {
         _compiled = interp(_body);
-      } else
+      } else {
         (*_compiled)(interp);
+      }
 
       // Clean up the stack and return a value if there was one.
       return interp.pop();
@@ -146,7 +150,7 @@ builtin::def(cutlet::interpreter &interp,
   cutlet::variable::pointer body;
   cutlet::variable::pointer def_arguments;
   if (p_count == 2) {
-    def_arguments = std::make_shared<cutlet::list>();
+    def_arguments = cutlet::var<cutlet::list>();
     body = arguments[1];
   } else {
     def_arguments = interp.list(arguments[1]);
@@ -154,7 +158,7 @@ builtin::def(cutlet::interpreter &interp,
   }
 
   // Add the function to the interpreter.
-  interp.add(name, std::make_shared<_def_function>(name, def_arguments, body));
+  interp.add(name, cutlet::var<_def_function>(name, def_arguments, body));
 
   return nullptr;
 }
@@ -356,11 +360,6 @@ builtin::uplevel(cutlet::interpreter &interp,
 
   interp.push(levels, "uplevel body");
 
-  /*std::clog << "TRACE: uplevel " << levels << std::endl;
-  for (int i = 0; i < interp.frames(); i++) {
-    std::clog << interp.frame(i) << std::endl;
-    }*/
-
   if (expr)
     result = interp.expr(body);
   else
@@ -386,7 +385,7 @@ builtin::ret(cutlet::interpreter &interp,
     frame->done(arguments[0]);
     break;
   default:
-    frame->done(std::make_shared<cutlet::list>(arguments));
+    frame->done(cutlet::var<cutlet::list>(arguments));
     break;
   }
 
@@ -417,7 +416,7 @@ builtin::list(cutlet::interpreter &interp,
   if (arguments.size() == 1)
     result = interp.list(*(arguments[0]));
   else
-    result = std::make_shared<cutlet::list>(arguments);
+    result = cutlet::var<cutlet::list>(arguments);
   return result;
 }
 
@@ -435,6 +434,6 @@ builtin::sandbox(cutlet::interpreter &interp,
     throw std::runtime_error("Invalid number of arguments for sandbox");
 
   return
-    std::make_shared<builtin::sandbox_var>(
-      std::make_shared<cutlet::sandbox>());
+    cutlet::var<builtin::sandbox_var>(
+      cutlet::var<cutlet::sandbox>());
 }

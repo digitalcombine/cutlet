@@ -108,6 +108,14 @@ def testsuite.fail {*args} {
   $_errors append "[$args join]: failed"
 }
 
+def testsuite._errors {
+  return $_errors
+}
+
+def testsuite._tests {
+  return $_tests
+}
+
 #############
 # testsuite #
 #############
@@ -117,12 +125,15 @@ def testsuite {name body} {
 
   # Create a sandbox for the tests to be executed in. This way we isolate the
   # tests from the rest of the system.
+  #
+  # Setup the sandbox
   local test_box = [sandbox]
   $test_box link print global local uplevel def return list include import
   $test_box link sandbox
   $test_box global library.path = $library.path
   $test_box eval "import stdlib"
 
+  # Link in the testing framework into the sandbox
   $test_box global _errors = [list]
   $test_box global _tests = [list]
   $test_box link testsuite.test as test
@@ -140,8 +151,10 @@ def testsuite {name body} {
   }
 
   # Report of the results of the tests.
-  local errors = [$test_box expr {$_errors}]
-  local tests = [$test_box expr {$_tests}]
+  $test_box link testsuite._errors as _errors
+  $test_box link testsuite._tests as _tests
+  local errors = [$test_box expr {_errors}]
+  local tests = [$test_box expr {_tests}]
 
   if {[$errors size] > 0} then {
     # Report the errors that were encountered.

@@ -34,10 +34,10 @@
  * build.
  */
 #include "../include/cutlet"
-#include <iostream>
-#include <fstream>
 #include <getopt.h>
 #include <unistd.h>
+#include <iostream>
+#include <fstream>
 
 namespace {
 
@@ -62,7 +62,7 @@ namespace {
 
   void version () {
     std::cout << "Cutlet Version " << VERSION << "\n\n"
-              << "Copyright (c) 2019 Ron R Wills <ron@digitalcombine.ca>\n"
+              << "Copyright (c) 2019-2023 Ron R Wills <ron@digitalcombine.ca>\n"
               << "License BSD: 3-Clause BSD License\n"
               << "  <https://opensource.org/licenses/BSD-3-Clause>\n"
               << "This is free software: you are free to change and "
@@ -81,7 +81,7 @@ namespace {
 
     auto lib_path = interp.var("library.path");
     cutlet::cast<cutlet::list>(lib_path).push_back(
-      std::make_shared<cutlet::string>(path));
+      cutlet::var<cutlet::string>(path));
   }
 
   /************
@@ -97,7 +97,7 @@ namespace {
     {"help",    no_argument,       nullptr, 'h' },
     {nullptr,   0,                 nullptr, 0}
   };
-}
+} // namespace
 
 /******************************************************************************
  * Program entry right here!
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
     switch (opt) {
     case 'c': // C flags
       if (not info.empty()) info += " ";
-      info += "-std=c++11";
+      info += "-std=c++17";
       break;
     case 'h': // Help option
       help();
@@ -155,13 +155,17 @@ int main(int argc, char *argv[]) {
         /* This appears to be an interactive shell so read and execute line
          * by line.
          */
-        for(std::string line; getline(std::cin, line); ) {
-          compiled = interpreter(line);
-        }
+
+        interpreter.import("shell");
+        std::function<std::istream &()> cmdline_stream =
+          interpreter.symbol<std::istream &(*)()>("cmdline_stream");
+        std::istream &cin = cmdline_stream();
+
+        compiled = interpreter(cin, "_stdin_", true);
 
       } else {
         // This appears to be piped in so do everything at once.
-        compiled = interpreter(std::cin);
+        compiled = interpreter(std::cin, "_stdin_");
       }
     }
 

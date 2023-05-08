@@ -895,7 +895,7 @@ extern "C" {
 
 #include <iostream>
 void init_cutlet(cutlet::interpreter *interp) {
-  _oo_sandbox() = cutlet::alloc<cutlet::sandbox>();
+  _oo_sandbox() = std::make_shared<cutlet::sandbox>();
   _oo_sandbox()->add("method", _method);
   _oo_sandbox()->add("class.method", _c_method);
   _oo_sandbox()->add("property", _property);
@@ -915,7 +915,7 @@ void oo_add_method(cutlet::interpreter &interp,
                    cutlet::function_t method) {
   cutlet::component::pointer comp = interp.get(class_name);
   dynamic_cast<_def_class &>(*comp).add(method_name,
-    cutlet::alloc<_def_method_func>(method));
+    std::make_shared<_def_method_func>(method));
 }
 
 /***********************
@@ -928,7 +928,7 @@ void oo_add_class_method(cutlet::interpreter &interp,
                          cutlet::function_t method) {
   cutlet::component::pointer comp = interp.get(class_name);
   dynamic_cast<_def_class &>(*comp).add_class(method_name,
-    cutlet::alloc<_def_method_func>(method));
+    std::make_shared<_def_method_func>(method));
 }
 
 /*******************

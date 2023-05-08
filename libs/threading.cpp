@@ -40,7 +40,7 @@
 
 namespace {
   using thread_args_t = struct {
-    cutlet::interpreter *interp;
+    cutlet::sandbox::pointer env;
     cutlet::variable::pointer body;
   };
 
@@ -48,7 +48,7 @@ namespace {
    * _thread_entry *
    *****************/
 
-  void _thread_entry(thread_args_t *args) {
+  void _thread_entry(thread_args_t &args) {
     /* XXX Need to catch exceptions here and add them to the _thread_var class.
      * The exception can then be rethrown by the join operator.
      */
@@ -60,17 +60,17 @@ namespace {
       cutlet::interpreter tinterp;
 
       // Copy the global environment into the new interpreter.
-      tinterp.push(args->interp->environment());
+      tinterp.push(args.env);
 
       // Execute the body.
-      tinterp(args->body);
+      tinterp(args.body);
     } catch (std::exception &err) {
     }
   }
 
   void (*_entry_ptr)(thread_args_t *) = nullptr;
 
-  /******************************************************************************
+  /****************************************************************************
    * class prototypes
    */
 
@@ -112,7 +112,7 @@ namespace {
     std::recursive_mutex _mutex;
     cutlet::ast::node::pointer _compiled;
   };
-}
+} // namespace
 
 /******************************************************************************
  * class _thread_var
@@ -124,20 +124,15 @@ namespace {
 
 _thread_var::_thread_var(cutlet::interpreter &interp,
                            cutlet::variable::pointer body)
-  : _args({&interp, body}), _thread(_thread_entry, &_args) {
-}
+  : _args{interp.environment(), body},
+    _thread(_thread_entry, std::ref(_args)) {}
 
 /*****************************
  * _thread_var::~_thread_var *
  *****************************/
 
 _thread_var::~_thread_var() noexcept {
-  if (_thread.joinable()) {
-    _thread.join();
-    std::cerr << "WARNING: Thread joined during garbage collection. "
-              << "This is incredibly unreliable, use the join operator "
-              << "instead!" << std::endl;
-  }
+  if (_thread.joinable()) _thread.join();
 }
 
 /****************************
@@ -240,7 +235,7 @@ namespace {
 
     return std::make_shared<_mutex_var>();
   }
-}
+} // namespace
 
 /******************************************************************************
  * We need to declare init_cutlet as a C function.

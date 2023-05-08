@@ -60,119 +60,137 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
   const std::string op = *(arguments[0]);
   const size_t args = arguments.size();
 
-  if (op == "eval") {
-    // $sandbox eval body ...
-    bool first = true;
+  switch (op[0]) {
+  case 'c':
+    if (op == "clear") {
+      // $sandbox clear
+      if (args != 2)
+        throw std::runtime_error("To many arguments to sandbox operator clear");
 
-    interp.push(_sandbox, "sandbox eval");
-    for (auto &command: arguments) {
-      if (first) {
-        first = false;
-      } else {
+      _sandbox->clear();
+    }
+    break;
+  case 'e':
+    if (op == "eval") {
+      // $sandbox eval body ...
+      bool first = true;
+
+      auto cur_frame = interp.frame();
+
+      interp.push(_sandbox, "sandbox eval");
+      for (auto &command: arguments) {
+        if (first) {
+          first = false;
+        } else {
+          try {
+            interp(command);
+          } catch (...) {
+            /* If an error was thrown within the sandbox, we pop the
+             * context off the stack to restore the previous environment
+             * then rethrow the exception.
+             */
+            interp.pop(cur_frame);
+            throw;
+          }
+        }
+      }
+
+      // Clean up the stack
+     interp.pop(cur_frame);
+
+    } else if (op == "expr") {
+      // $sandbox expr body ...
+      if (args == 2) {
+        variable::pointer result;
+
+        auto cur_frame = interp.frame();
+
+        interp.push(_sandbox, "sandbox expr");
         try {
-          interp(command);
+          result = interp.expr(arguments[1]);
         } catch (...) {
-          /* If an error was thrown within the sandbox, we pop the
-           * context off the stack to restore the previous environment
-           * then rethrow the exception.
+          /* If an error was thrown within the sandbox, we pop the context
+           * off the stack to restore the previous environment then
+           * rethrow the exception.
            */
-          interp.pop();
+          interp.pop(cur_frame);
           throw;
+        }
+        interp.pop(cur_frame);
+
+        return result;
+      } else {
+        std::stringstream mesg;
+        mesg << "Invalid number of arguments for $sandbox expr "
+             << " (2 = " << args << ").\n $sandbox expr body";
+        throw std::runtime_error(mesg.str());
+      }
+    }
+    break;
+  case 'g':
+    if (op == "global") {
+      // $sandbox global name ¿=? ¿value?
+      switch (args) {
+      case 2:
+        _sandbox->variable(*(arguments[1]), nullptr);
+        break;
+      case 3:
+        if (*(arguments[1]) == "=")
+          _sandbox->variable(*(arguments[1]), nullptr);
+        else
+          _sandbox->variable(*(arguments[1]), arguments[2]);
+        break;
+      case 4:
+        if (*(arguments[2]) != "=") {
+          throw std::runtime_error("global name ¿=? value\n"
+                                   " Expected = got " +
+                                   (std::string)*(arguments[2]));
+        }
+        _sandbox->variable(*(arguments[1]), arguments[3]);
+        break;
+      default:
+        throw std::runtime_error("Invalid arguments to sandbox operator clear");
+      }
+    }
+    break;
+  case 'l':
+    if (op == "link") {
+      // $sandbox link component ¿as name?
+      // $sandbox link *args
+      if (args == 4 and *(arguments[2]) == "as") {
+        _sandbox->add(*(arguments[3]),
+                      interp.get(*(arguments[1])));
+      } else {
+        bool first = true;
+        for (auto &parm: arguments) {
+          if (first) first = false;
+          else _sandbox->add(*parm, interp.get(*parm));
         }
       }
     }
-    interp.pop();
+    break;
+  case 't':
+    if (op == "type") {
+      // $sandbox type
+      if (args != 2)
+        throw std::runtime_error("To many arguments to sandbox operator type");
 
-  } else if (op == "expr") {
-    // $sandbox expr body ...
-    if (args == 2) {
-      variable::pointer result;
-
-      interp.push(_sandbox, "sandbox expr");
-      try {
-        result = interp.expr(arguments[1]);
-      } catch (...) {
-        /* If an error was thrown within the sandbox, we pop the context
-         * off the stack to restore the previous environment then
-         * rethrow the exception.
-         */
-        interp.pop();
-        throw;
-      }
-      interp.pop();
-
-      return result;
-    } else {
-      std::stringstream mesg;
-      mesg << "Invalid number of arguments for $sandbox expr "
-         << " (2 = " << args << ").\n $sandbox expr body";
-      throw std::runtime_error(mesg.str());
+      return std::make_shared<cutlet::string>("sandbox");
     }
+    break;
+  case 'u':
+    if (op == "unlink") {
+      // $sandbox unlink *args
 
-  } else if (op == "link") {
-    // $sandbox link component ¿as name?
-    // $sandbox link *args
-    if (args == 4 and *(arguments[2]) == "as") {
-      _sandbox->add(*(arguments[3]),
-                    interp.get(*(arguments[1])));
-    } else {
       bool first = true;
       for (auto &parm: arguments) {
         if (first) first = false;
-        else _sandbox->add(*parm, interp.get(*parm));
+        else _sandbox->remove(*parm);
       }
+
     }
-
-  } else if (op == "unlink") {
-    // $sandbox unlink *args
-
-    bool first = true;
-    for (auto &parm: arguments) {
-      if (first) first = false;
-      else _sandbox->remove(*parm);
-    }
-
-  } else if (op == "clear") {
-    // $sandbox clear
-    if (args != 2)
-      throw std::runtime_error("To many arguments to sandbox operator clear");
-
-    _sandbox->clear();
-
-  } else if (op == "type") {
-    // $sandbox type
-    if (args != 2)
-      throw std::runtime_error("To many arguments to sandbox operator type");
-
-    return std::make_shared<cutlet::string>("sandbox");
-
-  } else if (op == "global") {
-    // $sandbox global name ¿=? ¿value?
-    switch (args) {
-    case 2:
-      _sandbox->variable(*(arguments[1]), nullptr);
-      break;
-    case 3:
-      if (*(arguments[1]) == "=")
-        _sandbox->variable(*(arguments[1]), nullptr);
-      else
-        _sandbox->variable(*(arguments[1]), arguments[2]);
-      break;
-    case 4:
-      if (*(arguments[2]) != "=") {
-        throw std::runtime_error("global name ¿=? value\n"
-                                 " Expected = got " +
-                                 (std::string)*(arguments[2]));
-      }
-      _sandbox->variable(*(arguments[1]), arguments[3]);
-      break;
-    default:
-      throw std::runtime_error("Invalid arguments to sandbox operator clear");
-    }
-
-  } else {
-    throw std::runtime_error("Unknown operator \"" +
-                             (std::string)*(arguments[0]) +
+  default:
+    throw std::runtime_error("Unknown operator \"" + op +
                              "\" for sandbox type.");
   }
 

@@ -42,6 +42,7 @@
 #include <regex>
 #include <iostream>
 #include <sstream>
+#include <readline/readline.h>
 
 #include <sys/stat.h>
 
@@ -233,8 +234,8 @@ namespace {
     }
     _command(const _command &other) = delete;
     virtual ~_command() noexcept {
-      /* We don't worry about waitpid results here. We're just trying to prevent
-       * zombie processes.
+      /* We don't worry about waitpid results here. We're just trying to
+       * prevent zombie processes.
        */
       if (_pid != -1) waitpid(_pid, nullptr, 0);
     }
@@ -306,16 +307,16 @@ namespace {
     std::list<_io_specs_t> _io_dirs;
   };
 
-  /******************************************************************************
+  /****************************************************************************
    */
 
-  static const std::regex re_pipe("(([0-9]+|&)>)?\\|");
-  static const std::regex re_redir_out("([0-9]+|&)?>([0-9]+|>)?");
-  static const std::regex re_redir_in("([0-9]+)?<");
+  const std::regex re_pipe("(([0-9]+|&)>)?\\|");
+  const std::regex re_redir_out("([0-9]+|&)?>([0-9]+|>)?");
+  const std::regex re_redir_in("([0-9]+)?<");
 
   // def exec command
-  static cutlet::variable::pointer _eval(cutlet::interpreter &interp,
-                                         const cutlet::list &parameters) {
+  cutlet::variable::pointer _eval(cutlet::interpreter &interp,
+                                  const cutlet::list &parameters) {
     (void)interp;
 
     std::list<_io *> ios;
@@ -459,8 +460,8 @@ namespace {
   }
 
   // def env variable ¿=? ¿value?
-  static cutlet::variable::pointer _environ(cutlet::interpreter &interp,
-                                            const cutlet::list &parameters) {
+  cutlet::variable::pointer _export(cutlet::interpreter &interp,
+                                    const cutlet::list &parameters) {
     (void)interp;
 
     // Make sure we have to right number of parameters.
@@ -468,7 +469,9 @@ namespace {
     if (p_count < 2 or p_count > 3) {
       std::stringstream mesg;
       mesg << "Invalid number of parameters for environ "
-           << (p_count >= 1 ? cutlet::primative<std::string>(parameters[0]) : "")
+           << (p_count >= 1 ?
+               cutlet::primative<std::string>(parameters[0]) :
+               "")
            << " (1 <= " << p_count
            << " <= 3).\n environ variable ¿=? ¿value?";
       throw std::runtime_error(mesg.str());
@@ -499,6 +502,7 @@ namespace {
 
         if (cutlet::primative<std::string>(value) == "nil") {
           unsetenv(cutlet::primative<std::string>(parameters[0]).c_str());
+
         } else {
           setenv(cutlet::primative<std::string>(parameters[0]).c_str(),
                  cutlet::primative<std::string>(value).c_str(), 1);
@@ -509,20 +513,92 @@ namespace {
 
     return nullptr;
   }
+
+  class editbuf : public std::streambuf {
+  public:
+    editbuf();
+    virtual ~editbuf() noexcept;
+
+  protected:
+    virtual int_type underflow();
+
+  private:
+    std::string _linebuf;
+
+    bool oflush();
+  };
+
+  /*********************************
+   * sockets::socketbuf::socketbuf *
+   *********************************/
+
+  editbuf::editbuf() {
+    // Setup the stream buffers.
+    setg(_linebuf.data(), _linebuf.data(), _linebuf.data());
+  }
+
+  editbuf::~editbuf() noexcept {}
+
+  /********************************
+   * sockets::socketbuf::underflow *
+   ********************************/
+
+  editbuf::editbuf::int_type editbuf::editbuf::underflow() {
+    if (gptr() >= egptr()) {
+      // The buffer has been exhausted, read more in from the socket.
+      char *line = readline("$ ");
+
+      if (line == nullptr) {
+        // End of file
+#ifdef DEBUG_NSTREAM
+        std::clog << "sockbuf::underflow eof" << std::endl;
+#endif
+        return traits_type::eof();
+      }
+
+      _linebuf = line;
+      _linebuf += '\n';
+      free(line);
+
+      // Update the buffer.
+      setg(_linebuf.data(), _linebuf.data(),
+           _linebuf.data() + _linebuf.size());
+    }
+
+    return traits_type::to_int_type(*gptr());
+  }
+}
+
+// We need to declare init_cutlet as a C function.
+extern "C" {
+  DECLSPEC void init_cutlet(cutlet::interpreter *interp);
+
+  DECLSPEC std::istream &cmdline_stream();
 }
 
 /***************
  * init_cutlet *
  ***************/
 
-// We need to declare init_cutlet as a C function.
-extern "C" {
-  DECLSPEC void init_cutlet(cutlet::interpreter *interp);
+void init_cutlet(cutlet::interpreter *interp) {
+  interp->add("sh", _eval);
+  interp->add("sh.export", _export,
+              "sh.export variable ¿¿=? value?\n\n"
+              "");
 }
 
-void init_cutlet(cutlet::interpreter *interp) {
-  interp->add("eval", _eval);
-  interp->add("env", _environ,
-              "env variable ¿=? ¿value?\n\n"
-              "");
+/******************
+ * cmdline_stream *
+ ******************/
+
+std::istream &cmdline_stream() {
+  static std::unique_ptr<std::istream> input = nullptr;
+  static std::unique_ptr<std::streambuf> inputbuf = nullptr;
+
+  if (not input) {
+    inputbuf = std::make_unique<editbuf>();
+    input = std::make_unique<std::istream>(inputbuf.get());
+  }
+
+  return *input;
 }

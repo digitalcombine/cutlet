@@ -34,6 +34,7 @@
 
 #include <memory>
 #include <variant>
+#include <map>
 #include <libcutlet/parser>
 
 #if defined (_WIN32) || defined (_WIN64)
@@ -81,9 +82,15 @@ namespace cutlet {
 
   namespace utf8 {
 
-    class iterator : public std::iterator<std::bidirectional_iterator_tag,
-                                          std::string> {
+    class iterator {
     public:
+      using iterator_category = std::bidirectional_iterator_tag;
+      using difference_type = int;
+      using value_type = std::string;
+      using pointer = std::string *;
+      using reference = std::string &;
+
+      iterator(pointer value);
       iterator(const std::string &value);
       iterator(const std::string &value, size_t offset);
       iterator(const iterator &other);
@@ -101,8 +108,10 @@ namespace cutlet {
       iterator operator +(int value) const;
       iterator operator -(int value) const;
 
-      const std::string &operator *() const;
+      reference operator *() { return _current; }
+      pointer operator ->() { return &_current; }
 
+      iterator begin() const;
       iterator end() const;
       size_t position() const;
       size_t length() const;
@@ -159,15 +168,17 @@ namespace cutlet {
     friend class interpreter;
 
   protected:
-    virtual ast::node *node() const;
+    virtual const parser::token *token() const;
   };
 
-  template <class Ty, class... Args>
-  inline std::shared_ptr<Ty> alloc(Args... args) {
+  template <class Ty, class... Args,
+            class = typename std::enable_if<std::is_same<Ty, cutlet::variable>::value>>
+  inline decltype(auto) var(Args&&... args) {
     return std::make_shared<Ty>(std::forward<Args>(args)...);
   }
 
-  template <class Ty>
+  template <class Ty,
+            class = typename std::enable_if<std::is_same<Ty, cutlet::variable>::value>>
   Ty &cast(variable::pointer object) {
     try {
       if (not object)
@@ -180,7 +191,7 @@ namespace cutlet {
   }
 
   template <class Ty>
-  constexpr Ty DECLSPEC primative(variable::pointer object) {
+  inline Ty DECLSPEC primative(variable::pointer object) {
     return static_cast<Ty>(*(object));
   }
 
@@ -503,7 +514,10 @@ namespace cutlet {
 
     ast::node::pointer operator()(variable::pointer code);
     ast::node::pointer operator()(const std::string &code);
-    ast::node::pointer operator()(std::istream &in);
+    ast::node::pointer operator()(const parser::token &code);
+    ast::node::pointer operator()(std::istream &in,
+                                  const std::string &source,
+                                  bool interactive = false);
 
     ast::node::pointer compile_file(const std::string &filename);
 
@@ -513,6 +527,11 @@ namespace cutlet {
     variable::pointer call(const std::string &procedure,
                            const cutlet::list &arguments) {
       return _global->call(*this, procedure, arguments);
+    }
+
+    template <typename ty>
+      ty symbol(const std::string &name) {
+      return reinterpret_cast<ty>(_global->symbol(name));
     }
 
     cutlet::frame::pointer frame(unsigned int levels = 0) const;
@@ -532,6 +551,7 @@ namespace cutlet {
 
     variable::pointer pop();
     variable::pointer pop(variable::pointer result);
+    void pop(frame::pointer frm);
 
     void finish(variable::pointer result = nullptr) {
       _frame->done(result);
@@ -545,6 +565,8 @@ namespace cutlet {
     void load(const std::string &library_name) {
       _global->load(*this, library_name);
     }
+
+    void import(const std::string &library_name);
 
     friend class component;
 
@@ -563,6 +585,8 @@ namespace cutlet {
     frame::pointer _frame;
 
     ast::node::pointer _compiled;
+
+    bool _interactive = false;
 
     static unsigned int _interpreters;
   };

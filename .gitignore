@@ -49,8 +49,9 @@ Makefile.in
 .deps/
 tests/*.log
 tests/*.trs
-tests/memory-tests
+tests/api-tests
 tests/debugger-tests
+tests/memory-tests
 tests/core.cutlet
 cutlet-*.tar.gz
 /docs/

@@ -79,7 +79,7 @@ namespace cutlet {
       virtual const parser::token &token() const;
 
     private:
-      parser::token _token;
+      const parser::token _token;
     };
 
     class variable : public node {
@@ -101,7 +101,7 @@ namespace cutlet {
       virtual const parser::token &token() const;
 
     private:
-      parser::token _token;
+      const parser::token _token;
     };
 
     class command : public node {
@@ -179,7 +179,7 @@ namespace cutlet {
       virtual const parser::token &token() const;
 
     private:
-      parser::token _token;
+      const parser::token _token;
     };
   }
 }

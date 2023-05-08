@@ -45,80 +45,54 @@
 #include <cutlet>
 #include <unistd.h>
 #include <cstdlib>
+#include <iostream>
+#include <libcutlet/utilities>
 
 namespace {
 
   /****************************************************************************
-   *  To make our lives easier we uses recursive decent parser like methods to
-   * help us parse the function arguments.
+   * Helper utitilies
    */
 
-  bool is_more(cutlet::list::const_iterator &it,
-               const cutlet::list &list) {
-    return (it != list.end());
-  }
-
-  void next(cutlet::list::const_iterator &it,
-            const cutlet::list &list) {
-    ++it;
-    if (it == list.end())
-      throw std::runtime_error("Expected more arguments.");
-  }
-
-  bool expect(cutlet::list::const_iterator &it,
-              const std::string &value) {
-    if (cutlet::primative<std::string>(*it) == value) return true;
-    return false;
-  }
-
-  void permit(cutlet::list::const_iterator &it,
-              const std::string &value) {
-    if (cutlet::primative<std::string>(*it) != value)
-      throw std::runtime_error(std::string("Expected ") + value +
-                               " but got " +  cutlet::primative<std::string>(*it)
-                               + " instead.");
-  }
+  /*************
+   * eval_body *
+   *************/
 
   cutlet::frame::state_t eval_body(cutlet::interpreter &interp,
                                    cutlet::variable::pointer body,
                                    const std::string &label) {
-    cutlet::frame::state_t result;
-    cutlet::ast::node::pointer compiled;
-
     interp.push(1, label);
-    try {
-      compiled = interp(body);
-    } catch(...) {
-      result = interp.state();
-      interp.pop();
-      throw;
-    }
-    result = interp.state();
+
+    interp(body);
+    auto result = interp.state();
     interp.pop();
 
     return result;
   }
+
+  /*************
+   * loop_body *
+   *************/
 
   static
   cutlet::ast::node::pointer loop_body(cutlet::interpreter &interp,
                                        cutlet::variable::pointer body,
                                        const std::string &label,
                                        cutlet::ast::node::pointer compiled) {
-
     interp.push(std::make_shared<cutlet::loop_frame>(label, interp.frame(1)));
-    try {
-      if (not compiled)
-        compiled = interp(body);
-      else
-        (*compiled)(interp);
-    } catch(...) {
-      interp.pop();
-      throw;
-    }
+
+    if (not compiled)
+      compiled = interp(body);
+    else
+      (*compiled)(interp);
     interp.pop();
 
     return compiled;
   }
+
+  /******************
+   * expr_condition *
+   ******************/
 
   bool expr_condition(cutlet::interpreter &interp,
                       cutlet::variable::pointer cond) {
@@ -141,7 +115,7 @@ namespace {
   _false(cutlet::interpreter &interp, const cutlet::list &arguments) {
     (void)interp;
     (void)arguments;
-    return std::make_shared<cutlet::boolean>(false);
+    return cutlet::var<cutlet::boolean>(false);
   }
 
   /************
@@ -152,7 +126,7 @@ namespace {
   _true(cutlet::interpreter &interp, const cutlet::list &arguments) {
     (void)interp;
     (void)arguments;
-    return std::make_shared<cutlet::boolean>(true);
+    return cutlet::var<cutlet::boolean>(true);
   }
 
   /******************
@@ -186,18 +160,18 @@ namespace {
 
   cutlet::variable::pointer
   _if(cutlet::interpreter &interp, const cutlet::list &arguments) {
-    cutlet::list::const_iterator it = arguments.begin();
     cutlet::variable::pointer cond;
     cutlet::variable::pointer body;
 
+    cutlet::arg_tokens args(arguments);
+
     // Get the initial condition ¿then? body part of the if statement.
-    cond = *it;
-    next(it, arguments);
-    if (expect(it, "then")) {
-      next(it, arguments);
-      body = *it;
+    cond = args.get();
+    args.next();
+    if (args.expect("then")) {
+      body = args.next();
     } else {
-      body = *it;
+      body = args.get();
     }
 
     // If the condition is true then eval the body and return.
@@ -206,18 +180,16 @@ namespace {
       return nullptr;
     }
 
-    ++it;
-    while (is_more(it, arguments)) {
-      if (expect(it, "elif")) {
-        next(it, arguments);
-        cond = *it;
+    ++args;
+    while (args.is_more()) {
+      if (args.expect("elif")) {
+        cond = args.next();
 
-        next(it, arguments);
-        if (expect(it, "then")) {
-          next(it, arguments);
-          body = *it;
+        args.next();
+        if (args.expect("then")) {
+          body = args.next();
         } else {
-          body = *it;
+          body = args.get();
         }
 
         if (expr_condition(interp, cond)) {
@@ -226,9 +198,9 @@ namespace {
         }
 
       } else {
-        permit(it, "else");
-        next(it, arguments);
-        eval_body(interp, *it, "else");
+        args.permit("else");
+        body = args.next();
+        eval_body(interp, body, "else");
         return nullptr;
       }
     }
@@ -242,17 +214,16 @@ namespace {
 
   cutlet::variable::pointer
   _while(cutlet::interpreter &interp, const cutlet::list &arguments) {
-    cutlet::list::const_iterator it = arguments.begin();
+    cutlet::arg_tokens args(arguments, "while condition ¿do? body");
     cutlet::variable::pointer cond, body;
 
     // Get the initial condition ¿then? body part of the if statement.
-    cond = *it;
-    next(it, arguments);
-    if (expect(it, "do")) {
-      next(it, arguments);
-      body = *it;
+    cond = args.get();
+    args.next();
+    if (args.expect("do")) {
+      body = args.next();
     } else {
-      body = *it;
+      body = args.get();
     }
 
     // If the condition is true then eval the body and return.
@@ -306,7 +277,7 @@ namespace {
 
   cutlet::variable::pointer
   _raise(cutlet::interpreter &interp, const cutlet::list &arguments) {
-    // We remove our frame from the stack.
+    // We remove our frame (for _raise) from the stack.
     interp.pop();
 
     // Throw the error.
@@ -319,40 +290,39 @@ namespace {
 
   cutlet::variable::pointer
   _try(cutlet::interpreter &interp, const cutlet::list &arguments) {
-    auto it = arguments.begin();
+    cutlet::arg_tokens args(arguments, "try body ¿catch varname err_body?");
 
     auto cur_frame = interp.frame();
 
     interp.push(1, "try body");
     try {
       // Eval the body.
-      interp(*it);
+      interp(args.get());
 
     } catch (std::exception &err) {
       // An exception was caught, so eval the err_body.
-      ++it;
-      if (is_more(it, arguments)) {
-        permit(it, "catch");
+      ++args;
+      if (args.is_more()) {
+        args.permit("catch");
 
         // Set the local variable with the error in it.
-        next(it, arguments);
+        auto local = args.next();
 
         // Clean up the stack
-        while (interp.frame() != cur_frame) interp.pop();
+        interp.pop(cur_frame);
 
         interp.push(1, "catch body");
-        interp.local(*(*it), std::make_shared<cutlet::string>(err.what()));
+        interp.local(*local, cutlet::var<cutlet::string>(err.what()));
 
         // Eval the catch block
-        next(it, arguments);
-        interp(*it);
+        interp(args.next());
 
         interp.pop();
       }
     }
 
     // Clean up the stack
-    while (interp.frame() != cur_frame) interp.pop();
+    interp.pop(cur_frame);
 
     return nullptr;
   }
@@ -370,7 +340,7 @@ namespace {
 
     return nullptr;
   }
-}
+} // namespace
 
 /***************
  * init_cutlet *

@@ -1,10 +1,10 @@
 #                                                           -*- Makefile.am -*-
 
-check_PROGRAMS = debugger-tests
+check_PROGRAMS = debugger-tests api-tests
 
 TESTS = core.cutlet hello.cutlet booleans.cutlet strings.cutlet \
 	lists.cutlet stdlib.cutlet unknown.cutlet bad_method.cutlet sandbox.cutlet \
-	oo.cutlet threading.cutlet debugger-tests
+	oo.cutlet threading.cutlet debugger-tests api-tests
 XFAIL_TESTS = bad_method.cutlet
 TEST_EXTENSIONS = .cutlet
 CUTLET_LOG_COMPILER = ../bin/cutlet
@@ -21,3 +21,8 @@ debugger_tests_SOURCES = debugger-tests.cpp
 debugger_tests_CPPFLAGS = -I$(top_srcdir)/include
 debugger_tests_LDADD = ../src/libcutlet.la
 debugger_tests_LDFLAGS = -rdynamic
+
+api_tests_SOURCES = api-tests.cpp
+api_tests_CPPFLAGS = -I$(top_srcdir)/include
+api_tests_LDADD = ../src/libcutlet.la libtesting.a
+api_tests_LDFLAGS = -rdynamic

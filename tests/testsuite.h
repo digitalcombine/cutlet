@@ -165,7 +165,7 @@ namespace test {
   private:
     std::string _title;
     std::list<Test *> tests;
-	};
+  };
 }
 
 template <class Ty>

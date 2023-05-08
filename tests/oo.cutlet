@@ -139,34 +139,3 @@ testsuite "Object Oriented API" {
     }
   }
 }
-
-return $test_result
-
-#$myobject change_name_to "John Smith"
-
-#if {[test_class get_catalog] <> "none"} then {
-#  print "[test_class get_catalog] <> none"
-#  return 1
-#}
-
-#test_class set_catalog people
-#if {[test_class get_catalog] <> "people"} then {
-#  print "[test_class get_catalog] <> people"
-#  return 1
-#}
-
-#if {[test_class_2 get_xcat] <> "x people"} then {
-#  print "[test_class_2 get_xcat] <> x people"
-#  return 1
-#}
-
-#test_class_2 set_cat animals
-#if {[test_class get_catalog] <> "animals"} then {
-#  print "[test_class get_catalog] <> animals"
-#  return 1
-#}
-
-#if {[$myobject whoami] <> "test_class:test_class_2"} then {
-#  print "[$myobject whoami] <> test_class:test_class_2"
-#  return 1
-#}

@@ -85,10 +85,9 @@ namespace parser {
     std::streamoff _offset = 0;
 
   public:
-    token(unsigned int id, const std::string &value);
-    token(unsigned int id, const std::string &value, std::streampos position);
-    token(unsigned int id, const std::string &value, std::streampos position,
-          std::streamoff offset);
+    token(unsigned int id, const std::string &value,
+          std::streampos position = 0,
+          std::streamoff offset = 0);
   };
 
   class syntax_error : public std::exception {
@@ -155,6 +154,8 @@ namespace parser {
 
     std::streampos position = 0;
 
+    bool need_more = false;
+
     void add_token_pattern(unsigned int token_id, const std::string &pattern);
     void clear_token_patterns();
 
@@ -164,6 +165,7 @@ namespace parser {
     void add_token(unsigned int id, const std::string &value,
                    std::streampos position, std::streamoff offset);
 
+    virtual bool is_more_code();
     virtual void parse_tokens();
 
   private:

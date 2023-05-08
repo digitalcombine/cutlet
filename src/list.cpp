@@ -30,8 +30,11 @@
 
 #include <cutlet>
 #include <algorithm>
+#include <random>
 
 namespace {
+
+  std::random_device _rd;
 
   /***********
    * _d_less *
@@ -351,8 +354,11 @@ namespace {
   _shuffle(std::deque<cutlet::variable::pointer> &self,
            cutlet::interpreter &interp,
            const cutlet::list &arguments) {
+    (void)interp;
+
     if (arguments.size() == 1) {
-      std::random_shuffle(self.begin(), self.end());
+      std::mt19937 g(_rd());
+      std::shuffle(self.begin(), self.end(), g);
       return nullptr;
 
     }
@@ -393,6 +399,8 @@ namespace {
   _unique(std::deque<cutlet::variable::pointer> &self,
           cutlet::interpreter &interp,
           const cutlet::list &arguments) {
+    (void)interp;
+
     if (arguments.size() == 1) {
       std::sort(self.begin(), self.end(), _d_less);
       auto it = std::unique(self.begin(), self.end(), _d_equal);

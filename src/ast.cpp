@@ -31,7 +31,7 @@
 #include "ast.h"
 #include <sstream>
 
-// #define DEBUG_AST 1
+//#define DEBUG_AST 1
 
 #if defined(DEBUG_AST)
 #pragma message ("AST debugging enabled")
@@ -40,7 +40,7 @@
 
 namespace {
   template <typename Ty>
-  constexpr bool is_type(cutlet::ast::node::pointer ast_object) {
+  constexpr bool is_type(cutlet::ast::node::pointer &ast_object) {
     return ((dynamic_cast<Ty *>(&(*ast_object))) != nullptr);
   }
 
@@ -49,16 +49,16 @@ namespace {
   class value : public cutlet::string {
   public:
     value(cutlet::ast::node &node)
-      : cutlet::string(node.body()), _node(&node) {}
+      : cutlet::string(node.body()), _token(node.token()) { }
     virtual ~value() noexcept;
 
   protected:
-    virtual operator cutlet::ast::node *() const {
-      return _node;
+    virtual const parser::token *token() const {
+      return &_token;
     }
 
   private:
-    cutlet::ast::node *_node;
+    parser::token _token;
   };
 } // namespace
 
@@ -125,14 +125,16 @@ cutlet::ast::block::~block() noexcept {}
  * cutlet::ast::block::add *
  ***************************/
 
-void cutlet::ast::block::add(cutlet::ast::node::pointer n) {
+void cutlet::ast::block::add(cutlet::ast::node::pointer node) {
 #if defined(DEBUG_AST)
-  if (not n) {
+  if (not node) {
     std::clog << "ast::block attempting to add null ast node to block"
               << std::endl;
   }
 #endif
-  if (n) _nodes.push_back(n);
+  if (node) {
+    _nodes.push_back(node);
+  }
 }
 
 /***********************************
@@ -141,20 +143,25 @@ void cutlet::ast::block::add(cutlet::ast::node::pointer n) {
 
 cutlet::variable::pointer
 cutlet::ast::block::operator()(cutlet::interpreter &interp) {
-  cutlet::frame &frame = *interp.frame();
+  bool empty = _nodes.empty();
 
-  for (auto &node: _nodes) {
+  if (!empty) {
+    cutlet::frame &frame = *interp.frame();
+
+    for (auto &node: _nodes) {
 #if defined(DEBUG_AST)
-    if (not node) {
-      std::clog << "ast::block attempting to execute null ast node"
-                << std::endl;
-      continue;
-    }
+      if (not node) {
+        std::clog << "ast::block attempting to execute null ast node"
+                  << std::endl;
+        continue;
+      }
 #endif
 
-    (*node)(interp);
-    if (frame.state() != frame::FS_RUNNING) break;
+      if (node) (*node)(interp);
+      if (frame.state() != frame::FS_RUNNING) break;
+    }
   }
+
   return nullptr;
 }
 
@@ -227,11 +234,12 @@ cutlet::ast::value::operator()(cutlet::interpreter &interp) {
   break_point(interp);
 
 #if defined(DEBUG_AST)
-  std::clog << "AST:" << position() << ": word " << (std::string)_token
+  std::clog << "AST:" << position() << "<" << file() << ">"
+            << ": word " << (std::string)_token
             << std::endl;
 #endif
 
-  return std::make_shared<::value>(*this);
+  return cutlet::var<::value>(*this);
 }
 
 /**************************
@@ -302,8 +310,11 @@ cutlet::ast::variable::operator()(cutlet::interpreter &interp) {
 
   try {
 #if defined(DEBUG_AST)
-    std::clog << "AST:" << position() << ": resolving variable $"
-              << (std::string)_token << std::endl;
+    std::clog << "AST:" << position() << "<" << file() << ">"
+              << ": resolving variable $"
+              << (std::string)_token
+              << " = " << (std::string)*interp.var((const std::string &)_token)
+              << std::endl;
 #endif
     return interp.var((const std::string &)_token);
   } catch (const cutlet::exception &err) {
@@ -387,8 +398,9 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
   cutlet::variable::pointer cmd = (*_function)(interp);
 
   cutlet::list c_params;
-  for (auto &parameter: _parameters)
+  for (auto &parameter: _parameters) {
     c_params.push_back((*parameter)(interp));
+  }
 
   break_point(interp);
 
@@ -397,7 +409,7 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
       // Execute the variable.
 #if defined(DEBUG_AST)
       std::clog << "AST: operator $" << body() << " -> "
-                << (std::string)*cmd << std::endl;
+                << (std::string)*c_params[0] << std::endl;
 #endif
       if (c_params.size())
         return (*cmd)(cmd, interp, c_params);
@@ -406,7 +418,8 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
 
     } else if (is_type<ast::command>(_function)) {
 #if defined(DEBUG_AST)
-      std::clog << "AST: command [" << (std::string)*cmd << "]"
+      std::clog << "AST:" << position() << "<" << file()
+                << ">: command [" << (std::string)*cmd << "]"
                 << std::endl;
 #endif
       if (c_params.size())
@@ -426,7 +439,8 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
     } else {
       // Execute the function.
 #if defined(DEBUG_AST)
-      std::clog << "AST:" << position() << ": command " << (std::string)*cmd
+      std::clog << "AST:" << position() << "<" << file()
+                << ">: command " << (std::string)*cmd
                 << std::endl;
 #endif
       return interp.call((std::string)(*cmd), c_params);
@@ -538,10 +552,11 @@ cutlet::ast::string::operator()(cutlet::interpreter &interp) {
   }
 
 #if defined(DEBUG_AST)
-  std::clog << "AST:" << position() << ": \"" << result << "\"" << std::endl;
+  std::clog << "AST:" << position() << "<" << file() << ">"
+            << ": \"" << result << "\"" << std::endl;
 #endif
 
-  return std::make_shared<cutlet::string>(result);
+  return cutlet::var<cutlet::string>(result);
 }
 
 /***************************
@@ -610,7 +625,8 @@ cutlet::ast::comment::operator()(cutlet::interpreter &interp) {
   break_point(interp);
 
 #if defined(DEBUG_AST)
-  std::clog << "AST:" << position() << ": # " << (std::string)_token
+  std::clog << "AST:" << position() << "<" << file() << ">"
+            << ": # " << (std::string)_token
             << std::endl;
 #endif
 
