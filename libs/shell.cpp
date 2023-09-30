@@ -42,7 +42,6 @@
 #include <regex>
 #include <iostream>
 #include <sstream>
-#include <readline/readline.h>
 
 #include <sys/stat.h>
 
@@ -516,70 +515,11 @@ namespace {
 
     return nullptr;
   }
-
-  /****************************************************************************
-   */
-
-  class editbuf : public std::streambuf {
-  public:
-    editbuf();
-    virtual ~editbuf() noexcept;
-
-  protected:
-    virtual int_type underflow();
-
-  private:
-    std::string _linebuf;
-
-    bool oflush();
-  };
-
-  /*********************************
-   * sockets::socketbuf::socketbuf *
-   *********************************/
-
-  editbuf::editbuf() {
-    // Setup the stream buffers.
-    setg(_linebuf.data(), _linebuf.data(), _linebuf.data());
-  }
-
-  editbuf::~editbuf() noexcept {}
-
-  /********************************
-   * sockets::socketbuf::underflow *
-   ********************************/
-
-  editbuf::editbuf::int_type editbuf::editbuf::underflow() {
-    if (gptr() >= egptr()) {
-      // The buffer has been exhausted, read more in from the socket.
-      char *line = readline("$ ");
-
-      if (line == nullptr) {
-        // End of file
-#ifdef DEBUG_NSTREAM
-        std::clog << "sockbuf::underflow eof" << std::endl;
-#endif
-        return traits_type::eof();
-      }
-
-      _linebuf = line;
-      _linebuf += '\n';
-      free(line);
-
-      // Update the buffer.
-      setg(_linebuf.data(), _linebuf.data(),
-           _linebuf.data() + _linebuf.size());
-    }
-
-    return traits_type::to_int_type(*gptr());
-  }
 }
 
 // We need to declare init_cutlet as a C function.
 extern "C" {
   DECLSPEC void init_cutlet(cutlet::interpreter *interp);
-
-  DECLSPEC std::istream &cmdline_stream();
 }
 
 /***************
@@ -591,20 +531,4 @@ void init_cutlet(cutlet::interpreter *interp) {
   interp->add("sh.export", _export,
               "sh.export variable ¿¿=? value?\n\n"
               "");
-}
-
-/******************
- * cmdline_stream *
- ******************/
-
-std::istream &cmdline_stream() {
-  static std::unique_ptr<std::istream> input = nullptr;
-  static std::unique_ptr<std::streambuf> inputbuf = nullptr;
-
-  if (not input) {
-    inputbuf = std::make_unique<editbuf>();
-    input = std::make_unique<std::istream>(inputbuf.get());
-  }
-
-  return *input;
 }
