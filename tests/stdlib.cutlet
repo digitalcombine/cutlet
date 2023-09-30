@@ -40,7 +40,7 @@ testsuite "Standard Library" {
 
   def _throw_exception {} {
     if {[true]} then {
-      raise "I threw an error"
+      raise "I threw an error from a function"
     }
   }
 

@@ -48,7 +48,7 @@ testsuite "Boolean Type" {
 
     try {
       $True type is a boolean
-      fail "\[true type is a boolean\] didn't through an exception"
+      fail "\[true type is a boolean\] didn't throw an exception"
     } catch err {
       print " info: $err"
     }

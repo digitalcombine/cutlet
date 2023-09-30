@@ -31,7 +31,7 @@
 #include <libcutlet/parser>
 #include <iostream>
 
-// #define DEBUG_PARSER 1
+//#define DEBUG_PARSER 1
 
 #if defined(DEBUG_PARSER)
 #pragma message("PARSER debugging enabled")
@@ -41,8 +41,8 @@
  */
 
 std::ostream &operator <<(std::ostream &os, const parser::token &token) {
-  os << token.position() << ": " << (unsigned int)token
-     << " " << (const std::string &)token;
+  os << token.position() << ": " << static_cast<unsigned int>(token)
+     << " " << static_cast<const std::string &>(token);
   return os;
 }
 
@@ -62,44 +62,12 @@ std::ostream &operator <<(std::ostream &os,
  * parser::token::token *
  ************************/
 
-parser::token::token(unsigned int id, const std::string &value)
-  : _id(id), _value(value) {
-#if defined(DEBUG_PARSER)
-  if (_id != 7) {
-    std::clog << "TOKEN:";
-    switch (_id) {
-    case 0: std::clog << "EOF"; break;
-    case 1: std::clog << "WORD"; break;
-    case 2: std::clog << "VAR"; break;
-    case 3: std::clog << "STRING"; break;
-    case 4: std::clog << "SUBCMD"; break;
-    case 5: std::clog << "BLOCK"; break;
-    case 6: std::clog << "COMMENT"; break;
-    case 7: std::clog << "EOL"; break;
-    }
-    std::clog << ":" << _position << ":" << _offset
-              << ": " <<_value << std::endl;
-  }
-#endif
-}
-
 parser::token::token(const token &other)
   : _id(other._id), _value(other._value), _file(other._file),
     _position(other._position), _offset(other._offset) {
 #if defined(DEBUG_PARSER)
   /*if (_id != 7) {
-    std::clog << "COPY:" << _id << ":" << _position << ":" << _offset
-              << ": " << _value << std::endl;
-              }*/
-#endif
-}
-
-parser::token::token(unsigned int id, const std::string &value,
-                     std::streampos position)
-  : _id(id), _value(value), _position(position) {
-#if defined(DEBUG_PARSER)
-  if (_id != 7) {
-    std::clog << "TOKEN:";
+    std::clog << "TOKEN COPY:";
     switch (_id) {
     case 0: std::clog << "EOF"; break;
     case 1: std::clog << "WORD"; break;
@@ -111,8 +79,8 @@ parser::token::token(unsigned int id, const std::string &value,
     case 7: std::clog << "EOL"; break;
     }
     std::clog << ":" << _position << ":" << _offset
-              << ": " <<_value << std::endl;
-  }
+              << ": " << _value << std::endl;
+              }*/
 #endif
 }
 
@@ -133,7 +101,7 @@ parser::token::token(unsigned int id, const std::string &value,
     case 7: std::clog << "EOL"; break;
     }
     std::clog << ":" << _position << ":" << _offset
-              << ": " <<_value << std::endl;
+              << ": " << _value << std::endl;
   }
 #endif
 }
@@ -152,6 +120,7 @@ parser::token &parser::token::operator =(const token &other) {
   if (this != &other) {
     _id = other._id;
     _value = other._value;
+    _file = other._file;
     _position = other._position;
     _offset = other._offset;
   }
@@ -316,7 +285,7 @@ void parser::tokenizer::permit(unsigned int id) {
     return;
   }
   throw syntax_error("Got unexpected value of " +
-                     (const std::string &)tokens.front(),
+                     static_cast<const std::string &>(tokens.front()),
                      tokens.front());
 }
 
@@ -326,9 +295,39 @@ void parser::tokenizer::permit(unsigned int id, const std::string &value) {
     return;
   }
   throw syntax_error("Got unexpected value of " +
-                     (const std::string &)tokens.front(),
+                     static_cast<const std::string &>(tokens.front()),
                      tokens.front());
 }
+
+/***********************************
+ * parser::tokenizer::is_more_code *
+ ***********************************/
+
+bool parser::tokenizer::is_more_code() {
+  if (stream and *stream and not stream->eof()) {
+
+    /*  Attempt to read a line and set the EOF token if the stream is
+     * exhausted.
+     */
+    if (code.empty()) position = stream->tellg();
+    std::string line;
+
+    if (not getline(*stream, line)) {
+      code + '\0';
+      stream = nullptr;
+
+    } else {
+      code += line + '\n';
+
+    }
+    return true;
+  } else if (not code.empty()) {
+    return true;
+  }
+
+  return false;
+}
+
 
 /******************************
  * parser::tokenizer::is_more *
@@ -357,7 +356,7 @@ void parser::tokenizer::next() {
 void parser::tokenizer::reset() noexcept {
   tokens.clear();
   code.clear();
-  stream = NULL;
+  stream = nullptr;
 }
 
 /***************************
@@ -365,26 +364,27 @@ void parser::tokenizer::reset() noexcept {
  ***************************/
 
 void parser::tokenizer::push() {
-#if defined(DEBUG_PARSER)
-  std::clog << "TOKENIZER: pushing empty" << std::endl;
-#endif
   auto token = get_token();
+#if defined(DEBUG_PARSER)
+  std::clog << "TOKENIZER: pushing last token: " << token << std::endl;
+#endif
   _states.push({tokens, code, file, stream, position});
   reset();
   position = token._position + token._offset;
   code = token._value;
+  file = token._file;
   parse_tokens();
 }
 
 void parser::tokenizer::push(token value) {
 #if defined(DEBUG_PARSER)
-  std::clog << "TOKENIZER: pushing token" << std::endl;
+  std::clog << "TOKENIZER: pushing token: " << value << std::endl;
 #endif
   _states.push({tokens, code, file, stream, position});
   reset();
   position = value._position + value._offset;
   code = value._value;
-  file = value._file; // XXX
+  file = value._file;
   parse_tokens();
 }
 
@@ -402,7 +402,7 @@ void parser::tokenizer::push(const std::string &value) {
 
 void parser::tokenizer::push(std::istream &value, const std::string &source) {
 #if defined(DEBUG_PARSER)
-  std::clog << "TOKENIZER: pushing stream" << std::endl;
+  std::clog << "TOKENIZER: pushing stream " << source << std::endl;
 #endif
   _states.push({tokens, code, file, stream, position});
   reset();
@@ -424,9 +424,13 @@ void parser::tokenizer::pop() {
   auto &top = _states.top();
   tokens = top.tokens;
   code = top.code;
+  file = top.file;
   stream = top.stream;
   position = top.position;
   _states.pop();
+#if defined(DEBUG_PARSER)
+  std::clog << "           " << code << std::endl;
+#endif
 }
 
 /****************************************
@@ -498,26 +502,15 @@ void parser::tokenizer::parse_next_token() {
  ***********************************/
 
 void parser::tokenizer::parse_tokens() {
-  // If we don't have any code then see if we can get more from the stream.
-  if (code.empty()) {
-    if (stream) {
-      position = stream->tellg();
-      if (not getline(*stream, code, '\0')) {
-        add_token(T_EOF, "", position);
-        stream = NULL;
-        return;
+  if (is_more_code()) {
+    do {
+      if ((need_more and is_more_code()) or not code.empty()) {
+        parse_next_token();
       }
-    } else {
-      return;
-    }
-  }
-
-  // If we have some code then tokenize it.
-  if (not code.empty()) {
-    while (not code.empty())
-      parse_next_token();
-    if (not stream)
-      add_token(T_EOF, "", position);
+ } while (need_more or not code.empty());
+  } else if (code.empty()) {
+    // Add EOF token
+    add_token(T_EOF, "", position);
   }
 }
 

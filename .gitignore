@@ -49,6 +49,7 @@ Makefile.in
 .deps/
 tests/*.log
 tests/*.trs
+tests/api-tests
 tests/memory-tests
 tests/debugger-tests
 tests/core.cutlet

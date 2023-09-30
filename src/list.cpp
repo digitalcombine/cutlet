@@ -30,8 +30,11 @@
 
 #include <cutlet>
 #include <algorithm>
+#include <random>
 
 namespace {
+
+  std::random_device _rd;
 
   /***********
    * _d_less *
@@ -41,7 +44,8 @@ namespace {
                const cutlet::variable::pointer v2) {
     // Compares if string v1 is less than string v2
 
-    return ((std::string)(*v1) < (std::string)(*v2));
+    return (static_cast<std::string>(*v1) <
+            static_cast<std::string>(*v2));
   }
 
   /***********
@@ -61,8 +65,9 @@ namespace {
       // Call the cutlet function.
 
       const cutlet::list parms({v1, v2});
-      return cutlet::primative<bool>(_interp.call((std::string)(*_function),
-                                                parms));
+      return cutlet::primative<bool>(
+               _interp.call(static_cast<std::string>(*_function),
+                            parms));
     }
 
   private:
@@ -78,7 +83,8 @@ namespace {
                 const cutlet::variable::pointer v2) {
     // Compares if string v1 is equal than string v2
 
-    return ((std::string)(*v1) == (std::string)(*v2));
+    return (static_cast<std::string>(*v1) ==
+            static_cast<std::string>(*v2));
   }
 
   /***********
@@ -199,35 +205,35 @@ namespace {
 
     // Negative indexes start from the back and index towards the front.
     if (index < 0) {
-      index = self.size() + index;
+      index = static_cast<int>(self.size()) + index;
     } else if (index > 0) {
       index--;
     } else {
       throw std::runtime_error("List index out of range " +
-                               (std::string)*(arguments[1]));
+                               static_cast<std::string>(*(arguments[1])));
     }
 
     // Make sure the index is in range.
-    if (index < 0 or index >= (long long)self.size()) {
+    if (index < 0 or index >= static_cast<long>(self.size())) {
       // XXX Should specify the size of the list in error message.
       throw std::runtime_error("List index out of range " +
-                               (std::string)*(arguments[1]));
+                               static_cast<std::string>(*(arguments[1])));
     }
 
     if (arguments.size() == 3) {
       // $list index value
-      self.at(index) = arguments[2];
+      self.at(static_cast<size_t>(index)) = arguments[2];
 
     } else if (arguments.size() == 4) {
       // $list index = value
       if (*(arguments[2]) != "=")
         throw std::runtime_error("Unexpected character " +
-                                 (std::string)*(arguments[2]) +
+                                 static_cast<std::string>(*(arguments[2])) +
                                  ", expected =");
-      self.at(index) = arguments[3];
+      self.at(static_cast<size_t>(index)) = arguments[3];
     }
 
-    return self.at(index);
+    return self.at(static_cast<size_t>(index));
   }
 
   /*********
@@ -351,8 +357,11 @@ namespace {
   _shuffle(std::deque<cutlet::variable::pointer> &self,
            cutlet::interpreter &interp,
            const cutlet::list &arguments) {
+    (void)interp;
+
     if (arguments.size() == 1) {
-      std::random_shuffle(self.begin(), self.end());
+      std::mt19937 g(_rd());
+      std::shuffle(self.begin(), self.end(), g);
       return nullptr;
 
     }
@@ -393,6 +402,8 @@ namespace {
   _unique(std::deque<cutlet::variable::pointer> &self,
           cutlet::interpreter &interp,
           const cutlet::list &arguments) {
+    (void)interp;
+
     if (arguments.size() == 1) {
       std::sort(self.begin(), self.end(), _d_less);
       auto it = std::unique(self.begin(), self.end(), _d_equal);
@@ -439,7 +450,7 @@ std::string cutlet::list::join(const std::string &delim) const {
     if (not first) result += delim;
     else first = false;
 
-    if (val) result += (std::string)(*val);
+    if (val) result += static_cast<std::string>(*val);
   }
 
   return result;
@@ -581,7 +592,7 @@ cutlet::list::operator std::string() const {
   for (auto &val: *this) {
     if (not first) result += " ";
     else first = false;
-    result += (std::string)(*val);
+    result += static_cast<std::string>(*val);
   }
 
   result += "}";

@@ -39,14 +39,14 @@ namespace {
   class _frame_var : public cutlet::variable {
   public:
     _frame_var(cutlet::frame::pointer frame);
-    virtual ~_frame_var() noexcept;
+    virtual ~_frame_var() noexcept override;
 
     virtual cutlet::variable::pointer
     operator ()(cutlet::variable::pointer self,
                 cutlet::interpreter &interp,
-                const cutlet::list &arguments);
+                const cutlet::list &arguments) override;
 
-    virtual operator std::string() const;
+    virtual operator std::string() const override;
 
   private:
     cutlet::frame::pointer _frame;
@@ -107,10 +107,12 @@ namespace {
 
   static cutlet::variable::pointer _stack(cutlet::interpreter &interp,
                                           const cutlet::list &arguments) {
+    (void)arguments;
+
     auto frms = std::make_shared<cutlet::list>();
 
-    int count = interp.frames();
-    for (int c = 1; c < count; c++) {
+    unsigned int count = static_cast<unsigned int>(interp.frames());
+    for (unsigned int c = 1; c < count; c++) {
       frms->push_back(std::make_shared<_frame_var>(interp.frame(c)));
     }
 

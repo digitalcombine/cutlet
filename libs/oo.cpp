@@ -43,10 +43,11 @@ namespace {
                 cutlet::variable::pointer body);
     _def_method(const _def_method &other) = delete;
 
-    virtual ~_def_method() noexcept;
+    virtual ~_def_method() noexcept override;
 
     virtual cutlet::variable::pointer
-    operator ()(cutlet::interpreter &interp, const cutlet::list &args);
+    operator ()(cutlet::interpreter &interp,
+                const cutlet::list &args) override;
 
   private:
     cutlet::variable::pointer _arguments;
@@ -59,11 +60,11 @@ namespace {
   class _def_method_func : public cutlet::component {
   public:
     _def_method_func(cutlet::function_t func) : _function_ptr(func) {}
-    virtual ~_def_method_func() noexcept;
+    virtual ~_def_method_func() noexcept override;
 
     virtual cutlet::variable::pointer
     operator ()(cutlet::interpreter &interp,
-                const cutlet::list &arguments) {
+                const cutlet::list &arguments) override {
       return _function_ptr(interp, arguments);
     }
 
@@ -77,13 +78,13 @@ namespace {
     _var_object(cutlet::component::pointer cls);
     _var_object(const _var_object &other) = delete;
 
-    virtual ~_var_object() noexcept;
+    virtual ~_var_object() noexcept override;
 
     _def_class &type();
 
     virtual cutlet::variable::pointer
     operator()(cutlet::variable::pointer self, cutlet::interpreter &interp,
-               const cutlet::list &arguments);
+               const cutlet::list &arguments) override;
 
     virtual cutlet::variable::pointer
     operator()(cutlet::component &cls, cutlet::variable::pointer self,
@@ -94,7 +95,7 @@ namespace {
     cutlet::variable::pointer property(const std::string &name) const;
     void property(const std::string &name, cutlet::variable::pointer value);
 
-    virtual operator std::string () const { return "_oo::object_"; }
+    virtual operator std::string () const override { return "_oo::object_"; }
 
   private:
     cutlet::component::pointer _class;
@@ -111,12 +112,13 @@ namespace {
                cutlet::variable::pointer parents);
     _def_class(const _def_class &other) = delete;
 
-    virtual ~_def_class() noexcept;
+    virtual ~_def_class() noexcept override;
 
     void compile(cutlet::interpreter &interp, cutlet::variable::pointer body);
 
     virtual cutlet::variable::pointer
-    operator ()(cutlet::interpreter &interp, const cutlet::list &arguments);
+    operator ()(cutlet::interpreter &interp,
+                const cutlet::list &arguments) override;
 
     virtual cutlet::variable::pointer
     operator ()(const std::string &method,
@@ -158,11 +160,12 @@ namespace {
   class _obj_frame : public cutlet::frame {
   public:
     _obj_frame(const std::string &label, cutlet::variable::pointer self);
-    virtual ~_obj_frame() noexcept;
+    virtual ~_obj_frame() noexcept override;
 
-    virtual cutlet::variable::pointer variable(const std::string &name) const;
+    virtual cutlet::variable::pointer
+    variable(const std::string &name) const override;
     virtual void variable(const std::string &name,
-                          cutlet::variable::pointer value);
+                          cutlet::variable::pointer value) override;
 
   private:
     cutlet::variable::pointer _self;
@@ -172,11 +175,12 @@ namespace {
   class _cls_frame : public cutlet::frame {
   public:
     _cls_frame(const std::string &label, _def_class &cls);
-    virtual ~_cls_frame() noexcept;
+    virtual ~_cls_frame() noexcept override;
 
-    virtual cutlet::variable::pointer variable(const std::string &name) const;
+    virtual cutlet::variable::pointer
+    variable(const std::string &name) const override;
     virtual void variable(const std::string &name,
-                          cutlet::variable::pointer value);
+                          cutlet::variable::pointer value) override;
 
   private:
     _def_class &_class;
@@ -459,8 +463,6 @@ cutlet::variable::pointer _def_class::operator ()(cutlet::interpreter &interp,
                                " not found");
     }
   }
-
-  return nullptr;
 }
 
 cutlet::variable::pointer
@@ -862,8 +864,6 @@ namespace {
     } else {
       throw std::runtime_error("self isn't an object");
     }
-
-    return nullptr;
   }
 }
 
@@ -895,7 +895,7 @@ extern "C" {
 
 #include <iostream>
 void init_cutlet(cutlet::interpreter *interp) {
-  _oo_sandbox() = cutlet::alloc<cutlet::sandbox>();
+  _oo_sandbox() = std::make_shared<cutlet::sandbox>();
   _oo_sandbox()->add("method", _method);
   _oo_sandbox()->add("class.method", _c_method);
   _oo_sandbox()->add("property", _property);
@@ -915,7 +915,7 @@ void oo_add_method(cutlet::interpreter &interp,
                    cutlet::function_t method) {
   cutlet::component::pointer comp = interp.get(class_name);
   dynamic_cast<_def_class &>(*comp).add(method_name,
-    cutlet::alloc<_def_method_func>(method));
+    std::make_shared<_def_method_func>(method));
 }
 
 /***********************
@@ -928,7 +928,7 @@ void oo_add_class_method(cutlet::interpreter &interp,
                          cutlet::function_t method) {
   cutlet::component::pointer comp = interp.get(class_name);
   dynamic_cast<_def_class &>(*comp).add_class(method_name,
-    cutlet::alloc<_def_method_func>(method));
+    std::make_shared<_def_method_func>(method));
 }
 
 /*******************

@@ -33,6 +33,7 @@ AC_ARG_ENABLE([debug],
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 
 # Checks for programs.
+PKG_PROG_PKG_CONFIG([0.25])
 AC_LANG(C++)
 AC_PROG_CXX
 AX_CHECK_COMPILE_FLAG([-std=c++17],
@@ -58,6 +59,10 @@ case $host_os in
     AC_MSG_ERROR([Your platform is not currently supported])
     ;;
 esac
+
+PKG_CHECK_MODULES([READLINE], [readline >= 8],
+                  [AC_DEFINE(HAVE_READLINE_H)],
+                  [AC_MSG_ERROR([ncurses library not found])])
 
 # Checks for header files.
 AC_CHECK_HEADER([getopt.h], [],

@@ -40,18 +40,22 @@
  */
 
 namespace {
+
+  /* Internal function definition.
+   */
   class _def_function : public cutlet::component {
   public:
     _def_function(const std::string &label,
                   cutlet::variable::pointer arguments,
                   cutlet::variable::pointer body)
       : _label(label), _arguments(arguments), _body(body) {}
-    virtual ~_def_function() noexcept;
+    virtual ~_def_function() noexcept override;
 
-    /** Execute the function.
+    /* Execute the function.
      */
     virtual cutlet::variable::pointer
-    operator ()(cutlet::interpreter &interp, const cutlet::list &args) {
+    operator ()(cutlet::interpreter &interp,
+                const cutlet::list &args) override {
       interp.push(_label); // New frame for the function.
 
       // Populate the arguments of the function.
@@ -69,7 +73,7 @@ namespace {
           if (name == "*args") {
             // If *args found populate it with a list of the remaining values.
             interp.local("args",
-                         std::make_shared<cutlet::list>(a_it, args.end()));
+                         cutlet::var<cutlet::list>(a_it, args.end()));
           } else {
             // Set the value for the parameter.
             interp.local(name, *a_it);
@@ -89,7 +93,7 @@ namespace {
           } else {
             // Silly programmer.
             throw std::runtime_error("Missing value for argument " +
-                                     (std::string)*(*p_it) +
+                                     static_cast<std::string>(*(*p_it)) +
                                      " for function " + _label);
           }
         }
@@ -98,8 +102,9 @@ namespace {
       // We made it, now run the function.
       if (not _compiled) {
         _compiled = interp(_body);
-      } else
+      } else {
         (*_compiled)(interp);
+      }
 
       // Clean up the stack and return a value if there was one.
       return interp.pop();
@@ -146,7 +151,7 @@ builtin::def(cutlet::interpreter &interp,
   cutlet::variable::pointer body;
   cutlet::variable::pointer def_arguments;
   if (p_count == 2) {
-    def_arguments = std::make_shared<cutlet::list>();
+    def_arguments = cutlet::var<cutlet::list>();
     body = arguments[1];
   } else {
     def_arguments = interp.list(arguments[1]);
@@ -154,7 +159,7 @@ builtin::def(cutlet::interpreter &interp,
   }
 
   // Add the function to the interpreter.
-  interp.add(name, std::make_shared<_def_function>(name, def_arguments, body));
+  interp.add(name, cutlet::var<_def_function>(name, def_arguments, body));
 
   return nullptr;
 }
@@ -176,7 +181,7 @@ builtin::incl(cutlet::interpreter &interp,
       interp.compile_file(*fname);
     } else {
       throw std::runtime_error("include file " +
-                               (std::string)*fname +
+                               static_cast<std::string>(*fname) +
                                " not found.");
     }
   }
@@ -208,12 +213,15 @@ builtin::import(cutlet::interpreter &interp,
       std::string dir(*path);
 
       // If the library exists, load it.
-      if (fexists(dir + "/" + (std::string)(*libname) + ".cutlet")) {
-        interp.compile_file(dir + "/" + (std::string)(*libname) + ".cutlet");
+      if (fexists(dir + "/" + static_cast<std::string>(*libname) +
+                  ".cutlet")) {
+        interp.compile_file(dir + "/" + static_cast<std::string>(*libname) +
+                            ".cutlet");
         lib_loaded = true;
         break;
-      } else if (fexists(dir + "/" + (std::string)(*libname) + SOEXT)) {
-        interp.load(dir + "/" + (std::string)(*libname) + SOEXT);
+      } else if (fexists(dir + "/" + static_cast<std::string>(*libname) +
+                         SOEXT)) {
+        interp.load(dir + "/" + static_cast<std::string>(*libname) + SOEXT);
         lib_loaded = true;
         break;
       }
@@ -221,7 +229,8 @@ builtin::import(cutlet::interpreter &interp,
 
     // If the library wasn't found in any of the search paths raise an error.
     if (not lib_loaded) {
-      throw std::runtime_error("Library " + (std::string)(*libname) +
+      throw std::runtime_error("Library " +
+                               static_cast<std::string>(*libname) +
                                " not found.");
     }
   }
@@ -258,7 +267,7 @@ builtin::global(cutlet::interpreter &interp,
     if (*(arguments[1]) != "=") {
       throw std::runtime_error("global name = value\n"
                                " expected = got " +
-                               (std::string)*(arguments[1]));
+                               static_cast<std::string>(*(arguments[1])));
     }
 
     interp.global(*(arguments[0]), arguments[2]);
@@ -298,7 +307,7 @@ builtin::local(cutlet::interpreter &interp,
     if (*(arguments[1]) != "=") {
       throw std::runtime_error("local name = value\n"
                                " expected = got " +
-                               (std::string)*(arguments[1]));
+                               static_cast<std::string>(*(arguments[1])));
     }
 
     interp.frame(1)->variable(*(arguments[0]), arguments[2]);
@@ -318,7 +327,7 @@ builtin::local(cutlet::interpreter &interp,
 cutlet::variable::pointer
 builtin::uplevel(cutlet::interpreter &interp,
                  const cutlet::list &arguments) {
-  unsigned int levels = 2;
+  int levels = 2;
   size_t p_count = arguments.size();
   bool expr = false;
 
@@ -356,11 +365,6 @@ builtin::uplevel(cutlet::interpreter &interp,
 
   interp.push(levels, "uplevel body");
 
-  /*std::clog << "TRACE: uplevel " << levels << std::endl;
-  for (int i = 0; i < interp.frames(); i++) {
-    std::clog << interp.frame(i) << std::endl;
-    }*/
-
   if (expr)
     result = interp.expr(body);
   else
@@ -386,7 +390,7 @@ builtin::ret(cutlet::interpreter &interp,
     frame->done(arguments[0]);
     break;
   default:
-    frame->done(std::make_shared<cutlet::list>(arguments));
+    frame->done(cutlet::var<cutlet::list>(arguments));
     break;
   }
 
@@ -417,7 +421,7 @@ builtin::list(cutlet::interpreter &interp,
   if (arguments.size() == 1)
     result = interp.list(*(arguments[0]));
   else
-    result = std::make_shared<cutlet::list>(arguments);
+    result = cutlet::var<cutlet::list>(arguments);
   return result;
 }
 
@@ -435,6 +439,6 @@ builtin::sandbox(cutlet::interpreter &interp,
     throw std::runtime_error("Invalid number of arguments for sandbox");
 
   return
-    std::make_shared<builtin::sandbox_var>(
-      std::make_shared<cutlet::sandbox>());
+    cutlet::var<builtin::sandbox_var>(
+      cutlet::var<cutlet::sandbox>());
 }

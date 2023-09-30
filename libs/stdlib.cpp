@@ -45,6 +45,7 @@
 #include <cutlet>
 #include <unistd.h>
 #include <cstdlib>
+#include <iostream>
 
 namespace {
 
@@ -75,7 +76,8 @@ namespace {
               const std::string &value) {
     if (cutlet::primative<std::string>(*it) != value)
       throw std::runtime_error(std::string("Expected ") + value +
-                               " but got " +  cutlet::primative<std::string>(*it)
+                               " but got " +
+                               cutlet::primative<std::string>(*it)
                                + " instead.");
   }
 
@@ -104,7 +106,6 @@ namespace {
                                        cutlet::variable::pointer body,
                                        const std::string &label,
                                        cutlet::ast::node::pointer compiled) {
-
     interp.push(std::make_shared<cutlet::loop_frame>(label, interp.frame(1)));
     try {
       if (not compiled)
@@ -141,7 +142,7 @@ namespace {
   _false(cutlet::interpreter &interp, const cutlet::list &arguments) {
     (void)interp;
     (void)arguments;
-    return std::make_shared<cutlet::boolean>(false);
+    return cutlet::var<cutlet::boolean>(false);
   }
 
   /************
@@ -152,7 +153,7 @@ namespace {
   _true(cutlet::interpreter &interp, const cutlet::list &arguments) {
     (void)interp;
     (void)arguments;
-    return std::make_shared<cutlet::boolean>(true);
+    return cutlet::var<cutlet::boolean>(true);
   }
 
   /******************
@@ -268,7 +269,7 @@ namespace {
       case cutlet::frame::FS_CONTINUE:
         interp.state(cutlet::frame::FS_RUNNING);
         break;
-      default:
+      case cutlet::frame::FS_RUNNING:
         break;
       }
     }
@@ -306,7 +307,7 @@ namespace {
 
   cutlet::variable::pointer
   _raise(cutlet::interpreter &interp, const cutlet::list &arguments) {
-    // We remove our frame from the stack.
+    // We remove our frame (for _raise) from the stack.
     interp.pop();
 
     // Throw the error.
@@ -341,7 +342,7 @@ namespace {
         while (interp.frame() != cur_frame) interp.pop();
 
         interp.push(1, "catch body");
-        interp.local(*(*it), std::make_shared<cutlet::string>(err.what()));
+        interp.local(*(*it), cutlet::var<cutlet::string>(err.what()));
 
         // Eval the catch block
         next(it, arguments);
@@ -366,11 +367,11 @@ namespace {
     (void)interp;
 
     cutlet::variable::pointer secs = arguments[0];
-    sleep(atoi(((std::string)*secs).c_str()));
+    sleep(atoi(cutlet::cast<std::string>(secs).c_str()));
 
     return nullptr;
   }
-}
+} // namespace
 
 /***************
  * init_cutlet *

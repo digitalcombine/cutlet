@@ -34,10 +34,10 @@
  * build.
  */
 #include "../include/cutlet"
-#include <iostream>
-#include <fstream>
 #include <getopt.h>
 #include <unistd.h>
+#include <iostream>
+#include <fstream>
 
 namespace {
 
@@ -97,7 +97,7 @@ namespace {
     {"help",    no_argument,       nullptr, 'h' },
     {nullptr,   0,                 nullptr, 0}
   };
-}
+} // namespace
 
 /******************************************************************************
  * Program entry right here!
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
     switch (opt) {
     case 'c': // C flags
       if (not info.empty()) info += " ";
-      info += "-std=c++11";
+      info += "-std=c++17";
       break;
     case 'h': // Help option
       help();
@@ -155,13 +155,17 @@ int main(int argc, char *argv[]) {
         /* This appears to be an interactive shell so read and execute line
          * by line.
          */
-        for(std::string line; getline(std::cin, line); ) {
-          compiled = interpreter(line);
-        }
+
+        interpreter.import("shell");
+        std::function<std::istream &()> cmdline_stream =
+          interpreter.symbol<std::istream &(*)()>("cmdline_stream");
+        std::istream &cin = cmdline_stream();
+
+        compiled = interpreter(cin, "_stdin_");
 
       } else {
         // This appears to be piped in so do everything at once.
-        compiled = interpreter(std::cin);
+        compiled = interpreter(std::cin, "_stdin_");
       }
     }
 

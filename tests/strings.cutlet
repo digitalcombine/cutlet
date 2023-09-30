@@ -37,8 +37,8 @@ testsuite "String Type and Operators" {
   import stdlib
 
   test "Type" {
-    assert {["Hello" type] = "string"} {"Hello" isn't type string, returned} \
-           ["Hello" type]
+    assert {["Hello" type] = "string"} \
+      {"Hello" isn't type string, returned} ["Hello" type]
 
     try {
       "Hello" type is a string
@@ -148,7 +148,8 @@ testsuite "String Type and Operators" {
     assert {$result == "Hello World"} ["Hello" + " World"] returned $result
 
     local result = ["Hello " + to the World]
-    assert {$result == "Hello to the World"} ["Hello " + to the World] returned $result
+    assert {$result == "Hello to the World"} \
+      ["Hello " + to the World] returned $result
   }
 
   test "Append" {
@@ -158,17 +159,21 @@ testsuite "String Type and Operators" {
     }
 
     local hw = "Hello"
-    $hw append " World"
-    assert {$hw == "Hello World"} {"Hello" append " World" returned} $hw
+    local res = [$hw append " World"]
+    assert {$res == "Hello World"} {"Hello" append " World" returned} $res
   }
 
   test "Index" {
     local hw = "Hello World"
 
-    assert {[$hw index 1] == "H"} ["Hello World" index 1] returned [$hw index 1]
-    assert {[$hw index 5] == "o"} ["Hello World" index 5] returned [$hw index 5]
-    assert {[$hw index -1] == "d"} ["Hello World" index -1] returned [$hw index -1]
-    assert {[$hw index -5] == "W"} ["Hello World" index -5] returned [$hw index -5]
+    assert {[$hw index 1] == "H"} \
+      ["Hello World" index 1] returned [$hw index 1]
+    assert {[$hw index 5] == "o"} \
+      ["Hello World" index 5] returned [$hw index 5]
+    assert {[$hw index -1] == "d"} \
+      ["Hello World" index -1] returned [$hw index -1]
+    assert {[$hw index -5] == "W"} \
+      ["Hello World" index -5] returned [$hw index -5]
 
     try {
       $hw index 0
@@ -180,11 +185,14 @@ testsuite "String Type and Operators" {
       fail {"Hello World" index 30}
     }
 
-    $hw index 7 = "to all of the "
-    assert {$hw == "Hello to all of the World"} {"Hello World" index 7 = "to all of the " returned } $hw
+    local res = [$hw index 7 = "to all of the "]
+    assert {$res == "Hello to all of the World"} \
+      {"Hello World" index 7 = "to all of the " returned } $res
 
-    $hw index 1 = "Narrator: "
-    assert {$hw == "Narrator: Hello to all of the World"} {"Hello to all of the World" index 7 = "Narrator: " returned } $hw
+    local hw = $res
+    local res = [$hw index 1 = "Narrator: "]
+    assert {$res == "Narrator: Hello to all of the World"} \
+      {"Hello to all of the World" index 7 = "Narrator: " returned } $res
   }
 
   test "Find" {
@@ -192,9 +200,12 @@ testsuite "String Type and Operators" {
   }
 
   test "Endswith" {
-    assert {"Hello World" endswith "rld"} {"\"Hello World\" endswith \"rld\"}
-    assert_fail {"Hello World" endswith "llo"} {"\"Hello World\" endswith \"llo\"}
-    assert_fail {"Hello World" endswith "kitty"} {"\"Hello World\" endswith \"kitty\"}
+    assert {"Hello World" endswith "rld"} \
+      {"\"Hello World\" endswith \"rld\"}
+    assert_fail {"Hello World" endswith "llo"} \
+      {"\"Hello World\" endswith \"llo\"}
+    assert_fail {"Hello World" endswith "kitty"} \
+      {"\"Hello World\" endswith \"kitty\"}
 
     try {
       "Hello World" endswith
@@ -208,9 +219,12 @@ testsuite "String Type and Operators" {
   }
 
   test "Length" {
-    assert {["Hello World" length] == 11} "\[\"Hello World\" length\] returned" ["Hello World" length]
+    assert {["Hello World" length] == 11} \
+      "\[\"Hello World\" length\] returned" ["Hello World" length]
 
-    assert {["¿Dónde está la salida?" length] == 22} "\[\"¿Dónde está la salida?\" length\] returned" ["¿Dónde está la salida?" length]
+    assert {["¿Dónde está la salida?" length] == 22} \
+      "\[\"¿Dónde está la salida?\" length\] returned" \
+      ["¿Dónde está la salida?" length]
 
     try {
       "Hello" length to many arguments
@@ -246,7 +260,8 @@ testsuite "String Type and Operators" {
     assert {"[hello John]" == "Hello John"} "[hello John] <> \"Hello John\""
 
     local string = "Hello [$list1 join][$list2 join]"
-    assert {$string == "Hello John A SmithJane A Smith"} "$string <> Hello John A SmithJane A Smith"
+    assert {$string == "Hello John A SmithJane A Smith"} \
+      "$string <> Hello John A SmithJane A Smith"
   }
 
   test "General" {
@@ -269,5 +284,3 @@ testsuite "String Type and Operators" {
     assert_fail {$string == ""} "{ } created an empty string"
   }
 }
-
-return $test_result

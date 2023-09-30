@@ -39,22 +39,22 @@ namespace cutlet {
     class block : public node {
     public:
       block();
-      virtual ~block() noexcept;
+      virtual ~block() noexcept override;
 
       void add(node::pointer n);
 
       virtual cutlet::variable::pointer
-      operator()(cutlet::interpreter &interp);
+      operator()(cutlet::interpreter &interp) override;
 
-      virtual unsigned int id() const;
+      virtual unsigned int id() const override;
 
-      virtual std::string file() const;
+      virtual std::string file() const override;
 
-      virtual std::streampos position() const;
+      virtual std::streampos position() const override;
 
-      virtual const std::string &body() const;
+      virtual const std::string &body() const override;
 
-      virtual const parser::token &token() const;
+      virtual const parser::token &token() const override;
 
     private:
       std::list<node::pointer> _nodes;
@@ -63,66 +63,66 @@ namespace cutlet {
     class value : public node {
     public:
       value(const parser::token &token);
-      virtual ~value() noexcept;
+      virtual ~value() noexcept override;
 
       virtual cutlet::variable::pointer
-      operator()(cutlet::interpreter &interp);
+      operator()(cutlet::interpreter &interp) override;
 
-      virtual unsigned int id() const;
+      virtual unsigned int id() const override;
 
-      virtual std::string file() const;
+      virtual std::string file() const override;
 
-      virtual std::streampos position() const;
+      virtual std::streampos position() const override;
 
-      virtual const std::string &body() const;
+      virtual const std::string &body() const override;
 
-      virtual const parser::token &token() const;
+      virtual const parser::token &token() const override;
 
     private:
-      parser::token _token;
+      const parser::token _token;
     };
 
     class variable : public node {
     public:
       variable(const parser::token &token);
-      virtual ~variable() noexcept;
+      virtual ~variable() noexcept override;
 
       virtual cutlet::variable::pointer
-      operator()(cutlet::interpreter &interp);
+      operator()(cutlet::interpreter &interp) override;
 
-      virtual unsigned int id() const;
+      virtual unsigned int id() const override;
 
-      virtual std::string file() const;
+      virtual std::string file() const override;
 
-      virtual std::streampos position() const;
+      virtual std::streampos position() const override;
 
-      virtual const std::string &body() const;
+      virtual const std::string &body() const override;
 
-      virtual const parser::token &token() const;
+      virtual const parser::token &token() const override;
 
     private:
-      parser::token _token;
+      const parser::token _token;
     };
 
     class command : public node {
     public:
       command(node::pointer n);
-      virtual ~command() noexcept;
+      virtual ~command() noexcept override;
 
       void parameter(node::pointer n);
 
       virtual cutlet::variable::pointer
-      operator()(cutlet::interpreter &interp);
+      operator()(cutlet::interpreter &interp) override;
 
-      virtual unsigned int id() const;
+      virtual unsigned int id() const override;
 
-      virtual std::string file() const;
+      virtual std::string file() const override;
 
-      virtual std::streampos position() const;
+      virtual std::streampos position() const override;
 
-      virtual const std::string &body() const;
+      virtual const std::string &body() const override;
 
-      virtual const parser::token &token() const;
+      virtual const parser::token &token() const override;
 
     private:
       node::pointer _function;
@@ -132,23 +132,23 @@ namespace cutlet {
     class string : public node {
     public:
       string(const parser::token &token);
-      virtual ~string() noexcept;
+      virtual ~string() noexcept override;
 
       void add(const std::string &value);
       void add(node::pointer n);
 
       virtual cutlet::variable::pointer
-      operator()(cutlet::interpreter &interp);
+      operator()(cutlet::interpreter &interp) override;
 
-      virtual unsigned int id() const;
+      virtual unsigned int id() const override;
 
-      virtual std::string file() const;
+      virtual std::string file() const override;
 
-      virtual std::streampos position() const;
+      virtual std::streampos position() const override;
 
-      virtual const std::string &body() const;
+      virtual const std::string &body() const override;
 
-      virtual const parser::token &token() const;
+      virtual const parser::token &token() const override;
 
     private:
       struct _parts_s {
@@ -163,23 +163,23 @@ namespace cutlet {
     class comment : public node {
     public:
       comment(const parser::token &token);
-      virtual ~comment() noexcept;
+      virtual ~comment() noexcept override;
 
       virtual cutlet::variable::pointer
-      operator()(cutlet::interpreter &interp);
+      operator()(cutlet::interpreter &interp) override;
 
-      virtual unsigned int id() const;
+      virtual unsigned int id() const override;
 
-      virtual std::string file() const;
+      virtual std::string file() const override;
 
-      virtual std::streampos position() const;
+      virtual std::streampos position() const override;
 
-      virtual const std::string &body() const;
+      virtual const std::string &body() const override;
 
-      virtual const parser::token &token() const;
+      virtual const parser::token &token() const override;
 
     private:
-      parser::token _token;
+      const parser::token _token;
     };
   }
 }

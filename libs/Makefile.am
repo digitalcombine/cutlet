@@ -21,8 +21,8 @@ oo_la_LIBADD = ../src/libcutlet.la
 oo_la_LDFLAGS = -module -avoid-version -shared
 
 shell_la_SOURCES = shell.cpp
-shell_la_CPPFLAGS = -I @top_srcdir@/include
-shell_la_LIBADD = ../src/libcutlet.la
+shell_la_CPPFLAGS = -I @top_srcdir@/include $(READLINE_CFLAGS)
+shell_la_LIBADD = ../src/libcutlet.la $(READLINE_LIBS)
 shell_la_LDFLAGS = -module -avoid-version -shared
 
 debugger_la_SOURCES = debugger.cpp

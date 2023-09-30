@@ -38,6 +38,7 @@
 #include <string>
 #include <istream>
 #include <regex>
+#include <limits>
 
 #ifndef _PARSER_H
 #define _PARSER_H
@@ -85,10 +86,9 @@ namespace parser {
     std::streamoff _offset = 0;
 
   public:
-    token(unsigned int id, const std::string &value);
-    token(unsigned int id, const std::string &value, std::streampos position);
-    token(unsigned int id, const std::string &value, std::streampos position,
-          std::streamoff offset);
+    token(unsigned int id, const std::string &value,
+          std::streampos position = 0,
+          std::streamoff offset = 0);
   };
 
   class syntax_error : public std::exception {
@@ -98,11 +98,11 @@ namespace parser {
     syntax_error(const std::string &message, token token) noexcept;
     syntax_error(const exception& other) noexcept;
     syntax_error(const syntax_error& other) noexcept;
-    virtual ~syntax_error() noexcept;
+    virtual ~syntax_error() noexcept override;
 
     syntax_error& operator=(const syntax_error &other) noexcept;
 
-    virtual const char* what() const noexcept;
+    virtual const char* what() const noexcept override;
     const token &get_token() const noexcept;
 
   protected:
@@ -113,7 +113,7 @@ namespace parser {
   class tokenizer {
   public:
     static const unsigned int T_EOF = 0;
-    static const unsigned int T_INVALID = -1;
+    static const unsigned int T_INVALID = static_cast<unsigned int>(-1);
 
     tokenizer();
     virtual ~tokenizer() noexcept;
@@ -155,6 +155,8 @@ namespace parser {
 
     std::streampos position = 0;
 
+    bool need_more = false;
+
     void add_token_pattern(unsigned int token_id, const std::string &pattern);
     void clear_token_patterns();
 
@@ -164,6 +166,7 @@ namespace parser {
     void add_token(unsigned int id, const std::string &value,
                    std::streampos position, std::streamoff offset);
 
+    virtual bool is_more_code();
     virtual void parse_tokens();
 
   private:
