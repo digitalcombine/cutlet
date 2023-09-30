@@ -64,7 +64,7 @@ namespace {
     // Negative indexes start from the back and index towards the front.
     int idx = index;
     if (index < 0) {
-      idx = len + index;
+      idx = static_cast<int>(len) + index;
     } else if (index > 0) {
       // The first character is at index 1.
       idx--;
@@ -76,14 +76,14 @@ namespace {
     }
 
     // Make sure the index is in range.
-    if (idx < 0 or idx >= (long long)len) {
+    if (idx < 0 or idx >= static_cast<long>(len)) {
       std::stringstream mesg;
       mesg << "String index " << index << " out of range (1 - "
            << len << ")";
       throw std::runtime_error(mesg.str());
     }
 
-    return idx;
+    return static_cast<size_t>(idx);
   }
 
   /************
@@ -183,7 +183,7 @@ namespace {
       if (arguments.size() == 4) {
         if (*(arguments[2]) != "=") {
           throw std::runtime_error("Unexpected character " +
-                                   (std::string)*(arguments[2]) +
+                                   static_cast<std::string>(*(arguments[2])) +
                                    ", expected =");
         }
         value = *(arguments[3]);
@@ -321,7 +321,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator =="));
-      return (*this == (std::string)*(arguments[1])
+      return (*this == cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
     }
@@ -332,7 +332,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator !="));
-      return (*this != (std::string)*(arguments[1])
+      return (*this != cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
     }
@@ -343,7 +343,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator <>"));
-      return (*this != (std::string)*(arguments[1])
+      return (*this != cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
 
@@ -352,7 +352,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator <"));
-      return (*this < (std::string)*(arguments[1])
+      return (*this < cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
 
@@ -361,7 +361,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator <="));
-      return (*this <= (std::string)*(arguments[1])
+      return (*this <= cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
     }
@@ -372,7 +372,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator >"));
-      return (*this > (std::string)*(arguments[1])
+      return (*this > cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
 
@@ -381,7 +381,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator >="));
-      return (*this >= (std::string)*(arguments[1])
+      return (*this >= cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
     }
@@ -409,7 +409,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       cutlet::list sargs(arguments);
       sargs.pop_front(); // Remove the operator.
 
-      return cutlet::var<cutlet::string>(*this + sargs.join());;
+      return cutlet::var<cutlet::string>(*this + sargs.join());
     }
     break;
   case 'e':
@@ -481,7 +481,7 @@ cutlet::string::operator std::string() const { return *this; }
 template <> int cutlet::primative<int>(variable::pointer object) {
   if (not object) return 0;
 
-  return std::stoi((std::string)(*object));
+  return std::stoi(static_cast<std::string>(*object));
 }
 
 template <> bool cutlet::primative<bool>(variable::pointer object) {
@@ -490,7 +490,7 @@ template <> bool cutlet::primative<bool>(variable::pointer object) {
   // First we see if the variable is a boolean type.
   auto *bptr = dynamic_cast<cutlet::boolean *>(&(*object));
   if (bptr) {
-    return (bool)(*bptr);
+    return static_cast<bool>(*bptr);
 
   } else {
     // It not a boolean type so we treat it like a string.

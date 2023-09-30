@@ -251,11 +251,11 @@ namespace cutlet {
     exception(const std::string &message, ast::node &node) noexcept;
     exception(const std::exception &other) noexcept;
     exception(const cutlet::exception &other) noexcept;
-    virtual ~exception() noexcept;
+    virtual ~exception() noexcept override;
 
     exception& operator=(const exception &other) noexcept;
 
-    virtual const char *what() const noexcept;
+    virtual const char *what() const noexcept override;
     const ast::node *node() const noexcept { return _node; }
 
   protected:
@@ -273,13 +273,13 @@ namespace cutlet {
     string(const string &value);
     string(const std::string &value);
     string(int value);
-    virtual ~string() noexcept;
+    virtual ~string() noexcept override;
 
     virtual variable::pointer operator()(variable::pointer self,
                                          interpreter &interp,
-                                         const list &arguments);
+                                         const list &arguments) override;
 
-    virtual operator std::string() const;
+    virtual operator std::string() const override;
 
     friend class interpreter;
   };
@@ -289,13 +289,13 @@ namespace cutlet {
     boolean();
     boolean(const std::string &value);
     boolean(bool value);
-    virtual ~boolean() noexcept;
+    virtual ~boolean() noexcept override;
 
     virtual variable::pointer operator()(variable::pointer self,
                                          interpreter &interp,
-                                         const list &arguments);
+                                         const list &arguments) override;
 
-    virtual operator std::string() const;
+    virtual operator std::string() const override;
     operator bool() const { return _value; }
 
     friend class interpreter;
@@ -311,15 +311,15 @@ namespace cutlet {
     list(const_iterator first, const_iterator last);
     list(const std::initializer_list<variable::pointer> &items);
     list(const list &other);
-    virtual ~list() noexcept;
+    virtual ~list() noexcept override;
 
     std::string join(const std::string &delim = " ") const;
 
     virtual variable::pointer operator()(variable::pointer self,
                                          interpreter &interp,
-                                         const list &arguments);
+                                         const list &arguments) override;
 
-    virtual operator std::string() const;
+    virtual operator std::string() const override;
   };
 
   /****************************************************************************
@@ -442,42 +442,43 @@ namespace cutlet {
   public:
     block_frame(frame::pointer uplevel);
     block_frame(const std::string &label, frame::pointer uplevel);
-    virtual ~block_frame() noexcept;
+    virtual ~block_frame() noexcept override;
 
-    virtual variable::pointer variable(const std::string &name) const;
-    virtual void variable(const std::string &name, variable::pointer value);
+    virtual variable::pointer variable(const std::string &name) const override;
+    virtual void variable(const std::string &name,
+                          variable::pointer value) override;
 
-    virtual void done(variable::pointer result);
-    virtual bool done() const;
+    virtual void done(variable::pointer result) override;
+    virtual bool done() const override;
 
-    virtual state_t state() const;
-    virtual void state(state_t new_state);
+    virtual state_t state() const override;
+    virtual void state(state_t new_state) override;
 
-    virtual std::string label() const;
+    virtual std::string label() const override;
 
     friend class interpreter;
 
   protected:
-    virtual pointer parent() const;
+    virtual pointer parent() const override;
 
   private:
     cutlet::frame::pointer _parent;
 
-    virtual void parent(pointer frame);
+    virtual void parent(pointer frame) override;
   };
 
   class DECLSPEC loop_frame : public cutlet::block_frame {
   public:
     loop_frame(frame::pointer uplevel);
     loop_frame(const std::string &label, frame::pointer level);
-    virtual ~loop_frame() noexcept;
+    virtual ~loop_frame() noexcept override;
 
-    virtual bool done() const;
+    virtual bool done() const override;
 
-    virtual state_t state() const;
-    virtual void state(state_t new_state);
+    virtual state_t state() const override;
+    virtual void state(state_t new_state) override;
 
-    virtual std::string label() const;
+    virtual std::string label() const override;
   };
 
   class DECLSPEC interpreter : protected parser::grammer {
@@ -487,7 +488,7 @@ namespace cutlet {
     interpreter(const interpreter &other) = delete;
     interpreter &operator =(const interpreter &) = delete;
 
-    virtual ~interpreter() noexcept;
+    virtual ~interpreter() noexcept override;
 
     variable::pointer var(const std::string &name);
     void global(const std::string &name, variable::pointer value) {
@@ -540,7 +541,7 @@ namespace cutlet {
     void push(const std::string &label = "-") {
       push(std::make_shared<cutlet::frame>(label));
     }
-    void push(int level, const std::string &label = "-") {
+    void push(unsigned int level, const std::string &label = "-") {
       push(std::make_shared<cutlet::block_frame>(label, frame(level)));
     }
     void push(sandbox::pointer sb, const std::string &label = "-") {
@@ -572,7 +573,7 @@ namespace cutlet {
 
   protected:
     /** The entry point to the recursive descent parser. */
-    virtual void entry();
+    virtual void entry() override;
 
     ast::node::pointer _comment();
     ast::node::pointer _command();

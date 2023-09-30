@@ -71,12 +71,12 @@ namespace builtin {
   class sandbox_var : public cutlet::variable {
   public:
     sandbox_var(cutlet::sandbox::pointer sb);
-    ~sandbox_var() noexcept;
+    ~sandbox_var() noexcept override;
 
     virtual cutlet::variable::pointer
     operator()(cutlet::variable::pointer self,
                cutlet::interpreter &interp,
-               const cutlet::list &parameters);
+               const cutlet::list &parameters) override;
 
   private:
     cutlet::sandbox::pointer _sandbox;

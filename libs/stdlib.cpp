@@ -239,7 +239,7 @@ namespace {
       case cutlet::frame::FS_CONTINUE:
         interp.state(cutlet::frame::FS_RUNNING);
         break;
-      default:
+      case cutlet::frame::FS_RUNNING:
         break;
       }
     }
@@ -336,7 +336,7 @@ namespace {
     (void)interp;
 
     cutlet::variable::pointer secs = arguments[0];
-    sleep(atoi(((std::string)*secs).c_str()));
+    sleep(atoi(cutlet::cast<std::string>(secs).c_str()));
 
     return nullptr;
   }

@@ -66,7 +66,7 @@ cutlet::variable::pointer cutlet::boolean::operator()(variable::pointer self,
   (void)self;
   (void)interp;
 
-  unsigned int args = arguments.size();
+  auto args = arguments.size();
   //if (args == 0) return new boolean(_value);
 
   std::string op = *(arguments[0]);

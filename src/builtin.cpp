@@ -49,12 +49,13 @@ namespace {
                   cutlet::variable::pointer arguments,
                   cutlet::variable::pointer body)
       : _label(label), _arguments(arguments), _body(body) {}
-    virtual ~_def_function() noexcept;
+    virtual ~_def_function() noexcept override;
 
     /* Execute the function.
      */
     virtual cutlet::variable::pointer
-    operator ()(cutlet::interpreter &interp, const cutlet::list &args) {
+    operator ()(cutlet::interpreter &interp,
+                const cutlet::list &args) override {
       interp.push(_label); // New frame for the function.
 
       // Populate the arguments of the function.
@@ -92,7 +93,7 @@ namespace {
           } else {
             // Silly programmer.
             throw std::runtime_error("Missing value for argument " +
-                                     (std::string)*(*p_it) +
+                                     static_cast<std::string>(*(*p_it)) +
                                      " for function " + _label);
           }
         }
@@ -180,7 +181,7 @@ builtin::incl(cutlet::interpreter &interp,
       interp.compile_file(*fname);
     } else {
       throw std::runtime_error("include file " +
-                               (std::string)*fname +
+                               static_cast<std::string>(*fname) +
                                " not found.");
     }
   }
@@ -212,12 +213,15 @@ builtin::import(cutlet::interpreter &interp,
       std::string dir(*path);
 
       // If the library exists, load it.
-      if (fexists(dir + "/" + (std::string)(*libname) + ".cutlet")) {
-        interp.compile_file(dir + "/" + (std::string)(*libname) + ".cutlet");
+      if (fexists(dir + "/" + static_cast<std::string>(*libname) +
+                  ".cutlet")) {
+        interp.compile_file(dir + "/" + static_cast<std::string>(*libname) +
+                            ".cutlet");
         lib_loaded = true;
         break;
-      } else if (fexists(dir + "/" + (std::string)(*libname) + SOEXT)) {
-        interp.load(dir + "/" + (std::string)(*libname) + SOEXT);
+      } else if (fexists(dir + "/" + static_cast<std::string>(*libname) +
+                         SOEXT)) {
+        interp.load(dir + "/" + static_cast<std::string>(*libname) + SOEXT);
         lib_loaded = true;
         break;
       }
@@ -225,7 +229,8 @@ builtin::import(cutlet::interpreter &interp,
 
     // If the library wasn't found in any of the search paths raise an error.
     if (not lib_loaded) {
-      throw std::runtime_error("Library " + (std::string)(*libname) +
+      throw std::runtime_error("Library " +
+                               static_cast<std::string>(*libname) +
                                " not found.");
     }
   }
@@ -262,7 +267,7 @@ builtin::global(cutlet::interpreter &interp,
     if (*(arguments[1]) != "=") {
       throw std::runtime_error("global name = value\n"
                                " expected = got " +
-                               (std::string)*(arguments[1]));
+                               static_cast<std::string>(*(arguments[1])));
     }
 
     interp.global(*(arguments[0]), arguments[2]);
@@ -302,7 +307,7 @@ builtin::local(cutlet::interpreter &interp,
     if (*(arguments[1]) != "=") {
       throw std::runtime_error("local name = value\n"
                                " expected = got " +
-                               (std::string)*(arguments[1]));
+                               static_cast<std::string>(*(arguments[1])));
     }
 
     interp.frame(1)->variable(*(arguments[0]), arguments[2]);
@@ -322,7 +327,7 @@ builtin::local(cutlet::interpreter &interp,
 cutlet::variable::pointer
 builtin::uplevel(cutlet::interpreter &interp,
                  const cutlet::list &arguments) {
-  unsigned int levels = 2;
+  int levels = 2;
   size_t p_count = arguments.size();
   bool expr = false;
 

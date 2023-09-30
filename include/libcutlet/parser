@@ -38,6 +38,7 @@
 #include <string>
 #include <istream>
 #include <regex>
+#include <limits>
 
 #ifndef _PARSER_H
 #define _PARSER_H
@@ -97,11 +98,11 @@ namespace parser {
     syntax_error(const std::string &message, token token) noexcept;
     syntax_error(const exception& other) noexcept;
     syntax_error(const syntax_error& other) noexcept;
-    virtual ~syntax_error() noexcept;
+    virtual ~syntax_error() noexcept override;
 
     syntax_error& operator=(const syntax_error &other) noexcept;
 
-    virtual const char* what() const noexcept;
+    virtual const char* what() const noexcept override;
     const token &get_token() const noexcept;
 
   protected:
@@ -112,7 +113,7 @@ namespace parser {
   class tokenizer {
   public:
     static const unsigned int T_EOF = 0;
-    static const unsigned int T_INVALID = -1;
+    static const unsigned int T_INVALID = static_cast<unsigned int>(-1);
 
     tokenizer();
     virtual ~tokenizer() noexcept;
