@@ -50,10 +50,10 @@ namespace {
   public:
     value(cutlet::ast::node &node)
       : cutlet::string(node.body()), _token(node.token()) { }
-    virtual ~value() noexcept;
+    virtual ~value() noexcept override;
 
   protected:
-    virtual const parser::token *token() const {
+    virtual const parser::token *token() const override {
       return &_token;
     }
 
@@ -196,7 +196,7 @@ std::streampos cutlet::ast::block::position() const {
  ****************************/
 
 const std::string &cutlet::ast::block::body() const {
-  return (const std::string &)token();
+  return static_cast<const std::string &>(token());
 }
 
 /*****************************
@@ -271,7 +271,7 @@ std::streampos cutlet::ast::value::position() const {
  *****************************/
 
 const std::string &cutlet::ast::value::body() const {
-  return (const std::string &)token();
+  return static_cast<const std::string &>(token());
 }
 
 /*****************************
@@ -316,7 +316,7 @@ cutlet::ast::variable::operator()(cutlet::interpreter &interp) {
               << " = " << (std::string)*interp.var((const std::string &)_token)
               << std::endl;
 #endif
-    return interp.var((const std::string &)_token);
+    return interp.var(static_cast<const std::string &>(_token));
   } catch (const cutlet::exception &err) {
     if (err.node() == nullptr) throw cutlet::exception(err.what(), *this);
     else throw;
@@ -354,7 +354,7 @@ std::streampos cutlet::ast::variable::position() const {
  *******************************/
 
 const std::string &cutlet::ast::variable::body() const {
-  return (const std::string &)token();
+  return static_cast<const std::string &>(token());
 }
 
 /********************************
@@ -443,10 +443,11 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
                 << ">: command " << (std::string)*cmd
                 << std::endl;
 #endif
-      return interp.call((std::string)(*cmd), c_params);
+      return interp.call(cutlet::cast<std::string>(cmd), c_params);
 
     }
   } catch (const cutlet::exception &err) {
+    (void)err;
     throw;
   } catch (const std::exception &err) {
     /** @todo Need to add location function to nodes so we can let the users
@@ -487,7 +488,7 @@ std::streampos cutlet::ast::command::position() const {
  ******************************/
 
 const std::string &cutlet::ast::command::body() const {
-  return (const std::string &)token();
+  return static_cast<const std::string &>(token());
 }
 
 /*******************************
@@ -547,7 +548,7 @@ cutlet::ast::string::operator()(cutlet::interpreter &interp) {
       // Variable or command substitution.
       auto v = (*(part.n))(interp);
       if (v)
-        result += (std::string)(*v);
+        result += static_cast<std::string>(*v);
     }
   }
 
@@ -588,7 +589,7 @@ std::streampos cutlet::ast::string::position() const {
  *****************************/
 
 const std::string &cutlet::ast::string::body() const {
-  return (const std::string &)token();
+  return static_cast<const std::string &>(token());
 }
 
 /******************************
@@ -662,7 +663,7 @@ std::streampos cutlet::ast::comment::position() const {
  ******************************/
 
 const std::string &cutlet::ast::comment::body() const {
-  return (const std::string &)token();
+  return static_cast<const std::string &>(token());
 }
 
 /*******************************

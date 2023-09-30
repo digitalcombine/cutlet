@@ -76,7 +76,7 @@ namespace test {
    */
   class Test : public std::ostringstream {
   public:
-    virtual ~Test() noexcept;
+    virtual ~Test() noexcept override;
 
     /** Overrides the string streams str() method to return a formatted
      * string of the test results.
@@ -136,8 +136,8 @@ namespace test {
   class assert : public osmanip<bool> {
   public:
     explicit assert(bool result);
-    virtual ~assert() noexcept;
-    virtual std::ostream &operator()(std::ostream &os) const;
+    virtual ~assert() noexcept override;
+    virtual std::ostream &operator()(std::ostream &os) const override;
   };
 
   /**

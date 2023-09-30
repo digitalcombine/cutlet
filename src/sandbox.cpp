@@ -104,7 +104,6 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
         variable::pointer result;
 
         auto cur_frame = interp.frame();
-
         interp.push(_sandbox, "sandbox expr");
         try {
           result = interp.expr(arguments[1]);
@@ -144,7 +143,7 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
         if (*(arguments[2]) != "=") {
           throw std::runtime_error("global name ¿=? value\n"
                                    " Expected = got " +
-                                   (std::string)*(arguments[2]));
+                                   cutlet::cast<std::string>(arguments[2]));
         }
         _sandbox->variable(*(arguments[1]), arguments[3]);
         break;
@@ -189,6 +188,7 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
       }
 
     }
+    break;
   default:
     throw std::runtime_error("Unknown operator \"" + op +
                              "\" for sandbox type.");

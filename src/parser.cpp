@@ -41,8 +41,8 @@
  */
 
 std::ostream &operator <<(std::ostream &os, const parser::token &token) {
-  os << token.position() << ": " << (unsigned int)token
-     << " " << (const std::string &)token;
+  os << token.position() << ": " << static_cast<unsigned int>(token)
+     << " " << static_cast<const std::string &>(token);
   return os;
 }
 
@@ -285,7 +285,7 @@ void parser::tokenizer::permit(unsigned int id) {
     return;
   }
   throw syntax_error("Got unexpected value of " +
-                     (const std::string &)tokens.front(),
+                     static_cast<const std::string &>(tokens.front()),
                      tokens.front());
 }
 
@@ -295,7 +295,7 @@ void parser::tokenizer::permit(unsigned int id, const std::string &value) {
     return;
   }
   throw syntax_error("Got unexpected value of " +
-                     (const std::string &)tokens.front(),
+                     static_cast<const std::string &>(tokens.front()),
                      tokens.front());
 }
 

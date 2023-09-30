@@ -65,10 +65,9 @@ namespace {
       // Execute the body.
       tinterp(args.body);
     } catch (std::exception &err) {
+      (void)err;
     }
   }
-
-  void (*_entry_ptr)(thread_args_t *) = nullptr;
 
   /****************************************************************************
    * class prototypes
@@ -82,12 +81,12 @@ namespace {
   public:
     _thread_var(cutlet::interpreter &interp,
                 cutlet::variable::pointer body);
-    virtual ~_thread_var() noexcept;
+    virtual ~_thread_var() noexcept override;
 
     virtual cutlet::variable::pointer
     operator ()(cutlet::variable::pointer self,
                 cutlet::interpreter &interp,
-                const cutlet::list &arguments);
+                const cutlet::list &arguments) override;
 
   private:
     thread_args_t _args;
@@ -101,12 +100,12 @@ namespace {
   class _mutex_var : public cutlet::variable {
   public:
     _mutex_var();
-    virtual ~_mutex_var() noexcept;
+    virtual ~_mutex_var() noexcept override;
 
     virtual cutlet::variable::pointer
     operator ()(cutlet::variable::pointer self,
                 cutlet::interpreter &interp,
-                const cutlet::list &arguments);
+                const cutlet::list &arguments) override;
 
   private:
     std::recursive_mutex _mutex;

@@ -62,6 +62,17 @@ namespace {
 #endif
     }
 
+    /*template <class ty>
+    ty symbol(const std::string &name) {
+#if defined (__linux__) || defined (__FreeBSD__)
+      if (_handle)
+        return dlsym(_handle, name.c_str());
+      return nullptr;
+#else
+      return nullptr;
+#endif
+}*/
+
   private:
     nativelib_t _handle;
   };
@@ -109,7 +120,8 @@ std::ostream &operator <<(std::ostream &os,
   // Display the variables in the frame.
   for (auto &it: frame._variables) {
     //os << "\n  $" << it.first;
-    os << "\n  $" << it.first << " = " << (std::string)(*(it.second));
+    os << "\n  $" << it.first << " = "
+       << cutlet::cast<std::string>(it.second);
   }
 
   return os;
@@ -133,7 +145,7 @@ public:
                                    const cutlet_tokenizer &tks);
 
 protected:
-  virtual void parse_tokens();
+  virtual void parse_tokens() override;
 
 protected:
   void parse_next_token();
@@ -675,7 +687,8 @@ void cutlet_tokenizer::parse_next_token() {
           ++it;
 
         } else if ((tokens.empty() or
-                    (unsigned int)tokens.back() == cutlet::T_EOL) and
+                    static_cast<unsigned int>(tokens.back()) ==
+                    cutlet::T_EOL) and
                    (*it)[0] == '#') {
           // Add a comment token.
           cutlet::utf8::iterator startx(it);
@@ -697,7 +710,7 @@ void cutlet_tokenizer::parse_next_token() {
       }
     }
 
-    position = start_pos + (std::streampos)it.position();
+    position = start_pos + static_cast<std::streampos>(it.position());
 
     // Update the remaining code.
     if (it != it.end())
@@ -777,16 +790,17 @@ namespace {
               const std::string &doc)
       : _label(label), _doc(doc), _function_ptr(func) {}
 
-    virtual ~_function() noexcept;
+    virtual ~_function() noexcept override;
 
     virtual cutlet::variable::pointer
-    operator ()(cutlet::interpreter &interp, const cutlet::list &arguments) {
+    operator ()(cutlet::interpreter &interp,
+                const cutlet::list &arguments) override {
       interp.push(_label);
       interp.finish(_function_ptr(interp, arguments));
       return interp.pop();
     }
 
-    virtual std::string documentation() const { return _doc; }
+    virtual std::string documentation() const override { return _doc; }
 
   private:
     std::string _label;
@@ -920,7 +934,9 @@ cutlet::variable::pointer cutlet::sandbox::variable(interpreter &interp,
     try {
       list arguments({std::make_shared<cutlet::string>(name)});
       return call(interp, "¿variable?", arguments);
-    } catch (std::runtime_error &err) {}
+    } catch (std::runtime_error &err) {
+      (void)err;
+    }
   }
   return nullptr;
 }
@@ -996,7 +1012,7 @@ void cutlet::sandbox::load(interpreter &interp,
                            const std::string &library_name) {
   if (fexists(library_name)) {
     auto lib = new _native_lib(library_name);
-    libinit_t init = (libinit_t)lib->symbol("init_cutlet");
+    libinit_t init = reinterpret_cast<libinit_t>(lib->symbol("init_cutlet"));
 
     if (init != nullptr) {
       _native_libs.push_back(lib);
@@ -1111,10 +1127,10 @@ cutlet::variable::pointer cutlet::interpreter::list(const std::string value) {
   while (*tokens and not tokens->expect(cutlet_tokenizer::T_EOF)) {
     if (tokens->expect(cutlet::T_BLOCK)) {
       auto token = tokens->get_token();
-      result->push_back(list((const std::string &)token));
+      result->push_back(list(static_cast<const std::string &>(token)));
     } else {
       auto token = tokens->get_token();
-      result->push_back(std::make_shared<cutlet::string>((const std::string &)token));
+      result->push_back(std::make_shared<cutlet::string>(static_cast<const std::string &>(token)));
     }
   }
 
@@ -1128,17 +1144,17 @@ cutlet::interpreter::list(const variable::pointer value) {
   if (t) {
     tokens->push(*t);
   } else {
-    return list((std::string)*value);
+    return list(cutlet::cast<std::string>(value));
   }
 
   auto result = std::make_shared<cutlet::list>();
   while (*tokens and not tokens->expect(cutlet_tokenizer::T_EOF)) {
     if (tokens->expect(cutlet::T_BLOCK)) {
       auto token = tokens->get_token();
-      result->push_back(list((const std::string &)token));
+      result->push_back(list(static_cast<const std::string &>(token)));
     } else {
       auto token = tokens->get_token();
-      result->push_back(std::make_shared<cutlet::string>((const std::string &)token));
+      result->push_back(std::make_shared<cutlet::string>(static_cast<const std::string &>(token)));
     }
   }
 
@@ -1159,7 +1175,7 @@ cutlet::interpreter::operator()(variable::pointer code) {
   if (t) {
     parser::grammer::eval(*t);
   } else {
-    parser::grammer::eval((std::string)*code);
+    parser::grammer::eval(static_cast<std::string>(*code));
   }
 
   _frame->_compiled = _compiled;
@@ -1448,7 +1464,7 @@ cutlet::ast::node::pointer cutlet::interpreter::_variable() {
 cutlet::ast::node::pointer cutlet::interpreter::_string() {
   auto token = tokens->get_token();
   auto ast_str = std::make_shared<ast::string>(token);
-  std::string result((const std::string &)token);
+  std::string result(static_cast<const std::string &>(token));
   std::string part;
 
   // Scan the string for substitutions.
@@ -1575,18 +1591,18 @@ cutlet::ast::node::pointer cutlet::interpreter::_string() {
 
         unsigned char ch_val = 0;
         if (value[0] >= '0' and value[0] <= '9')
-          ch_val = (unsigned char)(value[0] - '0') << 4;
+          ch_val = static_cast<unsigned char>(value[0] - '0') << 4;
         else if (value[0] >= 'a' and value[0] <= 'f')
-          ch_val = ((unsigned char)(value[0] - 'a') + 10) << 4;
+          ch_val = (static_cast<unsigned char>(value[0] - 'a') + 10) << 4;
         else if (value[0] >= 'A' and value[0] <= 'F')
-          ch_val = ((unsigned char)(value[0] - 'A') + 10) << 4;
+          ch_val = (static_cast<unsigned char>(value[0] - 'A') + 10) << 4;
 
         if (value[1] >= '0' and value[1] <= '9')
-          ch_val |= (unsigned char)(value[1] - '0');
+          ch_val |= static_cast<unsigned char>(value[1] - '0');
         else if (value[1] >= 'a' and value[1] <= 'f')
-          ch_val |= (unsigned char)(value[1] - 'a') + 10;
+          ch_val |= static_cast<unsigned char>(value[1] - 'a') + 10;
         else if (value[1] >= 'A' and value[1] <= 'F')
-          ch_val |= (unsigned char)(value[1] - 'A') + 10;
+          ch_val |= static_cast<unsigned char>(value[1] - 'A') + 10;
 
         std::string x;
         x += ch_val;
