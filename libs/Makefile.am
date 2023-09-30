@@ -1,5 +1,6 @@
 # Shared libraries
-pkglib_LTLIBRARIES = stdlib.la threading.la oo.la shell.la debugger.la
+pkglib_LTLIBRARIES = stdlib.la threading.la oo.la interactive.la shell.la \
+	debugger.la
 scriptlibdir = $(pkglibdir)
 scriptlib_DATA = testsuite.cutlet
 
@@ -20,9 +21,14 @@ oo_la_CPPFLAGS = -I @top_srcdir@/include
 oo_la_LIBADD = ../src/libcutlet.la
 oo_la_LDFLAGS = -module -avoid-version -shared
 
+interactive_la_SOURCES = interactive.cpp
+interactive_la_CPPFLAGS = -I @top_srcdir@/include $(READLINE_CFLAGS)
+interactive_la_LIBADD = ../src/libcutlet.la $(READLINE_LIBS)
+interactive_la_LDFLAGS = -module -avoid-version -shared
+
 shell_la_SOURCES = shell.cpp
-shell_la_CPPFLAGS = -I @top_srcdir@/include $(READLINE_CFLAGS)
-shell_la_LIBADD = ../src/libcutlet.la $(READLINE_LIBS)
+shell_la_CPPFLAGS = -I @top_srcdir@/include
+shell_la_LIBADD = ../src/libcutlet.la
 shell_la_LDFLAGS = -module -avoid-version -shared
 
 debugger_la_SOURCES = debugger.cpp

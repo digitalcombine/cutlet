@@ -314,7 +314,7 @@ namespace {
   const std::regex re_redir_out("([0-9]+|&)?>([0-9]+|>)?");
   const std::regex re_redir_in("([0-9]+)?<");
 
-  // def exec command
+  // def sh command
   cutlet::variable::pointer _eval(cutlet::interpreter &interp,
                                   const cutlet::list &parameters) {
     (void)interp;
@@ -328,7 +328,7 @@ namespace {
     end++;
 
     // Build the commands and the pipes.
-    for (;end != parameters.end(); end++) {
+    for (; end != parameters.end(); end++) {
       std::smatch iomtch;
       std::string bit((std::string)(**end));
 
@@ -457,9 +457,10 @@ namespace {
     for (auto &cmd: commands) delete cmd;
 
     return std::make_shared<cutlet::string>(status);
+    //return nullptr;
   }
 
-  // def env variable ¿=? ¿value?
+  // def export variable ¿¿=? value?
   cutlet::variable::pointer _export(cutlet::interpreter &interp,
                                     const cutlet::list &parameters) {
     (void)interp;
@@ -473,11 +474,12 @@ namespace {
                cutlet::primative<std::string>(parameters[0]) :
                "")
            << " (1 <= " << p_count
-           << " <= 3).\n environ variable ¿=? ¿value?";
+           << " <= 3).\n export variable ¿¿=? value?";
       throw std::runtime_error(mesg.str());
     }
 
     if (p_count == 1) {
+      // Return the value of the environment variable
 #ifdef HAVE_SECURE_GETENV
       char *res =
         secure_getenv(cutlet::primative<std::string>(parameters[0]).c_str());
@@ -488,13 +490,14 @@ namespace {
       return std::make_shared<cutlet::string>(res);
 
     } else {
+      // Set the value of an environment variable.
       cutlet::variable::pointer value = parameters[1];
 
       if (p_count == 3) {
         if (cutlet::primative<std::string>(value) != "=") {
           std::stringstream mesg;
           mesg << "Invalid token " << cutlet::primative<std::string>(value)
-               << " for environ\n environ variable ¿=? ¿value?";
+               << " for environ\n export variable ¿¿=? value?";
           throw std::runtime_error(mesg.str());
         }
 
@@ -513,6 +516,9 @@ namespace {
 
     return nullptr;
   }
+
+  /****************************************************************************
+   */
 
   class editbuf : public std::streambuf {
   public:

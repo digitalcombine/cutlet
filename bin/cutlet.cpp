@@ -156,12 +156,21 @@ int main(int argc, char *argv[]) {
          * by line.
          */
 
-        interpreter.import("shell");
+        interpreter.import("interactive");
         std::function<std::istream &()> cmdline_stream =
           interpreter.symbol<std::istream &(*)()>("cmdline_stream");
         std::istream &cin = cmdline_stream();
 
-        compiled = interpreter(cin, "_stdin_", true);
+        while (cin and not interpreter.done()) {
+          try {
+            compiled = interpreter(cin, "_stdin_", true);
+          } catch (cutlet::exception &err) {
+            std::cerr << "ERROR: " << err.what() << std::endl;
+            for (int i = 0; i < interpreter.frames(); i++) {
+              std::cerr << interpreter.frame(i) << std::endl;
+            }
+          }
+        }
 
       } else {
         // This appears to be piped in so do everything at once.
