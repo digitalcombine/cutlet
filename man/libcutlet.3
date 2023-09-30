@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm libcutlet
-.Nd a simple embeddable utility language.
+.Nd a simple embeddable utility language
 .Sh SYNOPSIS
 .In cutlet
 .Vt cutlet::interpreter
@@ -40,3 +40,66 @@
 .Vt cutlet::component
 .Vt cutlet::variable
 .Sh OVERVIEW
+The library
+.Nm
+contains the cutlet language.
+.Bl -column -offset indent ".Sy Execution Stack" ".Sy Sandbox"
+.It Sy Excution Stack Ta Sy Sandbox
+.It Li Frame Ta Li Global Variables
+.It Li " Local Variables" Ta Li Components
+.It Li Frame Ta Li Previous Sandbox
+.It Li " Local Variables" Ta
+.It Li ... Ta
+.El
+.Sh INTERPRETER INTERFACE
+.Bl -tag -width indent
+.It Vt class cutlet::interpreter
+The toplevel class to the cutlet interpreter.
+.Bl -tag -width indent
+.It Ft ast::node::pointer Fn operator() "cutlet::variable::pointer code"
+.It Ft ast::node::pointer Fn operator() "const std::string &code"
+.It Ft ast::node::pointer Fn operator() "const parser::token &code"
+.It Ft ast::node::pointer Fn operator() "std::istream &code" "const std::string &filename" "bool interactive = false"
+The
+.Fn operator()
+method executes the given
+.Ar code
+with the interpreter.
+When compiling from an input stream, the
+.Ar filename
+is given for debugging and error messages.
+When
+.Ar interactive
+is true then the
+.Ar code
+is executed line by line otherwise it is parsed and executed in its
+entirety.
+.Pp
+The
+.Ar code
+is parsed and compiled into an abstract syntax tree.
+The tree is executed directly and returned by these methods.
+The returned tree node can be used to execute the code again.
+This is how most components work.
+.It Ft ast::node::pointer Fn compile_file "const std::string &filename"
+This is a convinent method that opens and passes the given
+.Ar filename
+to the appropriate
+.Fn operator()
+method to execute it.
+.It Ft cutlet::variable::pointer Fn expr "cutlet::variable::pointer line"
+.It Ft cutlet::variable::pointer Fn expr "const std::string &line"
+The
+.Fn expr
+method excutes a single
+.Ar line
+command and returns the result of it just like a subcommand.
+.It Ft cutlet::variable::pointer Fn call "const std::string &command" "const cutlet::list &arguments"
+The
+.Fn call
+method is used to call and execute a global component directly.
+The return value comes directly from the components returned value.
+.El
+.El
+.Sh SEE ALSO
+.Xr cutlet 1

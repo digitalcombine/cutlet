@@ -50,7 +50,6 @@ Makefile.in
 tests/*.log
 tests/*.trs
 tests/api-tests
-tests/memory-tests
 tests/debugger-tests
 tests/core.cutlet
 cutlet-*.tar.gz

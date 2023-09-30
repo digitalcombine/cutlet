@@ -31,6 +31,7 @@
 #include "utilities.h"
 #include <unistd.h>
 #include <stdlib.h>
+#include <libcutlet/utilities>
 
 /***********
  * fexists *
@@ -622,3 +623,82 @@ static unsigned int to_numeric(const std::string &value) {
 
   return 0;
 }*/
+
+/******************************************************************************
+ * class cutlet::arg_tokens
+ */
+
+/**********************************
+ * cutlet::arg_tokens::arg_tokens *
+ **********************************/
+
+cutlet::arg_tokens::arg_tokens(const arg_tokens &other)
+  : _list(other._list), _it(other._it), _errmsg(other._errmsg) {
+}
+
+cutlet::arg_tokens::arg_tokens(const cutlet::list &list,
+                               const std::string &errmsg)
+  : _list(&list), _it(list.begin()), _errmsg(errmsg) {
+}
+
+/*******************************
+ * cutlet::arg_tokens::is_more *
+ *******************************/
+
+bool cutlet::arg_tokens::is_more() const {
+  return (_it != _list->end());
+}
+
+/****************************
+ * cutlet::arg_tokens::next *
+ ****************************/
+
+cutlet::variable::pointer cutlet::arg_tokens::next() {
+  ++_it;
+  if (_it == _list->end())
+    throw std::runtime_error("Expected more arguments.");
+  return *_it;
+}
+
+/******************************
+ * cutlet::arg_tokens::expect *
+ ******************************/
+
+bool cutlet::arg_tokens::expect(const std::string &value) const {
+  return (cutlet::primative<std::string>(*_it) == value);
+}
+
+/******************************
+ * cutlet::arg_tokens::permit *
+ ******************************/
+
+void cutlet::arg_tokens::permit(const std::string &value) const {
+  if (cutlet::primative<std::string>(*_it) != value)
+    throw std::runtime_error(std::string("Expected ") + value +
+                             " but got " +
+                             cutlet::primative<std::string>(*_it)
+                             + " instead.");
+}
+
+/******************************
+ * cutlet::arg_tokens::permit *
+ ******************************/
+
+cutlet::variable::pointer cutlet::arg_tokens::get() const {
+  return *_it;
+}
+
+/***********************************
+ * cutlet::arg_tokens::operator ++ *
+ ***********************************/
+
+cutlet::arg_tokens &cutlet::arg_tokens::operator ++() {
+  ++_it;
+  return *this;
+}
+
+cutlet::arg_tokens cutlet::arg_tokens::operator ++(int) {
+  arg_tokens res(*this);
+  ++_it;
+  return res;
+}

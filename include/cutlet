@@ -177,7 +177,8 @@ namespace cutlet {
     return std::make_shared<Ty>(std::forward<Args>(args)...);
   }
 
-  template <class Ty>
+  template <class Ty,
+            class = typename std::enable_if<std::is_same<Ty, cutlet::variable>::value>>
   Ty &cast(variable::pointer object) {
     try {
       if (not object)
@@ -551,6 +552,7 @@ namespace cutlet {
 
     variable::pointer pop();
     variable::pointer pop(variable::pointer result);
+    void pop(frame::pointer frm);
 
     void finish(variable::pointer result = nullptr) {
       _frame->done(result);

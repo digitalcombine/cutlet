@@ -62,7 +62,7 @@ namespace {
 
   void version () {
     std::cout << "Cutlet Version " << VERSION << "\n\n"
-              << "Copyright (c) 2019 Ron R Wills <ron@digitalcombine.ca>\n"
+              << "Copyright (c) 2019-2023 Ron R Wills <ron@digitalcombine.ca>\n"
               << "License BSD: 3-Clause BSD License\n"
               << "  <https://opensource.org/licenses/BSD-3-Clause>\n"
               << "This is free software: you are free to change and "
@@ -81,7 +81,7 @@ namespace {
 
     auto lib_path = interp.var("library.path");
     cutlet::cast<cutlet::list>(lib_path).push_back(
-      std::make_shared<cutlet::string>(path));
+      cutlet::var<cutlet::string>(path));
   }
 
   /************
@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
           interpreter.symbol<std::istream &(*)()>("cmdline_stream");
         std::istream &cin = cmdline_stream();
 
-        compiled = interpreter(cin, "_stdin_");
+        compiled = interpreter(cin, "_stdin_", true);
 
       } else {
         // This appears to be piped in so do everything at once.

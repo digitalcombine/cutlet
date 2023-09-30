@@ -83,27 +83,27 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
           first = false;
         } else {
           try {
-            //std::cout << "DEBUG: sandbox eval " << (std::string)*command << std::endl;
             interp(command);
           } catch (...) {
             /* If an error was thrown within the sandbox, we pop the
              * context off the stack to restore the previous environment
              * then rethrow the exception.
              */
-            while (interp.frame() != cur_frame) interp.pop();
+            interp.pop(cur_frame);
             throw;
           }
         }
       }
 
       // Clean up the stack
-      while (interp.frame() != cur_frame) interp.pop();
+     interp.pop(cur_frame);
 
     } else if (op == "expr") {
       // $sandbox expr body ...
       if (args == 2) {
         variable::pointer result;
 
+        auto cur_frame = interp.frame();
         interp.push(_sandbox, "sandbox expr");
         try {
           result = interp.expr(arguments[1]);
@@ -112,10 +112,10 @@ builtin::sandbox_var::operator()(cutlet::variable::pointer self,
            * off the stack to restore the previous environment then
            * rethrow the exception.
            */
-          interp.pop();
+          interp.pop(cur_frame);
           throw;
         }
-        interp.pop();
+        interp.pop(cur_frame);
 
         return result;
       } else {

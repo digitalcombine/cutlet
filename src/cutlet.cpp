@@ -1324,6 +1324,10 @@ cutlet::interpreter::pop(variable::pointer result) {
   return pop();
 }
 
+void cutlet::interpreter::pop(frame::pointer frm) {
+  while (_frame != frm) pop();
+}
+
 /*******************************
  * cutlet::interpreter::import *
  *******************************/

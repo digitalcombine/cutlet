@@ -147,7 +147,8 @@ testsuite "Standard Library" {
       local result = "${result}-"
     }
 
-    assert {$result == "+-+-+-++-"} "while continue \"${result}\" <> \"+-+-+-++-\""
+    assert {$result == "+-+-+-++-"} \
+      "while continue \"${result}\" <> \"+-+-+-++-\""
   }
 
   test "Expr" {

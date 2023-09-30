@@ -321,7 +321,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator =="));
-      return (*this == static_cast<std::string>(*(arguments[1]))
+      return (*this == cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
     }
@@ -332,7 +332,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator !="));
-      return (*this != static_cast<std::string>(*(arguments[1]))
+      return (*this != cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
     }
@@ -343,7 +343,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator <>"));
-      return (*this != static_cast<std::string>(*(arguments[1]))
+      return (*this != cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
 
@@ -352,7 +352,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator <"));
-      return (*this < static_cast<std::string>(*(arguments[1]))
+      return (*this < cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
 
@@ -361,7 +361,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator <="));
-      return (*this <= static_cast<std::string>(*(arguments[1]))
+      return (*this <= cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
     }
@@ -372,7 +372,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator >"));
-      return (*this > static_cast<std::string>(*(arguments[1]))
+      return (*this > cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
 
@@ -381,7 +381,7 @@ cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
       if (args != 2)
         throw std::runtime_error(std::string("Invalid number of arguments to "
                                              "string operator >="));
-      return (*this >= static_cast<std::string>(*(arguments[1]))
+      return (*this >= cutlet::cast<std::string>(arguments[1])
               ? cutlet::var<cutlet::boolean>(true)
               : cutlet::var<cutlet::boolean>(false));
     }
