@@ -62,11 +62,11 @@ esac
 
 PKG_CHECK_MODULES([READLINE], [readline >= 8],
                   [AC_DEFINE(HAVE_READLINE_H)],
-                  [AC_MSG_ERROR([ncurses library not found])])
+                  [AC_MSG_ERROR([readline library not found])])
 
 # Checks for header files.
 AC_CHECK_HEADER([getopt.h], [],
-                            [AC_MSG_ERROR([Missing header getopt.h])])
+                [AC_MSG_ERROR([Missing header getopt.h])])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_HEADER_STDBOOL

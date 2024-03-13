@@ -350,6 +350,8 @@ namespace cutlet {
   class DECLSPEC sandbox {
   public:
     using pointer = std::shared_ptr<sandbox>;
+    using const_citerator =
+      std::map<std::string, component::pointer>::const_iterator;
 
     sandbox();
     sandbox(const sandbox &other) = delete;
@@ -364,6 +366,9 @@ namespace cutlet {
     void clear();
 
     component::pointer get(const std::string &name) const;
+    const std::map<std::string, component::pointer> &components() const {
+      return _components;
+    }
 
     cutlet::variable::pointer variable(interpreter &interp,
                                        const std::string &name);
