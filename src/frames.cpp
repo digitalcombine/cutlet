@@ -322,10 +322,12 @@ void cutlet::loop_frame::state(cutlet::frame::state_t new_state) {
   case FS_RUNNING:
   case FS_DONE:
     _uplevel->state(new_state);
-  default:
-    parent()->state(new_state);
+    break;
+  case FS_BREAK:
+  case FS_CONTINUE:
     break;
   }
+  parent()->state(new_state);
 }
 
 /******************************
