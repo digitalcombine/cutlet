@@ -157,9 +157,9 @@ int main(int argc, char *argv[]) {
          */
 
         interpreter.import("interactive");
-        std::function<std::istream &()> cmdline_stream =
-          interpreter.symbol<std::istream &(*)()>("cmdline_stream");
-        std::istream &cin = cmdline_stream();
+        std::function<std::istream &()> interactive_stream =
+          interpreter.symbol<std::istream &(*)()>("interactive_stream");
+        std::istream &cin = interactive_stream();
 
         while (cin and not interpreter.done()) {
           try {
@@ -169,6 +169,7 @@ int main(int argc, char *argv[]) {
             for (int i = 0; i < interpreter.frames(); i++) {
               std::cerr << interpreter.frame(i) << std::endl;
             }
+            interpreter.state(cutlet::frame::FS_RUNNING);
           }
         }
 

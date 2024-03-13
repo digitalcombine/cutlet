@@ -57,7 +57,7 @@
 extern "C" {
   DECLSPEC void init_cutlet(cutlet::interpreter *interp);
 
-  DECLSPEC std::istream &cmdline_stream();
+  DECLSPEC std::istream &interactive_stream();
 }
 
 namespace {
@@ -131,9 +131,9 @@ namespace {
     return cutlet::var<cutlet::string>("$ ");
   }
 
-  /************
-   * def exit *
-   ************/
+  /*********************
+   * def exit ¿result? *
+   *********************/
 
   cutlet::variable::pointer
   _iexit(cutlet::interpreter &interp, const cutlet::list &arguments) {
@@ -150,7 +150,7 @@ namespace {
       frame->done(cutlet::var<cutlet::list>(arguments));
       break;
     }
-    cmdline_stream().setstate(std::ios_base::eofbit);
+    interactive_stream().setstate(std::ios_base::eofbit);
 
     return nullptr;
   }
@@ -246,11 +246,11 @@ void init_cutlet(cutlet::interpreter *interp) {
   interp->add("exit", _iexit);
 }
 
-/******************
- * cmdline_stream *
- ******************/
+/**********************
+ * interactive_stream *
+ **********************/
 
-std::istream &cmdline_stream() {
+std::istream &interactive_stream() {
   // Create a singleton readline stream object for interactive use.
   static std::unique_ptr<std::istream> input = nullptr;
   static std::unique_ptr<std::streambuf> inputbuf = nullptr;
