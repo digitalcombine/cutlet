@@ -42,7 +42,6 @@
 #include <regex>
 #include <iostream>
 #include <sstream>
-#include <readline/readline.h>
 
 #include <sys/stat.h>
 
@@ -314,7 +313,7 @@ namespace {
   const std::regex re_redir_out("([0-9]+|&)?>([0-9]+|>)?");
   const std::regex re_redir_in("([0-9]+)?<");
 
-  // def exec command
+  // def sh command
   cutlet::variable::pointer _eval(cutlet::interpreter &interp,
                                   const cutlet::list &parameters) {
     (void)interp;
@@ -328,7 +327,7 @@ namespace {
     end++;
 
     // Build the commands and the pipes.
-    for (;end != parameters.end(); end++) {
+    for (; end != parameters.end(); end++) {
       std::smatch iomtch;
       std::string bit((std::string)(**end));
 
@@ -457,9 +456,10 @@ namespace {
     for (auto &cmd: commands) delete cmd;
 
     return std::make_shared<cutlet::string>(status);
+    //return nullptr;
   }
 
-  // def env variable ¿=? ¿value?
+  // def export variable ¿¿=? value?
   cutlet::variable::pointer _export(cutlet::interpreter &interp,
                                     const cutlet::list &parameters) {
     (void)interp;
@@ -473,11 +473,12 @@ namespace {
                cutlet::primative<std::string>(parameters[0]) :
                "")
            << " (1 <= " << p_count
-           << " <= 3).\n environ variable ¿=? ¿value?";
+           << " <= 3).\n export variable ¿¿=? value?";
       throw std::runtime_error(mesg.str());
     }
 
     if (p_count == 1) {
+      // Return the value of the environment variable
 #ifdef HAVE_SECURE_GETENV
       char *res =
         secure_getenv(cutlet::primative<std::string>(parameters[0]).c_str());
@@ -488,13 +489,14 @@ namespace {
       return std::make_shared<cutlet::string>(res);
 
     } else {
+      // Set the value of an environment variable.
       cutlet::variable::pointer value = parameters[1];
 
       if (p_count == 3) {
         if (cutlet::primative<std::string>(value) != "=") {
           std::stringstream mesg;
           mesg << "Invalid token " << cutlet::primative<std::string>(value)
-               << " for environ\n environ variable ¿=? ¿value?";
+               << " for environ\n export variable ¿¿=? value?";
           throw std::runtime_error(mesg.str());
         }
 
@@ -513,67 +515,11 @@ namespace {
 
     return nullptr;
   }
-
-  class editbuf : public std::streambuf {
-  public:
-    editbuf();
-    virtual ~editbuf() noexcept;
-
-  protected:
-    virtual int_type underflow();
-
-  private:
-    std::string _linebuf;
-
-    bool oflush();
-  };
-
-  /*********************************
-   * sockets::socketbuf::socketbuf *
-   *********************************/
-
-  editbuf::editbuf() {
-    // Setup the stream buffers.
-    setg(_linebuf.data(), _linebuf.data(), _linebuf.data());
-  }
-
-  editbuf::~editbuf() noexcept {}
-
-  /********************************
-   * sockets::socketbuf::underflow *
-   ********************************/
-
-  editbuf::editbuf::int_type editbuf::editbuf::underflow() {
-    if (gptr() >= egptr()) {
-      // The buffer has been exhausted, read more in from the socket.
-      char *line = readline("$ ");
-
-      if (line == nullptr) {
-        // End of file
-#ifdef DEBUG_NSTREAM
-        std::clog << "sockbuf::underflow eof" << std::endl;
-#endif
-        return traits_type::eof();
-      }
-
-      _linebuf = line;
-      _linebuf += '\n';
-      free(line);
-
-      // Update the buffer.
-      setg(_linebuf.data(), _linebuf.data(),
-           _linebuf.data() + _linebuf.size());
-    }
-
-    return traits_type::to_int_type(*gptr());
-  }
 }
 
 // We need to declare init_cutlet as a C function.
 extern "C" {
   DECLSPEC void init_cutlet(cutlet::interpreter *interp);
-
-  DECLSPEC std::istream &cmdline_stream();
 }
 
 /***************
@@ -585,20 +531,4 @@ void init_cutlet(cutlet::interpreter *interp) {
   interp->add("sh.export", _export,
               "sh.export variable ¿¿=? value?\n\n"
               "");
-}
-
-/******************
- * cmdline_stream *
- ******************/
-
-std::istream &cmdline_stream() {
-  static std::unique_ptr<std::istream> input = nullptr;
-  static std::unique_ptr<std::streambuf> inputbuf = nullptr;
-
-  if (not input) {
-    inputbuf = std::make_unique<editbuf>();
-    input = std::make_unique<std::istream>(inputbuf.get());
-  }
-
-  return *input;
 }

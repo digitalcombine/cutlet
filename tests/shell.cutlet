@@ -28,6 +28,6 @@
 
 import shell
 
-eval ls -1 > filelist.txt
-eval ls -1 | wc -l >> filelist.txt
-eval sort < filelist.txt
+sh ls -1 > filelist.txt
+sh ls -1 | wc -l >> filelist.txt
+sh sort < filelist.txt

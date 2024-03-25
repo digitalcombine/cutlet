@@ -1378,7 +1378,7 @@ void cutlet::interpreter::import(const std::string &library_name) {
 void cutlet::interpreter::entry() {
   auto ast_tree = std::make_shared<ast::block>();
 
-  while (tokens or not tokens->expect(parser::tokenizer::T_EOF)) {
+  while (tokens and not tokens->expect(parser::tokenizer::T_EOF)) {
 
     // Remove empty lines.
     while (tokens->expect(cutlet::T_EOL)) tokens->next();
