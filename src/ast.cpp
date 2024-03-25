@@ -414,7 +414,7 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
       if (c_params.size())
         return (*cmd)(cmd, interp, c_params);
       else
-        return cmd;
+        return interp.call(cutlet::cast<std::string>(cmd), c_params);
 
     } else if (is_type<ast::command>(_function)) {
 #if defined(DEBUG_AST)
@@ -425,16 +425,13 @@ cutlet::ast::command::operator()(cutlet::interpreter &interp) {
       if (c_params.size())
         return (*cmd)(cmd, interp, c_params);
       else
-        return cmd;
+        return interp.call(cutlet::cast<std::string>(cmd), c_params);
 
     } else if (is_type<ast::string>(_function)) {
 #if defined(DEBUG_AST)
       std::clog << "AST: string " << (std::string)*cmd << std::endl;
 #endif
-      if (c_params.size())
-        return (*cmd)(cmd, interp, c_params);
-      else
-        return cmd;
+      return (*cmd)(cmd, interp, c_params);
 
     } else {
       // Execute the function.
@@ -496,6 +493,134 @@ const std::string &cutlet::ast::command::body() const {
  *******************************/
 
 const parser::token &cutlet::ast::command::token() const {
+  return _function->token();
+}
+
+/******************************************************************************
+ * class cutlet::ast::expression
+ */
+
+/***************************************
+ * cutlet::ast::expression::expression *
+ ***************************************/
+
+cutlet::ast::expression::expression(node::pointer n) : node(), _function(n) {}
+
+/****************************************
+ * cutlet::ast::expression::~expression *
+ ****************************************/
+
+cutlet::ast::expression::~expression() noexcept {}
+
+/**************************************
+ * cutlet::ast::expression::parameter *
+ **************************************/
+
+void cutlet::ast::expression::parameter(node::pointer n) {
+  _parameters.push_back(n);
+}
+
+/***************************************
+ * cutlet::ast::expression::operator() *
+ ***************************************/
+
+cutlet::variable::pointer
+cutlet::ast::expression::operator()(cutlet::interpreter &interp) {
+  cutlet::variable::pointer cmd = (*_function)(interp);
+
+  cutlet::list c_params;
+  for (auto &parameter: _parameters) {
+    c_params.push_back((*parameter)(interp));
+  }
+
+  break_point(interp);
+
+  try {
+    if (c_params.size() == 0) {
+      return cmd;
+    } else {
+        if (is_type<ast::variable>(_function)) {
+          // Execute the variable.
+#if defined(DEBUG_AST)
+          std::clog << "AST: expr operator $" << body() << " -> "
+                    << (std::string)*c_params[0] << std::endl;
+#endif
+          return (*cmd)(cmd, interp, c_params);
+
+        } else if (is_type<ast::command>(_function)) {
+#if defined(DEBUG_AST)
+          std::clog << "AST:" << position() << "<" << file()
+                    << ">: expr command [" << (std::string)*cmd << "]"
+                    << std::endl;
+#endif
+          return (*cmd)(cmd, interp, c_params);
+
+        } else if (is_type<ast::string>(_function)) {
+#if defined(DEBUG_AST)
+          std::clog << "AST: expr string " << (std::string)*cmd << std::endl;
+#endif
+          return (*cmd)(cmd, interp, c_params);
+
+        } else {
+          // Execute the function.
+#if defined(DEBUG_AST)
+          std::clog << "AST:" << position() << "<" << file()
+                    << ">: expr command " << (std::string)*cmd
+                    << std::endl;
+#endif
+          return interp.call(cutlet::cast<std::string>(cmd), c_params);
+        }
+    }
+  } catch (const cutlet::exception &err) {
+    (void)err;
+    throw;
+  } catch (const std::exception &err) {
+    /** @todo Need to add location function to nodes so we can let the users
+     *        know where the problem was.
+     */
+    std::stringstream msg;
+    msg << file() << ":" << position() << ": " << err.what();
+    throw cutlet::exception(msg.str(), *this);
+  }
+}
+
+/*******************************
+ * cutlet::ast::expression::id *
+ *******************************/
+
+unsigned int cutlet::ast::expression::id() const {
+  return cutlet::A_COMMAND;
+}
+
+/*********************************
+ * cutlet::ast::expression::file *
+ *********************************/
+
+std::string cutlet::ast::expression::file() const {
+  return _function->file();
+}
+
+/*************************************
+ * cutlet::ast::expression::position *
+ *************************************/
+
+std::streampos cutlet::ast::expression::position() const {
+  return _function->position();
+}
+
+/*********************************
+ * cutlet::ast::expression::body *
+ *********************************/
+
+const std::string &cutlet::ast::expression::body() const {
+  return static_cast<const std::string &>(token());
+}
+
+/**********************************
+ * cutlet::ast::expression::token *
+ **********************************/
+
+const parser::token &cutlet::ast::expression::token() const {
   return _function->token();
 }
 

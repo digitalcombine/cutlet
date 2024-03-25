@@ -129,6 +129,33 @@ namespace cutlet {
       std::list<node::pointer> _parameters;
     };
 
+    class expression : public node {
+    public:
+      using pointer = std::shared_ptr<expression>;
+
+      expression(node::pointer n);
+      virtual ~expression() noexcept override;
+
+      void parameter(node::pointer n);
+
+      virtual cutlet::variable::pointer
+      operator()(cutlet::interpreter &interp) override;
+
+      virtual unsigned int id() const override;
+
+      virtual std::string file() const override;
+
+      virtual std::streampos position() const override;
+
+      virtual const std::string &body() const override;
+
+      virtual const parser::token &token() const override;
+
+    private:
+      node::pointer _function;
+      std::list<node::pointer> _parameters;
+    };
+
     class string : public node {
     public:
       string(const parser::token &token);

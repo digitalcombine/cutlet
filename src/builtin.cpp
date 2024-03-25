@@ -66,14 +66,20 @@ namespace {
              a_it != args.end(); ++p_it, ++a_it) {
         cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
         if (l) {
-          // Set the value for the parameter that has a default value.
-          interp.local(*(l->front()), *a_it);
+          if (*(l->front()) == "*args") {
+            interp.local("args",
+                         cutlet::var<cutlet::list>(a_it, args.end()));
+            a_it = args.end();
+          } else {
+            interp.local(*(l->front()), *a_it);
+          }
         } else {
           std::string name(*(*p_it));
           if (name == "*args") {
             // If *args found populate it with a list of the remaining values.
             interp.local("args",
                          cutlet::var<cutlet::list>(a_it, args.end()));
+            a_it = args.end();
           } else {
             // Set the value for the parameter.
             interp.local(name, *a_it);
@@ -89,7 +95,12 @@ namespace {
         while (p_it != cutlet::cast<cutlet::list>(_arguments).end()) {
           cutlet::list *l = dynamic_cast<cutlet::list *>(&(*(*p_it)));
           if (l) {
-            interp.local(*(l->front()), l->back());
+            if (*(l->front()) == "*args") {
+              interp.local("args", l->back());
+            } else {
+              interp.local(*(l->front()), l->back());
+            }
+            ++p_it;
           } else {
             // Silly programmer.
             throw std::runtime_error("Missing value for argument " +

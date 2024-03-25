@@ -98,8 +98,8 @@ testsuite "Standard Library" {
   }
 
   test "Try Catch Block Return" {
-    assert {try_return} {Returning within a try block}
-    assert {catch_return} {Returning within a catch block}
+    assert {[try_return]} {Returning within a try block}
+    assert {[catch_return]} {Returning within a catch block}
   }
 
   #============================================================================
@@ -154,7 +154,11 @@ testsuite "Standard Library" {
   test "Expr" {
     local value = 10
 
-    #local result = [expr {$value == "15"}]
-    #assert {$result} "$value == 15"
+    assert {[expr {$value}] == "10"} \
+      "\$value returned [expr {$value}] instead of 10"
+    assert {[expr {$value}] <> "15"} \
+      "\$value returned [expr {$value}] instead of 10"
+    assert {[expr {$value == "10"}]} "$value == 10"
+    assert {[expr {$value <> "15"}]} "$value <> 15"
   }
 }

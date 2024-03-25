@@ -577,6 +577,7 @@ namespace cutlet {
 
     ast::node::pointer _comment();
     ast::node::pointer _command();
+    ast::node::pointer _expression();
     ast::node::pointer _variable();
     ast::node::pointer _string();
     ast::node::pointer _subcommand();

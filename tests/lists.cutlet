@@ -117,14 +117,18 @@ testsuite "List Type and Operators" {
       local names "$names $name"
     }
 
-    assert {$names == " Fred John Sam Smith"} "Foreach failed \"${names}\" <> \" Fred John Sam Smith\""
+    assert {$names == " Fred John Sam Smith"} \
+      "Foreach failed \"${names}\" <> \" Fred John Sam Smith\""
   }
 
   test "Join" {
     local list = [list Fred John Sam Smith]
     local who = "Hello [$list join { and }]"
+    local empty = [list]
 
-    assert {$who == "Hello Fred and John and Sam and Smith"} "$who == Hello Fred and John and Sam and Smith"
+    assert {$who == "Hello Fred and John and Sam and Smith"} \
+      "$who == Hello Fred and John and Sam and Smith"
+    assert {[$empty join] == ""} "[$empty join] <> \"\""
   }
 
   test "Append" {
@@ -160,7 +164,8 @@ testsuite "List Type and Operators" {
 
     # Setting an index value
     $ilist index 2 = "Betty"
-    assert {[$ilist index 2] == "Betty"} "List setting index 2 \"[$ilist index 2]\" == Betty"
+    assert {[$ilist index 2] == "Betty"} \
+      "List setting index 2 \"[$ilist index 2]\" == Betty"
 
     # Out of range indices.
     [list 5 -5 0 -10 12] foreach idx {

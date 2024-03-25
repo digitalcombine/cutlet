@@ -38,10 +38,21 @@
 #include "ast.h"
 
 namespace {
+  // Anything defined here will not have their symbols exported.
+
+  /****************************************************************************
+   * class _native_lib
+   */
 
   class _native_lib {
+    /* Class for handling native libraries.
+     */
   public:
     explicit _native_lib(const std::string &filename) {
+      /* Load a shared library if possible.
+       *
+       * Throws a runtime_error if is wasn't able to load the library.
+       */
 #if defined (__linux__) || defined (__FreeBSD__)
       _handle = dlopen(filename.c_str(), RTLD_LAZY);
       if (_handle == NULL)
@@ -62,23 +73,64 @@ namespace {
 #endif
     }
 
-    /*template <class ty>
-    ty symbol(const std::string &name) {
-#if defined (__linux__) || defined (__FreeBSD__)
-      if (_handle)
-        return dlsym(_handle, name.c_str());
-      return nullptr;
-#else
-      return nullptr;
-#endif
-}*/
-
   private:
     nativelib_t _handle;
   };
+
+  /****************************************************************************
+   * class cutlet_tokenizer
+   */
+
+  class cutlet_tokenizer : public parser::tokenizer {
+  public:
+    cutlet_tokenizer() {}
+
+    friend std::ostream &operator <<(std::ostream &os,
+                                     const cutlet_tokenizer &tks);
+
+  protected:
+    virtual void parse_tokens() override;
+
+  protected:
+    void parse_next_token();
+  };
+
+  /****************************************************************************
+   * class _function
+   */
+
+  class _function : public cutlet::component {
+  public:
+    _function(const std::string &label, cutlet::function_t func,
+              const std::string &doc)
+      : _label(label), _doc(doc), _function_ptr(func) {}
+
+    virtual ~_function() noexcept override;
+
+    virtual cutlet::variable::pointer
+    operator ()(cutlet::interpreter &interp,
+                const cutlet::list &arguments) override {
+      interp.push(_label);
+      interp.finish(_function_ptr(interp, arguments));
+      return interp.pop();
+    }
+
+    virtual std::string documentation() const override { return _doc; }
+
+  private:
+    std::string _label;
+    std::string _doc;
+    cutlet::function_t _function_ptr;
+  };
 } // namespace
 
+/*****************************
+ * _native_lib::~_native_lib *
+ *****************************/
+
 _native_lib::~_native_lib() noexcept {
+  /* Close and release the resources of a shared library.
+   */
 #if defined (__linux__) || defined (__FreeBSD__)
   if (_handle and dlclose(_handle) != 0)
     std::cerr << "WARNING: dlclose " << dlerror() << std::endl;
@@ -91,6 +143,8 @@ _native_lib::~_native_lib() noexcept {
 
 std::ostream &operator <<(std::ostream &os,
                           const cutlet::frame &frame) {
+  /* Dump the contents of a frame.
+   */
   cutlet::frame::pointer ptr = frame._uplevel;
 
   // Count the number of frames we have.
@@ -132,24 +186,6 @@ std::ostream &operator <<(std::ostream &os,
   os << *frame;
   return os;
 }
-
-/******************************************************************************
- * class cutlet_tokenizer
- */
-
-class cutlet_tokenizer : public parser::tokenizer {
-public:
-  cutlet_tokenizer() {}
-
-  friend std::ostream &operator <<(std::ostream &os,
-                                   const cutlet_tokenizer &tks);
-
-protected:
-  virtual void parse_tokens() override;
-
-protected:
-  void parse_next_token();
-};
 
 #ifdef DEBUG
 /** Debug stream operator for displaying parsed tokens.
@@ -404,7 +440,6 @@ std::string cutlet::utf8::replace(const iterator &start, const iterator &end,
   }
   throw std::range_error("sub string iterators out of range");
 }
-
 
 /******************************************************************************
  * class cutlet_tokenizer
@@ -779,35 +814,11 @@ const parser::token *cutlet::variable::token() const { return nullptr; }
 
 /******************************************************************************
  * class _function
- *
- *  A component wrapper around the cutlet::function_t.
  */
 
-namespace {
-  class _function : public cutlet::component {
-  public:
-    _function(const std::string &label, cutlet::function_t func,
-              const std::string &doc)
-      : _label(label), _doc(doc), _function_ptr(func) {}
-
-    virtual ~_function() noexcept override;
-
-    virtual cutlet::variable::pointer
-    operator ()(cutlet::interpreter &interp,
-                const cutlet::list &arguments) override {
-      interp.push(_label);
-      interp.finish(_function_ptr(interp, arguments));
-      return interp.pop();
-    }
-
-    virtual std::string documentation() const override { return _doc; }
-
-  private:
-    std::string _label;
-    std::string _doc;
-    cutlet::function_t _function_ptr;
-  };
-} // namespace
+/*************************
+ * _function::~_function *
+ *************************/
 
 _function::~_function() noexcept {}
 
@@ -1243,11 +1254,10 @@ cutlet::variable::pointer cutlet::interpreter::expr(variable::pointer cmd) {
   } else {
     tokens->push(static_cast<std::string>(*cmd));
   }
-  ast::node::pointer result = _command();
+  ast::node::pointer result = _expression();
   tokens->pop();
 
   if (not result) {
-    std::clog << "DEBUG: " << static_cast<std::string>(*cmd) << std::endl;
     return nullptr;
   } else {
     return (*result)(*this);
@@ -1256,7 +1266,7 @@ cutlet::variable::pointer cutlet::interpreter::expr(variable::pointer cmd) {
 
 cutlet::variable::pointer cutlet::interpreter::expr(const std::string &cmd) {
   tokens->push(cmd);
-  ast::node::pointer result = _command();
+  ast::node::pointer result = _expression();
   tokens->pop();
   return (*result)(*this);
 }
@@ -1423,6 +1433,53 @@ cutlet::ast::node::pointer cutlet::interpreter::_command() {
 
   } else if (tokens->expect(cutlet::T_STRING)) {
     cmd_ast = std::make_shared<ast::command>(_string());
+
+  } else {
+    throw parser::syntax_error("Invalid token", tokens->get_token());
+  }
+
+  // Collect the command arguments.
+  while (not tokens->expect(cutlet::T_EOL) and
+         not tokens->expect(parser::tokenizer::T_EOF)) {
+
+    if (tokens->expect(cutlet::T_WORD) or
+               tokens->expect(cutlet::T_BLOCK)) {
+      cmd_ast->parameter(cutlet::var<ast::value>(tokens->get_token()));
+    } else if (tokens->expect(cutlet::T_STRING)) {
+      cmd_ast->parameter(_string());
+    } else if (tokens->expect(cutlet::T_VARIABLE)) {
+      cmd_ast->parameter(_variable());
+    } else if (tokens->expect(cutlet::T_SUBCMD)) {
+      cmd_ast->parameter(_subcommand());
+    } else {
+      throw parser::syntax_error("Invalid token", tokens->get_token());
+    }
+  }
+
+  return cmd_ast;
+}
+
+/************************************
+ * cutlet::interpreter::_expression *
+ ************************************/
+
+cutlet::ast::node::pointer cutlet::interpreter::_expression() {
+  ast::expression::pointer cmd_ast;
+
+  // Get the command name.
+  if (tokens->expect(cutlet::T_WORD) or
+      tokens->expect(cutlet::T_BLOCK)) {
+    cmd_ast = std::make_shared<ast::expression>(
+                std::make_shared<ast::value>(tokens->get_token()));
+
+  } else if (tokens->expect(cutlet::T_VARIABLE)) {
+    cmd_ast = std::make_shared<ast::expression>(_variable());
+
+  } else if (tokens->expect(cutlet::T_SUBCMD)) {
+    cmd_ast = std::make_shared<ast::expression>(_subcommand());
+
+  } else if (tokens->expect(cutlet::T_STRING)) {
+    cmd_ast = std::make_shared<ast::expression>(_string());
 
   } else {
     throw parser::syntax_error("Invalid token", tokens->get_token());

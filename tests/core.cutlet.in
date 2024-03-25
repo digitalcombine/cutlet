@@ -129,4 +129,19 @@ testsuite "Language Core" {
     local levela = [true]
     block_test 1
   }
+
+  def proc_1 {{*args {}}} {
+    print "proc 1:" [$args join]
+  }
+
+  test "Varible Function Calls" {
+    local pcall = "proc_1"
+    $pcall with args
+    $pcall
+  }
+
+  test "String Function Calls" {
+    "proc_1" with args
+    "proc_1"
+  }
 }

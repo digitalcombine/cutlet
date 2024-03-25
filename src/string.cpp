@@ -306,164 +306,164 @@ cutlet::string::~string() noexcept {}
 cutlet::variable::pointer cutlet::string::operator()(variable::pointer self,
                                                      interpreter &interp,
                                                      const list &arguments) {
-  std::string op = *(arguments[0]);
   size_t args = arguments.size();
 
   /* TODO
    *  - rfind
    */
+  if (args) {
+    std::string op = *(arguments[0]);
+    // We use a switch here to make the operator look up a bit faster.
+    switch (op[0]) {
+    case '=':
+      if (op == "==" or op == "=") {
+        // $string == other or $string = other
+        if (args != 2)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator =="));
+        return (*this == cutlet::cast<std::string>(arguments[1])
+                ? cutlet::var<cutlet::boolean>(true)
+                : cutlet::var<cutlet::boolean>(false));
+      }
+      break;
+    case '!':
+      if (op == "!=") {
+        // $string <> other or $string != other
+        if (args != 2)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator !="));
+        return (*this != cutlet::cast<std::string>(arguments[1])
+                ? cutlet::var<cutlet::boolean>(true)
+                : cutlet::var<cutlet::boolean>(false));
+      }
+      break;
+    case '<':
+      if (op == "<>") {
+        // $string <> other or $string != other
+        if (args != 2)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator <>"));
+        return (*this != cutlet::cast<std::string>(arguments[1])
+                ? cutlet::var<cutlet::boolean>(true)
+                : cutlet::var<cutlet::boolean>(false));
 
-  // We use a switch here to make the operator look up a bit faster.
-  switch (op[0]) {
-  case '=':
-    if (op == "==" or op == "=") {
-      // $string == other or $string = other
-      if (args != 2)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator =="));
-      return (*this == cutlet::cast<std::string>(arguments[1])
-              ? cutlet::var<cutlet::boolean>(true)
-              : cutlet::var<cutlet::boolean>(false));
-    }
-    break;
-  case '!':
-    if (op == "!=") {
-      // $string <> other or $string != other
-      if (args != 2)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator !="));
-      return (*this != cutlet::cast<std::string>(arguments[1])
-              ? cutlet::var<cutlet::boolean>(true)
-              : cutlet::var<cutlet::boolean>(false));
-    }
-    break;
-  case '<':
-    if (op == "<>") {
-      // $string <> other or $string != other
-      if (args != 2)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator <>"));
-      return (*this != cutlet::cast<std::string>(arguments[1])
-              ? cutlet::var<cutlet::boolean>(true)
-              : cutlet::var<cutlet::boolean>(false));
+      } else if (op == "<") {
+        // $string < other
+        if (args != 2)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator <"));
+        return (*this < cutlet::cast<std::string>(arguments[1])
+                ? cutlet::var<cutlet::boolean>(true)
+                : cutlet::var<cutlet::boolean>(false));
 
-    } else if (op == "<") {
-      // $string < other
-      if (args != 2)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator <"));
-      return (*this < cutlet::cast<std::string>(arguments[1])
-              ? cutlet::var<cutlet::boolean>(true)
-              : cutlet::var<cutlet::boolean>(false));
+      } else if (op == "<=") {
+        // $string <= other
+        if (args != 2)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator <="));
+        return (*this <= cutlet::cast<std::string>(arguments[1])
+                ? cutlet::var<cutlet::boolean>(true)
+                : cutlet::var<cutlet::boolean>(false));
+      }
+      break;
+    case '>':
+      if (op == ">") {
+        // $string > other
+        if (args != 2)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator >"));
+        return (*this > cutlet::cast<std::string>(arguments[1])
+                ? cutlet::var<cutlet::boolean>(true)
+                : cutlet::var<cutlet::boolean>(false));
 
-    } else if (op == "<=") {
-      // $string <= other
-      if (args != 2)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator <="));
-      return (*this <= cutlet::cast<std::string>(arguments[1])
-              ? cutlet::var<cutlet::boolean>(true)
-              : cutlet::var<cutlet::boolean>(false));
-    }
-    break;
-  case '>':
-    if (op == ">") {
-      // $string > other
-      if (args != 2)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator >"));
-      return (*this > cutlet::cast<std::string>(arguments[1])
-              ? cutlet::var<cutlet::boolean>(true)
-              : cutlet::var<cutlet::boolean>(false));
+      } else if (op == ">=") {
+        // $string >= other
+        if (args != 2)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator >="));
+        return (*this >= cutlet::cast<std::string>(arguments[1])
+                ? cutlet::var<cutlet::boolean>(true)
+                : cutlet::var<cutlet::boolean>(false));
+      }
+      break;
+    case '+':
+      if (op == "+") {
+        // $string + *args
+        if (args < 2)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator +"));
+        cutlet::list sargs(arguments);
+        sargs.pop_front(); // Remove the operator.
 
-    } else if (op == ">=") {
-      // $string >= other
-      if (args != 2)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator >="));
-      return (*this >= cutlet::cast<std::string>(arguments[1])
-              ? cutlet::var<cutlet::boolean>(true)
-              : cutlet::var<cutlet::boolean>(false));
-    }
-    break;
-  case '+':
-    if (op == "+") {
-      // $string + *args
-      if (args < 2)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator +"));
-      cutlet::list sargs(arguments);
-      sargs.pop_front(); // Remove the operator.
-
-      return cutlet::var<cutlet::string>(*this + sargs.join());
+        return cutlet::var<cutlet::string>(*this + sargs.join());
 
 
-    }
-    break;
-  case 'a':
-    if (op == "append") {
-      // $string append *args
-      if (args < 2)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator append"));
-      cutlet::list sargs(arguments);
-      sargs.pop_front(); // Remove the operator.
+      }
+      break;
+    case 'a':
+      if (op == "append") {
+        // $string append *args
+        if (args < 2)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator append"));
+        cutlet::list sargs(arguments);
+        sargs.pop_front(); // Remove the operator.
 
-      return cutlet::var<cutlet::string>(*this + sargs.join());
-    }
-    break;
-  case 'e':
-    if (op == "endswith") {
-      // $string endswith value
-      return _endswith(*this, interp, arguments);
-    }
-    break;
-  case 'f':
-    if (op == "find") {
-      // $string find value
-      return _find(*this, interp, arguments);
-    }
-    break;
-  case 'i':
-    if (op == "index") {
-      // $string index offset ¿¿=? value?
-      return _index(*this, interp, arguments);
+        return cutlet::var<cutlet::string>(*this + sargs.join());
+      }
+      break;
+    case 'e':
+      if (op == "endswith") {
+        // $string endswith value
+        return _endswith(*this, interp, arguments);
+      }
+      break;
+    case 'f':
+      if (op == "find") {
+        // $string find value
+        return _find(*this, interp, arguments);
+      }
+      break;
+    case 'i':
+      if (op == "index") {
+        // $string index offset ¿¿=? value?
+        return _index(*this, interp, arguments);
 
-    } else if (op == "insert") {
-      // $string insert offset value
-      return _insert(*this, interp, arguments);
-    }
-    break;
-  case 'l':
-    if (op == "length") {
-      // $string length
-      if (args != 1)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator length"));
-      return cutlet::var<cutlet::string>(str_len(*this));
-    }
-    break;
-  case 's':
-    if (op == "startswith") {
-      // $string startswith value
-      return _startswith(*this, interp, arguments);
+      } else if (op == "insert") {
+        // $string insert offset value
+        return _insert(*this, interp, arguments);
+      }
+      break;
+    case 'l':
+      if (op == "length") {
+        // $string length
+        if (args != 1)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator length"));
+        return cutlet::var<cutlet::string>(str_len(*this));
+      }
+      break;
+    case 's':
+      if (op == "startswith") {
+        // $string startswith value
+        return _startswith(*this, interp, arguments);
 
-    } else if (op == "substr") {
-      // $string substr start end
-      return _substr(*this, interp, arguments);
+      } else if (op == "substr") {
+        // $string substr start end
+        return _substr(*this, interp, arguments);
+      }
+      break;
+    case 't':
+      if (op == "type") {
+        // $string type
+        if (args != 1)
+          throw std::runtime_error(std::string("Invalid number of arguments to "
+                                               "string operator type"));
+        return cutlet::var<cutlet::string>("string");
+      }
+      break;
     }
-    break;
-  case 't':
-    if (op == "type") {
-      // $string type
-      if (args != 1)
-        throw std::runtime_error(std::string("Invalid number of arguments to "
-                                             "string operator type"));
-      return cutlet::var<cutlet::string>("string");
-    }
-    break;
   }
-
   // Pass through
   return variable::operator()(self, interp, arguments);
 }

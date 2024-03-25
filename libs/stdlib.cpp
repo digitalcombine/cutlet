@@ -149,7 +149,9 @@ namespace {
   cutlet::variable::pointer
   _expr(cutlet::interpreter &interp, const cutlet::list &arguments) {
     interp.push(1, arguments.join());
-    return interp.pop(interp.expr(arguments.join()));
+    auto result = interp.expr(arguments.join());
+    interp.pop();
+    return result;
   }
 
   /*************************************

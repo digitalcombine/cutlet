@@ -153,8 +153,8 @@ def testsuite {name body} {
   # Report of the results of the tests.
   $test_box link testsuite._errors as _errors
   $test_box link testsuite._tests as _tests
-  local errors = [$test_box expr {_errors}]
-  local tests = [$test_box expr {_tests}]
+  local errors = [$test_box expr {$_errors}]
+  local tests = [$test_box expr {$_tests}]
 
   if {[$errors size] > 0} then {
     # Report the errors that were encountered.
