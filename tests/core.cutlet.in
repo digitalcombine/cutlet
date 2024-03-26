@@ -131,7 +131,11 @@ testsuite "Language Core" {
   }
 
   def proc_1 {{*args {}}} {
-    print "proc 1:" [$args join]
+    print " proc 1 called:" [$args join]
+  }
+
+  def proc_name {} {
+    return proc_1
   }
 
   test "Varible Function Calls" {
@@ -143,5 +147,10 @@ testsuite "Language Core" {
   test "String Function Calls" {
     "proc_1" with args
     "proc_1"
+  }
+
+  test "Command Substitution Function Calls" {
+    [proc_name] with args
+    [proc_name]
   }
 }
