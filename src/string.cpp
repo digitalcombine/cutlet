@@ -30,6 +30,7 @@
 
 #include <cutlet>
 #include <sstream>
+#include <cstring>
 #include "ast.h"
 
 namespace {
