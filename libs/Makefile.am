@@ -42,4 +42,4 @@ install-exec-hook:
 
 uninstall-hook:
 	@(cd "$(DESTDIR)$(pkglibdir)" && rm -f stdlib.so threading.so shell.so \
-		oo.so debugger.so)
+		oo.so interactive.so debugger.so)
