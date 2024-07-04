@@ -68,12 +68,14 @@ testsuite "Language Core" {
     hello Ron George Bill Jane
   }
 
-  def _args_count {count *args} {
-    print " args $count $args"
+  def _args_count {count {*args {}}} {
+    print " Function called with $count arguments: $args"
     assert {$count == [$args size]} "Argument count not matching"
   }
 
   test "Continue line" {
+    _args_count 0
+
     _args_count 2 Hello World
     _args_count 2 Hello \
       World
@@ -130,8 +132,18 @@ testsuite "Language Core" {
     block_test 1
   }
 
+  #===========================================================================#
+
   def proc_1 {{*args {}}} {
-    print " proc 1 called:" [$args join]
+    if {[$args size] = 0} {
+      print " Procedure 1 called"
+    } else {
+      print " Procedure 1 called:" [$args join]
+    }
+  }
+
+  def proc_2 {*args} {
+    print " Procedure 2 called:" [$args join]
   }
 
   def proc_name {} {
@@ -152,5 +164,13 @@ testsuite "Language Core" {
   test "Command Substitution Function Calls" {
     [proc_name] with args
     [proc_name]
+  }
+
+  test "*args Arguments" {
+    try {
+      proc_2
+      fail "Empty *args argument didn't throw an error"
+    }
+    proc_2 with args
   }
 }
