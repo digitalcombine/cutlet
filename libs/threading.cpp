@@ -28,20 +28,35 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * thread body
+ * $thread joinable
  * $thread join
+ * $thread detach
  * mutex
- * $mutex ¿try? body
+ * $mutex body
+ * $mutex try ¿timeout? body
+ * $mutex shared body
+ * $mutex try shared ¿timeout? body
  */
 
 #include <cutlet>
+#include <chrono>
 #include <thread>
-#include <mutex>
+#include <shared_mutex>
+
+//#define DEBUG_THREADING 1
+
+#if DEBUG_THREADING
+#pragma message ("Threading library debugging enabled")
 #include <iostream>
+#endif
 
 namespace {
+  std::chrono::milliseconds interval(100);
+
   using thread_args_t = struct {
-    cutlet::sandbox::pointer env;
+    cutlet::sandbox::pointer  env;
     cutlet::variable::pointer body;
+    std::exception_ptr        err;
   };
 
   /*****************
@@ -49,23 +64,21 @@ namespace {
    *****************/
 
   void _thread_entry(thread_args_t &args) {
-    /* XXX Need to catch exceptions here and add them to the _thread_var class.
-     * The exception can then be rethrown by the join operator.
-     */
-
     try {
-      /* Create a new Cutlet interpreter to execute the the new thread
-       * in. This gives the thread its own Cutlet frame stack.
+      /* Create a new interpreter to execute the the new thread in. This gives
+       * the thread its own frame stack.
        */
       cutlet::interpreter tinterp;
 
-      // Copy the global environment into the new interpreter.
+      // Pass the global environment into the new interpreter.
       tinterp.push(args.env);
 
       // Execute the body.
       tinterp(args.body);
-    } catch (std::exception &err) {
-      (void)err;
+
+    } catch (...) {
+      // Capture any errors to be rethrown during join.
+      args.err = std::current_exception();
     }
   }
 
@@ -108,7 +121,7 @@ namespace {
                 const cutlet::list &arguments) override;
 
   private:
-    std::recursive_mutex _mutex;
+    std::shared_timed_mutex _mutex;
     cutlet::ast::node::pointer _compiled;
   };
 } // namespace
@@ -123,7 +136,7 @@ namespace {
 
 _thread_var::_thread_var(cutlet::interpreter &interp,
                            cutlet::variable::pointer body)
-  : _args{interp.environment(), body},
+  : _args{interp.environment(), body, nullptr},
     _thread(_thread_entry, std::ref(_args)) {}
 
 /*****************************
@@ -147,14 +160,26 @@ _thread_var::operator ()(cutlet::variable::pointer self,
 
   std::string op = *(arguments[0]);
 
-  if (op == "join") {
-    if (arguments.size() == 1) {
-      if (_thread.joinable()) _thread.join();
+  if (arguments.size() == 1) {
+    if (op == "join") {
+      // Clean up and join the thread.
+      _thread.join();
+
+      // If any exceptions where throw by the thread rethrow them here.
+      if (_args.err) std::rethrow_exception(_args.err);
       return nullptr;
-    } else {
-      throw std::runtime_error(std::string("Invalid number of arguments to "
-                                           "thread operator join"));
+
+    } else if (op == "joinable") {
+      return cutlet::var<cutlet::boolean>(_thread.joinable());
+
+    } else if (op == "detach") {
+      // The thread is now on its own.
+      _thread.detach();
+      return nullptr;
     }
+  } else {
+    throw std::runtime_error("Invalid number of arguments to "
+                             "thread operator " + op);
   }
 
   throw std::runtime_error(std::string("Unknown operator ") +
@@ -188,18 +213,72 @@ _mutex_var::operator ()(cutlet::variable::pointer self,
   (void)self;
 
   size_t args = arguments.size();
+  std::string op = *(arguments[0]);
 
   if (args == 1) {
+    // $mutex body
     _mutex.lock();
     interp(arguments[0]);
     _mutex.unlock();
-  } else if (args == 2 and *(arguments[0]) == "try") {
-    _mutex.try_lock();
-    interp(arguments[1]);
-    _mutex.unlock();
+    return nullptr;
+
+  } else if (args == 2) {
+
+    if (op == "try") {
+      // $mutex try body
+      if (_mutex.try_lock()) {
+        interp(arguments[1]);
+        _mutex.unlock();
+        return cutlet::var<cutlet::boolean>(true);
+      }
+      return cutlet::var<cutlet::boolean>(false);
+
+    } else if (op == "shared") {
+      // $mutex shared body
+      _mutex.lock_shared();
+      interp(arguments[1]);
+      _mutex.unlock_shared();
+      return nullptr;
+    }
+
+  } else if (args == 3) {
+    auto to = std::chrono::milliseconds(std::stol(*(arguments[1])));
+
+    if (op == "try" and *(arguments[1]) == "shared") {
+      // $mutex try shared body
+      if (_mutex.try_lock_shared()) {
+        interp(arguments[2]);
+        _mutex.unlock_shared();
+        return cutlet::var<cutlet::boolean>(true);
+      }
+      return cutlet::var<cutlet::boolean>(false);
+
+    } else if (op == "try") {
+      // $mutex try timeout body
+      if (_mutex.try_lock_for(to)) {
+        interp(arguments[2]);
+        _mutex.unlock();
+        return cutlet::var<cutlet::boolean>(true);
+      }
+      return cutlet::var<cutlet::boolean>(false);
+    }
+
+  } else if (args == 4) {
+    auto to = std::chrono::milliseconds(std::stol(*(arguments[2])));
+
+    if (op == "try" and *(arguments[1]) == "shared") {
+      // $mutex try shared timeout body
+      if (_mutex.try_lock_shared_for(to)) {
+        interp(arguments[3]);
+        _mutex.unlock_shared();
+        return cutlet::var<cutlet::boolean>(true);
+      }
+      return cutlet::var<cutlet::boolean>(false);
+    }
   }
 
-  throw std::runtime_error("Unknown operator for mutex variable.");
+  throw std::runtime_error(std::string("Unknown operator ") +
+                           op + " for mutex variable.");
 }
 
 /******************************************************************************
@@ -216,11 +295,13 @@ namespace {
 
   cutlet::variable::pointer
   _thread(cutlet::interpreter &interp, const cutlet::list &arguments) {
-    size_t argc = arguments.size();
+    auto argc = arguments.size();
     if (argc == 1) {
-      return std::make_shared<_thread_var>(interp, arguments[0]);
+      return cutlet::var<_thread_var>(interp, arguments[0]);
     }
-    return nullptr;
+
+    throw std::runtime_error(std::string("Invalid arguments for thread (1 <= ")
+                             + std::to_string(argc) + " <= 1)\n thread body");
   }
 
   /*************
@@ -230,9 +311,14 @@ namespace {
   cutlet::variable::pointer
   _mutex(cutlet::interpreter &interp, const cutlet::list &arguments) {
     (void)interp;
-    (void)arguments;
+    auto argc = arguments.size();
 
-    return std::make_shared<_mutex_var>();
+    if (argc == 0) {
+      return cutlet::var<_mutex_var>();
+    }
+
+    throw std::runtime_error(std::string("Invalid arguments for mutex (0 <= ")
+                             + std::to_string(argc) + " <= 0)\n mutex");
   }
 } // namespace
 
