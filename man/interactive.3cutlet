@@ -32,6 +32,8 @@
 .Sh NAME
 .Nm interactive
 .Nd adds an interactive input and prompt to the cutlet interpreter
+.Sh LIBRARY
+.Lb interactive
 .Sh SYNOPSIS
 .Ic import Ar interactive
 .Pp

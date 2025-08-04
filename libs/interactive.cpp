@@ -53,7 +53,6 @@
 #pragma message ("Interactive library debugging enabled")
 #include <iostream>
 #endif
-#include <iostream>
 
 // We need to declare init_cutlet as a C function.
 extern "C" {
