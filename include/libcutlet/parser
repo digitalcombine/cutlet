@@ -133,6 +133,8 @@ namespace parser {
     bool is_more();
     operator bool() { return is_more(); }
 
+    bool need_more_input() { return need_more; }
+
     void next();
 
     virtual void reset() noexcept;
