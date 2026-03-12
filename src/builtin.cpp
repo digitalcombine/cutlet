@@ -32,7 +32,6 @@
 #include "utilities.h"
 #include "ast.h"
 #include <iostream>
-#include <sstream>
 #include <fstream>
 
 /*****************************************************************************
@@ -147,12 +146,10 @@ builtin::def(cutlet::interpreter &interp,
   // Make sure we have to right number of arguments.
   size_t p_count = arguments.size();
   if (p_count < 2 or p_count > 3) {
-   std::stringstream mesg;
-   mesg << "Invalid number of arguments for def "
-        << (p_count >= 1 ? cutlet::primative<std::string>(arguments[0]) : "")
-        << " (2 <= " << p_count
-        << " <= 3).\n def name ¿arguments? body";
-   throw std::runtime_error(mesg.str());
+   throw std::runtime_error(std::string("Invalid number of arguments for def ")
+        + (p_count >= 1 ? cutlet::primative<std::string>(arguments[0]) : "")
+        + " (2 <= " + std::to_string(p_count)
+        + " <= 3).\n def name ¿arguments? body");
   }
 
   // Get the function name.
@@ -343,11 +340,9 @@ builtin::uplevel(cutlet::interpreter &interp,
   bool expr = false;
 
   if (p_count < 1 or p_count > 3) {
-    std::stringstream mesg;
-    mesg << "Invalid number of arguments for uplevel "
-         << " (1 < " << p_count
-         << " > 3)\n uplevel ¿expr? ¿levels? body";
-    throw std::runtime_error(mesg.str());
+    throw std::runtime_error(std::string("Invalid number of arguments for uplevel ")
+         + " (1 < " + std::to_string(p_count)
+         + " > 3)\n uplevel ¿expr? ¿levels? body");
   }
 
   // Sort out the arguments.

@@ -352,6 +352,8 @@ namespace cutlet {
     using pointer = std::shared_ptr<sandbox>;
     using const_citerator =
       std::map<std::string, component::pointer>::const_iterator;
+    using const_viterator =
+      std::map<std::string, cutlet::variable::pointer>::const_iterator;
 
     sandbox();
     sandbox(const sandbox &other) = delete;
@@ -374,10 +376,17 @@ namespace cutlet {
                                        const std::string &name);
     void variable(const std::string &name, variable::pointer value);
     bool has_variable(const std::string &name);
+    const std::map<std::string, variable::pointer> &variables() const {
+      return _variables;
+    }
 
     cutlet::variable::pointer call(interpreter &interp,
                                    const std::string &procedure,
                                    const list &arguments);
+    cutlet::variable::pointer call(interpreter &interp,
+                                   const std::string &procedure) {
+      return call(interp, procedure, cutlet::list());
+    }
 
     void *symbol(const std::string &name) const;
 
@@ -530,9 +539,8 @@ namespace cutlet {
     variable::pointer expr(variable::pointer cmd);
     variable::pointer expr(const std::string &cmd);
 
-    variable::pointer call(const std::string &procedure,
-                           const cutlet::list &arguments) {
-      return _global->call(*this, procedure, arguments);
+    template <class... Args> variable::pointer call(Args&&... args) {
+      return _global->call(*this, args...);
     }
 
     template <typename ty>
@@ -573,6 +581,8 @@ namespace cutlet {
     }
 
     void import(const std::string &library_name);
+
+    bool need_more_input() { return tokens->need_more_input(); }
 
     friend class component;
 

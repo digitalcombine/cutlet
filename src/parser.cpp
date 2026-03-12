@@ -313,7 +313,6 @@ bool parser::tokenizer::is_more_code() {
     std::string line;
 
     if (not getline(*stream, line)) {
-      code + '\0';
       stream = nullptr;
 
     } else {
@@ -507,7 +506,7 @@ void parser::tokenizer::parse_tokens() {
       if ((need_more and is_more_code()) or not code.empty()) {
         parse_next_token();
       }
- } while (need_more or not code.empty());
+    } while (need_more or not code.empty());
   } else if (code.empty()) {
     // Add EOF token
     add_token(T_EOF, "", position);

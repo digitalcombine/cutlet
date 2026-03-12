@@ -1,0 +1,199 @@
+.\" Copyright © 2018 Ron R Wills <ron@digitalcombine.ca>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice,this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the copyright holder nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd July 6, 2024
+.Dt OO 3cutlet
+.Os
+.Sh NAME
+.Nm oo
+.Nd cutlet object oriented library
+.Sh LIBRARY
+.Lb oo
+.Sh SYNOPSIS
+.Ic import Ar oo
+.Pp
+.Bl -inset -compact
+.It Ic def Ar class name \(r?supers? body
+.It Ic def Ar super class method *args
+.El
+.Ss Class Definition
+.Bl -inset -compact
+.It Ic def property name \(r?name ... ?
+.It Ic def class.property name \(r?\(r?=? value ?
+.It Ic def method \(r?arguments? body
+.It Ic def class\.method \(r?arguments? body
+.El
+.Ss C++ Imports
+.Bl -inset -compact
+.It Ft void Fn oo_add_method "cutlet::interpreter &interp" "const std::string &class" "const std::string &method" "cutlet::function_t func"
+.It Ft void Fn oo_add_class_method "cutlet::interpreter &interp" "const std::string &class" "const std::string &method" "cutlet::function_t func"
+.It Ft cutlet::variable::pointer Fn oo_get_property "cutlet::interpreter &interp" "cutlet::variable::pointer object" "const std::string &name"
+.El
+.Sh DESCRIPTION
+This simple library takes a few cues from smalltalk to add basic
+object orientated programming to the cutlet interpreter.
+.Pp
+The scopes are very basic.
+All class and object properties are private and all class and object methods
+are public.
+When a class is defined, the class is created very much like a function, a
+cutlet component.
+Therefore class methods are called in the following fashion:
+.Ic class_name Ar method_name Ar *args .
+.Pp
+When a class is created there are two class methods that are automatically
+added to the class.
+The
+.Ic new Ar *args
+method which creates a new object variable and calls the
+.Ic new
+object method if it exists to initialize the object.
+The
+.Ic type
+method which simply returns the string \(aqclass\(aq.
+.Pp
+Within the class definition object properties are defined with the
+.Ic property
+keyword and class properties with the
+.Ic class.property
+keyword.
+Multiple object properties can be defined with the
+.Ic property
+keyword and can be initialized in the
+.Ic new Ar *arg
+object method.
+Only a single class property can be defined with the
+.Ic class.property
+and the property can be initialize during class creatation.
+.Pp
+Like properties methods are defined with the
+.Ic method
+and
+.Ic class.method
+keywords accordingly.
+.Pp
+A simple example of a class definition:
+.Bd -literal
+class my_class {
+  property value val2 val3
+  class.property count = [m.uint 0]
+  class.property a_setting
+
+  method new {name} {
+    local value = $name
+    local count = [$count + 1]
+  }
+
+  method get_value {
+    return $value
+  }
+
+  class.method get_count {
+    return $count
+  }
+}
+
+global object = [my_class new "My Object"]
+.Ed
+.Pp
+Class and object properties are accessed as if they were local variables.
+Variables will resolve as properties first then as a local variable and finally
+a global variable.
+Using
+.Ic local
+will set object and class properties values as well.
+Properties will be set instead of local variables or arguments so be careful
+with variable naming conflicts.
+.Pp
+The class methods
+.Ic type
+and
+.Ic new
+cannot be overridden as they are automatically added to the class.
+.Ss Class Inheritance
+The
+.Nm
+library handles multiple inheritance with everything being dynamically
+linked, resolved when called.
+For example:
+.Bd -literal
+class my_class {class1 class2} {
+
+  method set {value} {
+    ...
+    super class1 set $value
+    ...
+  }
+
+  method action {
+    ...
+    $self set "Hello"
+    ...
+  }
+
+  class.method add {value} {
+    ...
+    super class2 set $value
+    ...
+  }
+}
+.Ed
+.Pp
+Resolving of methods and properties will be done in the order of the classes as
+they are listed when the class is defined.
+First the current class is searched then the first super class then
+the next one and so on.
+.Pp
+Methods can call super class methods using the
+.Ic super
+command.
+Also methods will have the local variable
+.Ar $self
+set to the object called to allow the methods to make additional
+method calls as needed.
+.Sh C++ API
+.Bl  -tag -width Ds
+.It Ft void Fn oo_add_method "cutlet::interpreter &interp" "const std::string &class" "const std::string &method" "cutlet::function_t func"
+Add a native c++ method to a class.
+.It Ft void Fn oo_add_class_method "cutlet::interpreter &interp" "const std::string &class" "const std::string &method" "cutlet::function_t func"
+Add a native c++ class method to a class.
+.It Ft cutlet::variable::pointer Fn oo_get_property "cutlet::interpreter &interp" "cutlet::variable::pointer object" "const std::string &name"
+Get a property value from an object.
+.El
+.Sh SEE ALSO
+.Xr cutlet 1
+.Sh AUTHORS
+.An Ron Wills
+.Mt <ron@digitalcombine.ca>
+.Sh CAVEATS
+.Ic super
+is a global function and is not sandboxed to the methods.
+It will attempt to check that it is being used within a method and raise an
+error if it not.
+.Pp
+The c++ interface is far from complete.

@@ -36,6 +36,9 @@ import stdlib
 
 def testsuite.test {name body} {
   # The test function within the testing sandbox.
+  #
+  # name - The name of the test
+  # body - The test code
 
   print "Test: $name"
   $_tests append $name
@@ -54,6 +57,9 @@ def testsuite.test {name body} {
 
 def testsuite.assert {condition *args} {
   # Assert that $condition is true.
+  #
+  # condition - The expression being tested.
+  # *args - The error message(s) of the errors encountered.
 
   try {
     local result = [uplevel expr 1 $condition]
@@ -76,6 +82,9 @@ def testsuite.assert {condition *args} {
 
 def testsuite.assert_fail {condition *args} {
   # Assert that $condition is false.
+  #
+  # condition - The expression being tested.
+  # *args - The error message(s) of the errors encountered.
 
   try {
     local result = [uplevel expr 1 $condition]
@@ -121,6 +130,11 @@ def testsuite._tests {
 #############
 
 def testsuite {name body} {
+  #
+  #
+  # name - The title of the testsuite.
+  # body - The tests for the testsuite.
+
   print "Testsuite: $name"
 
   # Create a sandbox for the tests to be executed in. This way we isolate the
@@ -165,8 +179,8 @@ def testsuite {name body} {
     }
 
     # Exit with the appropriate value.
-    #global test_result = 1
     uplevel -1 { return 1 }
+
   } else {
     # All tests passed! Yay!
     print "All [$tests size] tests passed!"

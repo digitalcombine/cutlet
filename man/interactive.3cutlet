@@ -32,6 +32,8 @@
 .Sh NAME
 .Nm interactive
 .Nd adds an interactive input and prompt to the cutlet interpreter
+.Sh LIBRARY
+.Lb interactive
 .Sh SYNOPSIS
 .Ic import Ar interactive
 .Pp
@@ -43,16 +45,15 @@
 .Sh DESCRIPTION
 The
 .Nm
-library is automatically loaded when the cutlet detects that it is running on a
-tty.
-It uses the readline library for the interactive command prompt.
+library uses the readline library to implement an interactive prompt.
+It is automatically loaded when the cutlet detects that it is running on a tty.
 .Bl -tag -width Ds
 .It Ic def Ar cutlet_prompt
 This function is called every time the prompt is displayed, its
-return value being used as the prompt.
+return value is used as the command prompt.
 It can be redefined to provide custom information within the prompt.
 .It Ic def Ar exit Op result
-This function exits the interpreter.
+This exits the interpreter.
 The optional return value,
 .Ar result ,
 should be an integer that will be returned to shell.
@@ -60,14 +61,20 @@ If
 .Ar result
 is not set it returns 0 by default.
 .It Ft std::istream& Fn interactive_stream
-This returns the c++ input stream that uses the readline library for interactive
+Returns the c++ input stream that uses the readline library for interactive
 use.
+Only one input stream is ever created and every call returns this singlton
+stream.
 Example use of the c++ API:
 .Pp
 .Bd -literal -compact
+// Import the function from the library
 std::function<std::istream &()> interactive_stream =
   interpreter.symbol<std::istream &(*)()>("interactive_stream");
+
+// Call the function, returning the stream
 std::istream &in = interactive_stream();
+interpreter(in, "_stdin_", true);
 .Ed
 .El
 .Sh AUTHORS

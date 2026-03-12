@@ -26,7 +26,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate$
+.Dd July 6, 2024
 .Dt CUTLET 1
 .Os
 .Sh NAME
@@ -40,7 +40,12 @@
 .Op Fl h
 .Op Fl V
 .Sh DESCRIPTION
-Inspired by Tcl, Cutlet is designed to be a small and simple utility language to be used by other programs and projects. Where Tcl started as a basic Tool Command Language and has, over the years, become a general programming language. Cutlet is designed to be that original utility language and only as a utility language.
+Inspired by Tcl, Cutlet is designed to be a small and simple utility
+language to be used by other programs and projects.
+Where Tcl started as a basic Tool Command Language and has, over the
+years, become a general programming language.
+Cutlet is designed to be that original utility language and only as a
+utility language.
 .Bl -tag -width Ds
 .It Fl i Ar path
 Adds a directory to the library search path.
@@ -50,7 +55,8 @@ Displays the version of Cutlet and exits.
 Displays a help screen and exits.
 .El
 .Sh SYNTAX
-The syntax, or grammer, for Cutlet is based on a few very simple rules that allow for a great amount of flexablity in the language.
+The syntax, or grammar, for Cutlet is based on a few very simple rules
+that allow for a great amount of flexibility in the language.
 .Ss One line one command.
 .Bd -literal
 This is command one
@@ -61,7 +67,7 @@ This is command two
 This command has 5 words
 command arg1 arg2 arg3
 .Ed
-.Ss A name starting with the `$` character gets replaced with a variable's value.
+.Ss A name starting with the \(aq$\(aq character gets replaced with a variable\(aqs value.
 .Bd -literal
 global customer_name = "John Smith"
 print Hello $customer_name
@@ -71,7 +77,7 @@ local counter = 10
 print We have $counter items.
   -> We have 10 items
 .Ed
-.Ss Square brackets, `[]`, gets replaced with the return value from the command in them.
+.Ss Square brackets, \(aq[]\(aq, gets replaced with the return value from the command in them.
 .Bd -literal
 local mylist = [list value1 value2 value3]
 print [$mylist join .]
@@ -79,29 +85,33 @@ print [$mylist join .]
 .Ed
 .Ss Strings are denoted with the quoting characters. Variable and command substitution can be preformed in strings.
 .Bd -literal
-print "Hello $client, your order [get_order $client] is ready\\n"
-print 'Hello $client, your order [get_order $client] is ready\\n'
+print "Hello $client, your order [get_order $client] is ready\en"
+print \(aqHello $client, your order [get_order $client] is ready\en\(aq
 .Ed
 .Pp
-Strings have the following character substitutions. These substitutions use the ASCII/UTF-8 standard characters and not any platform dependant encodings. If you are using a system with its own encoding then you'll have to use the \\x## escape sequence to implement the special characters.
+Strings have the following character substitutions.
+These substitutions use the ASCII/UTF-8 standard characters and not
+any platform dependent encoding.
+If you are using a system with its own encoding then you will have to
+use the \ex## escape sequence to implement the special characters.
 .Bd -literal
-\\$   - Replaced with the '$' character.
-\\"   - Replaced with the '"' character.
-\\'   - Replaced with the ''' character.
-\\[   - Replaced with the '[' character.
-\\]   - Replaced with the ']' character.
-\\\\   - Replaced with the '\\' character.
-\\a   - Bell/Alarm character "\\x07".
-\\b   - Backspace character "\\x08".
-\\e   - Escape character "\\x1b".
-\\f   - Formfeed character "\\x0c".
-\\n   - Newline character "\\x0a".
-\\r   - Carrage return character "\\x0d".
-\\t   - Horizontal tab character "\\x09".
-\\v   - Vertical tab character "\\x0b".
-\\x## - The '#' characters are hexidecimal numbers for the byte
-        encoded character to be replaced in the string. For example
-        a space would be "\\x20".
+\e$   - Replaced with the \(aq$\(aq character.
+\e"   - Replaced with the \(aq"\(aq character.
+\e\(aq   - Replaced with the \(aq\(aq\(aq character.
+\e[   - Replaced with the \(aq[\(aq character.
+\e]   - Replaced with the \(aq]\(aq character.
+\e\e   - Replaced with the \(aq\e\(aq character.
+\ea   - Bell/Alarm character "\ex07".
+\eb   - Backspace character "\ex08".
+\ee   - Escape character "\ex1b".
+\ef   - Formfeed character "\ex0c".
+\en   - Newline character "\ex0a".
+\er   - Carriage return character "\ex0d".
+\et   - Horizontal tab character "\ex09".
+\ev   - Vertical tab character "\ex0b".
+\ex## - The \(aq#\(aq characters are hexadecimal numbers for the byte
+	encoded character to be replaced in the string. For example
+	a space would be "\ex20".
 .Ed
 .Ss Blocks are denoted with curly brackets, {}. They can be used as literal strings and the only part of the language that can span multiple lines.
 .Bd -literal
@@ -112,7 +122,7 @@ def my_command {
   command two
 }
 .Ed
-.Ss Lines starting with the '#' character are comment lines and are ignored by Cutlet.
+.Ss Lines starting with the \(aq#\(aq character are comment lines and are ignored by cutlet.
 .Bd -literal
 # This is a comment.
 print Hello # This is not a comment
@@ -122,9 +132,13 @@ print Hello # This is not a comment
 .It Ic import Ar *args
 Imports the all the libraries listed in
 .Ar args
-into the current interpreter. The libraries should only be the name of the library, without any file extention. The library will be searched for in the paths found in the list variable
+into the current interpreter.
+The libraries should only be the name of the library, without any file
+extension.
+The library will be searched for in the paths found in the list variable
 .Va $library.path .
-The library can be a cultet script or a native compiled shared library.
+The library can be a cutlet script or a native compiled shared
+library.
 .Bd -literal
 import stdlib
 import oo
@@ -134,24 +148,28 @@ import stdlib oo
 .It Ic include Ar *args
 This loads all the filenames listed in
 .Ar args
-as a cultet script and executes it within the current interpreter. Unlike
+as a cutlet script and executes it within the current interpreter.
+Unlike
 .Ic import ,
-each filename needs to be an absolute or relative filename to the script. No searches are made.
+each filename needs to be an absolute or relative filename to the
+script.
+No searches are made.
 .Bd -literal
 include /etc/myprog/global.cfg
 include /home/user/.app.cfg
 
 include /etc/myprog/global.cfg /home/user/.app.cfg
 .Ed
-.It Ic def Ar name Ar ¿arguments? Ar body
+.It Ic def Ar name Ar \(r?arguments? Ar body
 The
 .Ic def
-funtion defines a new function component in the global environment.
+function defines a new function component in the global environment.
 .Ar name
 is the name given to the new function and
 .Ar body
-the code executed when the function is called. Values can be passed to the function through the optionally defined
-.Ar ¿arguments? .
+the code executed when the function is called.
+Values can be passed to the function through the optionally defined
+.Ar \(r?arguments? .
 .Bd -literal
 # A function without arguments.
 def get_number {
@@ -176,36 +194,54 @@ def to_everybody {*args} {
   print "Hello to [$args join { and }]"
 }
 .Ed
-.It Ic return Ar ¿*args?
-This finishes the current stack frame and optionally sets a return value. It’s typically used to return from a function or from the program itself if in the top stack frame.
+.It Ic return Ar \(r?*args?
+This finishes the current stack frame and optionally sets a return
+value.
+It is typically used to return from a function or from the program
+itself if in the top stack frame.
 .Bd -literal
 def concat {val1 val2} { return "$val1 $val2" }
 
-# Returning from the toplevel interpreter is fine.
-# This will be cutlet's return value.
+# Returning from the top-level interpreter is fine\.
+# This will be cutlet\(aqs return value\.
 return 0
 .Ed
-.It Ic global Ar name Ar ¿=? Ar ¿value?
+.It Ic global Ar name Ar \(r?\(r?=? Ar value?
 Create, assign or remove a variable from the current global
 .Vt sandbox .
-When value is given the variable is created, if needed, and assigned the value. When it's not given the variable is completely removed from the sandbox. The optional
+When value is given the variable is created, if needed, and assigned
+the value.
+When it is not given the variable is completely removed from the
+sandbox.
+The optional
 .Ar =
 argument is used to improve code clarity only.
-.It Ic local Ar name Ar ¿=? Ar ¿value?
-Create, assign or remove a variable from the current execution frame. When value is given the variable is created, if needed, and assigned the value. When it's not given the variable is completely removed from the frame. The optional
+.It Ic local Ar name Ar \(r?\(r?=? Ar value?
+Create, assign or remove a variable from the current execution frame.
+When value is given the variable is created, if needed, and assigned
+the value.
+When it is not given the variable is completely removed from the
+frame.
+The optional
 .Ar =
 argument is used to improve code clarity only.
-.It Ic block Ar ¿levels? Ar body
-Creates and evaluates an execution block frame. All block frames must have an execution frame which it has full access to, it actually extends the frame. If
+.It Ic block Ar \(r?levels? Ar body
+Creates and evaluates an execution block frame.
+All block frames must have an execution frame which it has full access
+to, it actually extends the frame.
+If
 .Ar levels
-is not given then the current execution frame is used. Otherwise, it uses the frame the number of levels up the execution stack. This is how confiditional execution function, like if or while, and iterators, like foreach, are created.
+is not given then the current execution frame is used.
+Otherwise, it uses the frame the number of levels up the execution
+stack.
+This is how conditional execution function, like if or while, and
+iterators, like foreach, are created.
 .Bd -literal
 def on {condition body} {
   if {$condition} then {
     block 3 $body
   }
 }
-
 on {$score == 10} cheer
 .Ed
 .It Ic print Ar *args
@@ -218,10 +254,20 @@ print [$names size] $names
   -> 3 John Fred Sam
 .Ed
 .It Ic sandbox
-Creates a new sandbox. All global variables and components are found in a sandbox. When a new interpreter is created it has its own default
+Creates a new sandbox.
+All global variables and components are found in a sandbox.
+When a new interpreter is created it has its own default
 .Vt sandbox .
-By creating a new sandbox the interpreter's environment can be temporarily replaced with a modified one for a specific purpose.
-.Pp A good example for using a sandbox is when Cutlet is used for configurations files. The default environment can be used to build a list of all the configuration files for an application then each file evaluated within another sanbox only supporting the configuation syntax. This way configuration files can't be used to access parts of the application it's not supposed to.
+By creating a new sandbox the interpreter\(aqs environment can be
+temporarily replaced with a modified one for a specific purpose.
+.Pp
+A good example for using a sandbox is when Cutlet is used for
+configurations files.
+The default environment can be used to build a list of all the
+configuration files for an application then each file evaluated within
+another sandbox only supporting the configuration syntax.
+This way configuration files cannot be used to access parts of the
+application it iss not supposed to.
 .Bd -literal
 global clean_env = [sandbox]
 $clean_env eval {
@@ -233,20 +279,24 @@ $clean_env eval {
 .Sh BUILTIN TYPES
 Variables within the interpreter all have a given
 .Em type
-that defines its value. Each of these
+that defines its value.
+Each of these
 .Em types
 can define a series of
 .Em operator functions
 to make the variable more convenient to work with.
 .Ss string
 A string contains text and is the fundamental type in cutlet.
-
 Character indices for operators like
 .Ic index
 .Ic insert
 and
 .Ic substr
-always start at 1. An index of 0 is invalid. They can also reference positions starting with the last character moving forward with negative values. For example an index of -1 is the very last character in the string. Any index out of range will raise an error.
+always start at 1. An index of 0 is invalid.
+They can also reference positions starting with the last character
+moving forward with negative values.
+For example an index of -1 is the very last character in the string.
+Any index out of range will raise an error.
 .Bl -tag -width Ds
 .It Ic "$string ==" Ar other
 .It Ic "$string =" Ar other
@@ -277,7 +327,7 @@ Inserts the
 .Ar value
 into the string at the given
 .Ar offset .
-.It Ic "$string index" Ar offset ¿¿=? value?
+.It Ic "$string index" Ar offset \(r?\(r?=? value?
 Returns the character from
 .Va $string
 at the given
@@ -359,8 +409,8 @@ Removes all the items from the list leaving it empty.
 .It Ic "$list foreach" Ar item Ar body
 Evaluates
 .Ar body
-for each item in the list. The item is places in a local
-variable of
+for each item in the list.
+The item is places in a local variable of
 .Ar body
 with the name specified by
 .Ar item .
@@ -369,7 +419,7 @@ $names foreach name {
   print $name
 }
 .Ed
-.It Ic "$list index" Ar index Ar ¿¿=? value?
+.It Ic "$list index" Ar index Ar \(r?\(r?=? value?
 Returns the value from
 .Va $list
 at the given
@@ -380,10 +430,11 @@ is given then the value at
 .Ar index
 is replaced with value in
 .Ar value .
-.It Ic "$list join" Ar ¿delimiter?
+.It Ic "$list join" Ar \(r?delimiter?
 Takes the contents of the list and joins them into a single string using
 .Ar delimiter
-as a seperator between each entry. If the
+as a separator between each entry.
+If the
 .Ar delimiter
 is not given then a single empty space is used.
 .It Ic "$list size"
@@ -393,10 +444,15 @@ global nums = [list 1 2 3]
 print [$nums size]
   -> 3
 .Ed
-.It Ic "$list sort" Ar ¿less?
-Sorts the items of the list in ascending order. By default each item will be compared as strings when sorting. The optional
+.It Ic "$list sort" Ar \(r?less?
+Sorts the items of the list in ascending order.
+By default each item will be compared as strings when sorting.
+The optional
 .Ar less
-argument can be used to specify a less comparison function used to sort the list with. The following examples how variable operators can be used to sort the list and even reverse the sorting.
+argument can be used to specify a less comparison function used to
+sort the list with.
+The following examples how variable operators can be used to sort the
+list and even reverse the sorting.
 .Bd -literal
 def _less_operator {v1 v2) {
   return [$v1 < $v2]
@@ -412,7 +468,10 @@ $mylist sort _less_reverse
 .Ed
 .El
 .Ss sandbox
-A sandbox contains the global environment for a Cutlet interpreter. A sandbox contains all the global variables and components. Typically a component is just a function but are flexable enough to represent other objects like object oriented programming classes.
+A sandbox contains the global environment for a Cutlet interpreter.
+A sandbox contains all the global variables and components.
+Typically a component is just a function but are flexible enough to
+represent other objects like object oriented programming classes.
 .Bl -tag -width Ds
 .It Ic "$sandbox eval" Ar body
 Executes
@@ -426,7 +485,7 @@ Executes
 with
 .Va $sandbox
 as the global environment and returns the result created.
-.It Ic "$sandbox link" Ar component Ar ¿¿as? ¿name??
+.It Ic "$sandbox link" Ar component Ar \(r?\(r?as? \(r?name??
 Creates a reference to a
 .Ar component
 from the current global sandbox in
@@ -438,16 +497,19 @@ Removes
 .Ar component
 from the
 .Va $sandbox .
-.It Ic "$sandbox global" Ar ¿=? Ar ¿value?
-Sets or remove a global variable in the sandbox. This is identical to the
-builtin command global.
+.It Ic "$sandbox global" Ar \(r?\(r?=? Ar value?
+Sets or remove a global variable in the sandbox.
+This is identical to the builtin command global.
 .It Ic "$sandbox clear"
 Removes all variables and components from the sandbox.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
 .It Ev CUTLETPATH
-If set, is a colon delimited list of directories added to the library search
-list in
+If set, is a colon delimited list of directories added to the library
+search list in
 .Va $library.path .
 .El
+.Sh AUTHORS
+.An Ron Wills
+.Mt <ron@digitalcombine.ca>

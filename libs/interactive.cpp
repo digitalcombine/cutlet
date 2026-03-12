@@ -34,7 +34,7 @@
  * interpreter. So only a single global reference is kept for the interpreter.
  * Also readline functions are single global references that only expect a
  * single interactive prompt. If any software uses more than one interpreter
- * and expects to have each one interactive, it could get very messy.
+ * and expects to have each one interactive could get very messy.
  *
  * I'm sure this could all be made to work but it's not an issue for anyone
  * right now so I'm moving on until it is.
@@ -45,6 +45,7 @@
 #include <cstring>
 #include <streambuf>
 #include <readline/readline.h>
+#include <readline/history.h>
 
 //#define DEBUG_INTERACTIVE 1
 
@@ -66,7 +67,6 @@ namespace {
    * _interp *
    ***********/
 
-
   cutlet::interpreter *_interp(cutlet::interpreter *i_ptr = nullptr) {
     // Keep a reference to the interpreter that loaded us.
     static cutlet::interpreter *i = nullptr;
@@ -74,38 +74,82 @@ namespace {
     return i;
   }
 
-  /****************************
-   * component_name_generator *
-   ****************************/
+  /**************************
+   * command_name_generator *
+   **************************/
 
-  char *component_name_generator(const char *text, int state) {
+  char *command_name_generator(const char *text, int state) {
     // Component name generator if readline auto completion.
-    static cutlet::sandbox::const_citerator iter, end;
+    static cutlet::sandbox::const_citerator citer, cend;
     static int len;
 
     if (!state) {
 #if DEBUG_INTERACTIVE
-      std::cerr << "INTERACTIVE: Readline completion state reset" << std::endl;
+      std::clog << "INTERACTIVE: Readline completion state reset" << std::endl;
 #endif
-      iter = _interp()->environment()->components().begin();
-      end = _interp()->environment()->components().end();
+      citer = _interp()->environment()->components().begin();
+      cend = _interp()->environment()->components().end();
       len = strlen(text);
     }
 
-    while ((++iter != end)) {
+    while (citer != cend) {
 #if DEBUG_INTERACTIVE
-      std::cerr << "INTERACTIVE: " << iter->first << " == " << text << std::endl;
+      std::clog << "INTERACTIVE: " << citer->first << " == " << text
+                << std::endl;
 #endif
-      if (iter->first.compare(0, len, text) == 0) {
+      if (citer->first.compare(0, len, text) == 0) {
 #if DEBUG_INTERACTIVE
-        std::cerr << "INTERACTIVE: match found" << std::endl;
+        std::clog << "INTERACTIVE: component match found" << std::endl;
 #endif
-        return strdup(iter->first.c_str());
+        char *result = strdup(citer->first.c_str());
+        ++citer;
+        return result;
       }
+      ++citer;
     }
 
 #if DEBUG_INTERACTIVE
     std::cerr << "INTERACTIVE: no more matches" << std::endl;
+#endif
+    return nullptr;
+  }
+
+  /**************************
+   * variable_name_generator *
+   **************************/
+
+  char *variable_name_generator(const char *text, int state) {
+    // Component name generator if readline auto completion.
+    static cutlet::sandbox::const_viterator iter, end;
+    static int len;
+
+    if (!state) {
+#if DEBUG_INTERACTIVE
+      std::clog << "INTERACTIVE: Readline completion state reset" << std::endl;
+#endif
+      iter = _interp()->environment()->variables().begin();
+      end = _interp()->environment()->variables().end();
+      len = strlen(text);
+    }
+
+    while (iter != end) {
+#if DEBUG_INTERACTIVE
+      std::clog << "INTERACTIVE: $" << iter->first << " == " << text
+                << std::endl;
+#endif
+      if (iter->first.compare(0, len, text) == 0) {
+#if DEBUG_INTERACTIVE
+        std::clog << "INTERACTIVE: variable match found" << std::endl;
+#endif
+        char *result = strdup(iter->first.c_str());
+        ++iter;
+        return result;
+      }
+      ++iter;
+    }
+
+#if DEBUG_INTERACTIVE
+    std::clog << "INTERACTIVE: no more matches" << std::endl;
 #endif
     return nullptr;
   }
@@ -117,7 +161,15 @@ namespace {
   char **component_name_completion(const char *text, int start, int end) {
     // Component name completion if readline auto completion.
     rl_attempted_completion_over = 1;
-    return rl_completion_matches(text, component_name_generator);
+    char **matches = nullptr;
+
+    if (start == 0) {
+      return rl_completion_matches(text, command_name_generator);
+    } else if (rl_line_buffer[start - 1] == '$') {
+      return rl_completion_matches(text, variable_name_generator);
+    }
+
+    return matches;
   }
 
   /*********************
@@ -128,7 +180,12 @@ namespace {
   _cutlet_prompt(cutlet::interpreter &interp, const cutlet::list &arguments) {
     (void)interp;
     (void)arguments;
-    return cutlet::var<cutlet::string>("$ ");
+
+    if (interp.need_more_input()) {
+      return cutlet::var<cutlet::string>("> ");
+    } else {
+      return cutlet::var<cutlet::string>("$ ");
+    }
   }
 
   /*********************
@@ -200,7 +257,7 @@ namespace {
       // function cutlet_prompt.
       std::string prompt = "$ ";
       try {
-        prompt = *(_interp()->call("cutlet_prompt", cutlet::list()));
+        prompt = *(_interp()->call("cutlet_prompt"));
       } catch (std::exception &err) {
 #if DEBUG_INTERACTIVE
         std::cerr << "DEBUG: Error calling cutlet_prompt "
@@ -218,6 +275,8 @@ namespace {
 #endif
         return traits_type::eof();
       }
+
+      add_history(line);
 
       // Update the the buffer and free allocated strings from readline.
       _linebuf = line;

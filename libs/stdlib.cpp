@@ -43,7 +43,8 @@
  */
 
 #include <cutlet>
-#include <unistd.h>
+#include <chrono>
+#include <thread>
 #include <cstdlib>
 #include <iostream>
 #include <libcutlet/utilities>
@@ -115,6 +116,7 @@ namespace {
   _false(cutlet::interpreter &interp, const cutlet::list &arguments) {
     (void)interp;
     (void)arguments;
+
     return cutlet::var<cutlet::boolean>(false);
   }
 
@@ -126,6 +128,7 @@ namespace {
   _true(cutlet::interpreter &interp, const cutlet::list &arguments) {
     (void)interp;
     (void)arguments;
+
     return cutlet::var<cutlet::boolean>(true);
   }
 
@@ -337,8 +340,9 @@ namespace {
   _sleep(cutlet::interpreter &interp, const cutlet::list &arguments) {
     (void)interp;
 
-    cutlet::variable::pointer secs = arguments[0];
-    sleep(atoi(cutlet::cast<std::string>(secs).c_str()));
+    auto arg = arguments[0];
+    auto secs = std::stol(*arg);
+    std::this_thread::sleep_for(std::chrono::seconds(secs));
 
     return nullptr;
   }

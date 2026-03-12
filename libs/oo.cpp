@@ -114,7 +114,14 @@ namespace {
 
     virtual ~_def_class() noexcept override;
 
-    void compile(cutlet::interpreter &interp, cutlet::variable::pointer body);
+    inline void compile(cutlet::interpreter &interp,
+                        cutlet::variable::pointer body) {
+      /* We need to keep the AST even though it should never be called
+       * again. The tokens will be needed later when compiling the methods and
+       * for the debugging API.
+       */
+      _compiled = interp(body);
+    }
 
     virtual cutlet::variable::pointer
     operator ()(cutlet::interpreter &interp,
@@ -124,20 +131,22 @@ namespace {
     operator ()(const std::string &method,
                 cutlet::interpreter &interp, const cutlet::list &arguments);
 
-    void add(const std::string &name, cutlet::component::pointer comp);
-    void add_class(const std::string &name, cutlet::component::pointer comp);
-    void add_property(const std::string &name);
-    void add_class_property(const std::string &name);
+    void add_method(const std::string &name, cutlet::component::pointer comp);
+    void add_class_method(const std::string &name,
+                          cutlet::component::pointer comp);
 
+    inline void add_property(const std::string &name) {
+      _properties.insert(name);
+    }
+    inline void add_class_property(const std::string &name) {
+      _class_properties[name] = std::make_shared<cutlet::string>();
+    }
     cutlet::variable::pointer class_property(const std::string &name) const;
-
     void class_property(const std::string &name,
                         cutlet::variable::pointer value);
-
-    //bool has_property(const std::string &name) const;
-
     bool has_class_property(const std::string &name) const;
 
+    inline const std::string &name() const { return _name; }
     virtual operator std::string () const { return "_oo::class_"; }
 
   private:
@@ -312,14 +321,18 @@ _def_class &_var_object::type() {
  * _var_object::operator () *
  ****************************/
 
-#include <iostream>
-
 cutlet::variable::pointer
 _var_object::operator()(cutlet::variable::pointer self,
                         cutlet::interpreter &interp,
                         const cutlet::list &arguments) {
   if (arguments.size() == 0) {
     throw std::runtime_error("no method given calling object");
+  }
+
+  // Automatic method type that returns the class name.
+  if (cutlet::cast<std::string>(arguments[0]) == "type") {
+    auto result = dynamic_cast<_def_class &>(*(_class)).name();
+    return std::make_shared<cutlet::string>(result);
   }
 
   cutlet::list args(arguments.begin() + 1, arguments.end());
@@ -336,6 +349,12 @@ _var_object::operator()(cutlet::component &cls,
                         const cutlet::list &arguments) {
   if (arguments.size() == 0) {
     throw std::runtime_error("no method given calling object");
+  }
+
+  // Automatic method type that returns the class name.
+  if (cutlet::cast<std::string>(arguments[0]) == "type") {
+    auto result = dynamic_cast<_def_class &>(*(_class)).name();
+    return std::make_shared<cutlet::string>(result);
   }
 
   cutlet::list params(arguments.begin() + 1, arguments.end());
@@ -397,19 +416,6 @@ _def_class::~_def_class() noexcept {
   _compiled = nullptr;
 }
 
-/***********************
- * _def_class::compile *
- ***********************/
-
-void _def_class::compile(cutlet::interpreter &interp,
-                         cutlet::variable::pointer body) {
-  /* We need to keep the AST even though it should never be called again. The
-   * tokens will be needed later when compiling the methods and for the
-   * debugging API.
-   */
-  _compiled = interp(body);
-}
-
 /***************************
  * _def_class::operator () *
  ***************************/
@@ -421,7 +427,9 @@ cutlet::variable::pointer _def_class::operator ()(cutlet::interpreter &interp,
     throw std::runtime_error("no method called for class");
   }
 
-  if (cutlet::primative<std::string>(arguments[0]) == "new") {
+  auto method = cutlet::primative<std::string>(arguments[0]);
+
+  if (method == "new") {
     // Create our new object
     auto obj = std::make_shared<_var_object>(interp.get(_name));
     add_properties(*obj);
@@ -432,11 +440,10 @@ cutlet::variable::pointer _def_class::operator ()(cutlet::interpreter &interp,
     interp.pop();
     return object;
 
-  } else if (cutlet::primative<std::string>(arguments[0]) == "type") {
+  } else if (method == "type") {
     return std::make_shared<cutlet::string>("class");
 
   } else {
-    std::string method = cutlet::primative<std::string>(arguments[0]);
     cutlet::list params(arguments.begin() + 1, arguments.end());
 
     // Find the class method.
@@ -480,6 +487,7 @@ _def_class::operator ()(const std::string &method,
     // Now check the parent class for the method.
     for (auto _parent_class: _parents) {
       m = dynamic_cast<_def_class &>(*(_parent_class))._methods.find(method);
+
       if (m != _methods.end()) {
         return (*(m->second))(interp, arguments);
       }
@@ -490,37 +498,30 @@ _def_class::operator ()(const std::string &method,
                            " not found");
 }
 
-/*******************
- * _def_class::add *
- *******************/
+/**************************
+ * _def_class::add_method *
+ **************************/
 
-void _def_class::add(const std::string &name, cutlet::component::pointer comp) {
-  _methods[name] = comp;
+void _def_class::add_method(const std::string &name,
+                            cutlet::component::pointer comp) {
+  if (name != "type") {
+    _methods[name] = comp;
+  } else {
+    throw std::runtime_error("Not allowed to override method " + name);
+  }
 }
 
-/*************************
- * _def_class::add_class *
- *************************/
+/********************************
+ * _def_class::add_class_method *
+ ********************************/
 
-void _def_class::add_class(const std::string &name,
-                           cutlet::component::pointer comp) {
-  _class_methods[name] = comp;
-}
-
-/****************************
- * _def_class::add_property *
- ****************************/
-
-void _def_class::add_property(const std::string &name) {
-  _properties.insert(name);
-}
-
-/**********************************
- * _def_class::add_class_property *
- **********************************/
-
-void _def_class::add_class_property(const std::string &name) {
-  _class_properties[name] = std::make_shared<cutlet::string>();
+void _def_class::add_class_method(const std::string &name,
+                                  cutlet::component::pointer comp) {
+  if (name != "type" or name != "new") {
+    _class_methods[name] = comp;
+  } else {
+    throw std::runtime_error("Not allowed to override class method " + name);
+  }
 }
 
 /******************************
@@ -534,8 +535,10 @@ _def_class::class_property(const std::string &name) const {
     return res->second;
   } else {
     for (auto &parent: _parents) {
-      if (dynamic_cast<const _def_class &>(*parent).has_class_property(name))
-        return dynamic_cast<const _def_class &>(*parent).class_property(name);
+      const auto &p_ref = dynamic_cast<_def_class &>(*parent);
+
+      if (p_ref.has_class_property(name))
+        return p_ref.class_property(name);
     }
   }
   return nullptr;
@@ -547,8 +550,10 @@ void _def_class::class_property(const std::string &name,
     _class_properties[name] = value;
   } else {
     for (auto &parent: _parents) {
-      if (dynamic_cast<_def_class &>(*parent).has_class_property(name))
-        dynamic_cast<_def_class &>(*parent).class_property(name, value);
+      auto &p_ref = dynamic_cast<_def_class &>(*parent);
+
+      if (p_ref.has_class_property(name))
+        p_ref.class_property(name, value);
     }
   }
 }
@@ -690,7 +695,7 @@ namespace {
     return nullptr;
   }
 
-  // def class.property name ¿=? value?
+  // def class.property name ¿¿=? value?
   cutlet::variable::pointer _c_property(cutlet::interpreter &interp,
                                         const cutlet::list &arguments) {
     cutlet::component::pointer self = interp.get("self");
@@ -748,7 +753,7 @@ namespace {
     }
 
     // Create and add our method to the class.
-    dynamic_cast<_def_class &>(*(self)).add(name,
+    dynamic_cast<_def_class &>(*(self)).add_method(name,
       std::make_shared<_def_method>(def_arguments, body));
 
     // No droids here.
@@ -783,7 +788,7 @@ namespace {
     }
 
     // Create and add our method to the class.
-    dynamic_cast<_def_class &>(*(self)).add_class(name,
+    dynamic_cast<_def_class &>(*(self)).add_class_method(name,
       std::make_shared<_def_method>(def_arguments, body));
 
     // No droids here.
@@ -851,19 +856,23 @@ namespace {
                                    const cutlet::list &arguments) {
 
     if (arguments.size() < 2) {
-      throw std::runtime_error("super class self method *args");
+      throw std::runtime_error("super class method *args");
+    }
+
+    // Check to make sure we're within the context of a method.
+    auto frame = interp.frame();
+    if (!dynamic_cast<_obj_frame *>(frame.get()) or
+        !dynamic_cast<_cls_frame *>(frame.get())) {
+      throw std::runtime_error("super called outside of a method");
     }
 
     cutlet::component &cls = *interp.get(*arguments[0]);
 
     auto self = interp.frame(1)->variable("self");
-    _var_object *obj = dynamic_cast<_var_object *>(&(*self));
-    if (obj) {
-      cutlet::list parms(arguments.begin() + 1, arguments.end());
-      return (*obj)(cls, self, interp, parms);
-    } else {
-      throw std::runtime_error("self isn't an object");
-    }
+    _var_object &obj = cutlet::cast<_var_object>(self);
+
+    cutlet::list parms(arguments.begin() + 1, arguments.end());
+    return obj(cls, self, interp, parms);
   }
 }
 
@@ -914,7 +923,7 @@ void oo_add_method(cutlet::interpreter &interp,
                    const std::string &method_name,
                    cutlet::function_t method) {
   cutlet::component::pointer comp = interp.get(class_name);
-  dynamic_cast<_def_class &>(*comp).add(method_name,
+  dynamic_cast<_def_class &>(*comp).add_method(method_name,
     std::make_shared<_def_method_func>(method));
 }
 
@@ -927,16 +936,16 @@ void oo_add_class_method(cutlet::interpreter &interp,
                          const std::string &method_name,
                          cutlet::function_t method) {
   cutlet::component::pointer comp = interp.get(class_name);
-  dynamic_cast<_def_class &>(*comp).add_class(method_name,
+  dynamic_cast<_def_class &>(*comp).add_class_method(method_name,
     std::make_shared<_def_method_func>(method));
 }
 
 /*******************
- * oo_add_property *
+ * oo_get_property *
  *******************/
 
 cutlet::variable::pointer oo_get_property(cutlet::interpreter &interp,
-                                          cutlet::variable::pointer &object,
+                                          cutlet::variable::pointer object,
                                           const std::string &prop_name) {
   (void)interp;
   return (cutlet::cast<_var_object>(object)).property(prop_name);

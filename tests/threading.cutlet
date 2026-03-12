@@ -47,11 +47,11 @@ testsuite "Threading API" {
     $t1 join
   }
 
-  def synced {
+  def synced {id} {
     $mtx {
-      print "In synced area"
+      print "In synced area $id"
       sleep 0
-      print "  done"
+      print "  $id done"
     }
   }
 
@@ -61,19 +61,19 @@ testsuite "Threading API" {
     local t1 = [thread {
       print "Thread 1 start"
       sleep 0
-      synced
+      synced 1
       print "Thread 1 end"
     }]
     local t2 = [thread {
       print "Thread 2 start"
       sleep 0
-      synced
+      synced 2
       print "Thread 2 end"
     }]
     local t3 = [thread {
       print "Thread 3 start"
       sleep 0
-      synced
+      synced 3
       print "Thread 3 end"
     }]
 
@@ -82,5 +82,18 @@ testsuite "Threading API" {
     $t3 join
 
     global mtx =
+  }
+
+  test "Exceptions" {
+    local t1 = [thread {
+      raise "Opps, the thread threw an error"
+    }]
+
+    try {
+      $t1 join
+      fail "Didn't catch the thread error during join"
+    } catch err {
+      print " info: $err"
+    }
   }
 }
